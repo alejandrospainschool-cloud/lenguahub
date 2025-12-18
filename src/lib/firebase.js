@@ -1,6 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+
+// ✅ ADD THESE:
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: "AIzaSyARKmGKLLjAvhdHPRNXhLvRi7f5V1nRLGQ",
@@ -13,8 +16,12 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// ✅ ADD THIS:
+export const functions = getFunctions(app);
 
 // SETUP PROVIDER WITH SCOPES
 export const provider = new GoogleAuthProvider();
@@ -28,3 +35,18 @@ export const onUserStateChange = (callback) => {
     callback(user);
   });
 };
+
+// ✅ ADD THIS: matches your Dashboard import
+export async function generateContent(prompt) {
+  try {
+    const call = httpsCallable(functions, 'generateContent');
+    const res = await call({ prompt });
+
+    // expected: { text: "..." }
+    const text = res?.data?.text;
+    return (typeof text === 'string' && text.trim()) ? text.trim() : 'No response';
+  } catch (err) {
+    console.error('generateContent failed:', err);
+    return 'AI request failed';
+  }
+}
