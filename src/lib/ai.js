@@ -1,32 +1,21 @@
-// Prefer a server-side API key via env (process.env.GEMINI_API_KEY),
-// otherwise fall back to any hardcoded key (not recommended for production).
-const GEMINI_API_KEY = (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY)
-  || "AIzaSyCZcEsfkUpTRijrfLTWDvojCFi6n7w35zM";
+// src/lib/ai.js
 
-export const generateContent = async (prompt) => {
-  if (!GEMINI_API_KEY) return 'Missing API key';
+// If VITE_API_BASE is set (dev in Codespaces), use it.
+// Otherwise (on Vercel), call same-origin /api/generate
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
+export async function generateContent(prompt) {
+  const res = await fetch(`${API_BASE}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  })
 
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ]
-      })
-    });
+  const data = await res.json().catch(() => ({}))
 
-    const data = await res.json();
-    return (
-      data.candidates?.[0]?.content?.parts?.[0]?.text ||
-      'No response'
-    );
-  } catch (e) {
-    return 'AI request failed';
+  if (!res.ok) {
+    throw new Error(data?.text || 'AI request failed')
   }
-};
+
+  return (data?.text || '').trim() || 'No response'
+}
