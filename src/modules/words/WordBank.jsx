@@ -1,240 +1,406 @@
 // src/modules/words/WordBank.jsx
-import React, { useState, useEffect } from 'react';
-import { addDoc, collection, deleteDoc, doc, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore';
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  Plus, Search, Lock, Folder, ArrowLeft, MoreHorizontal, 
+  Trash2, Edit2, Palette, FolderPlus, X, Check
+} from 'lucide-react';
+import { addDoc, collection, serverTimestamp, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Search, Plus, Trash2, Tag, X, BookOpen, FolderPlus, Folder } from 'lucide-react';
+
+// Predefined Folder Colors
+const FOLDER_COLORS = [
+  { name: 'Blue', hex: '#3b82f6', bg: 'bg-blue-500' },
+  { name: 'Purple', hex: '#a855f7', bg: 'bg-purple-500' },
+  { name: 'Green', hex: '#22c55e', bg: 'bg-green-500' },
+  { name: 'Orange', hex: '#f97316', bg: 'bg-orange-500' },
+  { name: 'Pink', hex: '#ec4899', bg: 'bg-pink-500' },
+  { name: 'Red', hex: '#ef4444', bg: 'bg-red-500' },
+  { name: 'Slate', hex: '#64748b', bg: 'bg-slate-500' },
+];
 
 export default function WordBank({ user, words = [] }) {
-  // --- STATES ---
-  const [showAddWord, setShowAddWord] = useState(false);
-  const [showAddGroup, setShowAddGroup] = useState(false);
+  // Navigation & UI State
+  const [currentFolder, setCurrentFolder] = useState(null); 
+  const [viewMode, setViewMode] = useState('folders'); // 'folders' or 'list'
   const [searchTerm, setSearchTerm] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Data States
-  const [groups, setGroups] = useState([]);
-  const [selectedGroup, setSelectedGroup] = useState('All'); // Filter by group
+  const [activeMenu, setActiveMenu] = useState(null); // ID of word with open menu
+
+  // Modals
+  const [modalMode, setModalMode] = useState(null); // 'add_word', 'add_folder', 'edit_word'
+  const [editTarget, setEditTarget] = useState(null); // The word object being edited
 
   // Form States
-  const [newWord, setNewWord] = useState({ term: '', translation: '', category: 'General' });
-  const [newGroupName, setNewGroupName] = useState('');
+  const [folderForm, setFolderForm] = useState({ name: '', color: FOLDER_COLORS[0] });
+  const [wordForm, setWordForm] = useState({ term: '', definition: '', category: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- LISTEN FOR GROUPS (Real-time) ---
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'groups'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  // --- 1. DATA LOGIC ---
+
+  // Extract unique categories with their assigned colors (based on the first word found in that cat)
+  const folders = useMemo(() => {
+    const map = new Map();
+    words.forEach(w => {
+      if (!map.has(w.category)) {
+        map.set(w.category, { name: w.category, color: w.folderColor || FOLDER_COLORS[0].hex, count: 0 });
+      }
+      const folder = map.get(w.category);
+      folder.count += 1;
     });
-    return () => unsubscribe();
-  }, [user]);
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [words]);
 
-  // --- FILTER LOGIC ---
-  const filteredWords = words.filter(w => {
-    const matchesSearch = w.term?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          w.translation?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesGroup = selectedGroup === 'All' || w.category === selectedGroup;
-    return matchesSearch && matchesGroup;
-  });
+  // Daily Limit Check
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const wordsAddedToday = words.filter(word => {
+    if (!word.createdAt) return false;
+    const date = word.createdAt.toDate ? word.createdAt.toDate() : new Date(word.createdAt);
+    return date >= startOfToday;
+  }).length;
+  const DAILY_LIMIT = 5;
+  const isPremium = user?.isPremium === true;
+  const hasReachedLimit = !isPremium && wordsAddedToday >= DAILY_LIMIT;
 
-  // --- HANDLERS ---
-  const handleAddWord = async (e) => {
+  // --- 2. ACTIONS ---
+
+  // Create New Folder (Actually just sets state to allow adding words to it)
+  const handleCreateFolder = (e) => {
     e.preventDefault();
-    if (!newWord.term || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'), {
-        ...newWord,
-        createdAt: serverTimestamp(),
-      });
-      setShowAddWord(false);
-      setNewWord({ term: '', translation: '', category: 'General' });
-    } catch (error) {
-      alert("Error: " + error.message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    if (!folderForm.name) return;
+    // In NoSQL, folders often don't exist until a word is in them. 
+    // We will simulate it by opening the Add Word modal with this folder pre-selected
+    setWordForm({ ...wordForm, category: folderForm.name });
+    setModalMode('add_word'); // Switch straight to adding a word to this new folder
   };
 
-  const handleAddGroup = async (e) => {
+  const handleSaveWord = async (e) => {
     e.preventDefault();
-    if (!newGroupName || isSubmitting) return;
+    if (!wordForm.term || !wordForm.definition || !wordForm.category) return;
+
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'groups'), {
-        name: newGroupName,
-        createdAt: serverTimestamp(),
-      });
-      setShowAddGroup(false);
-      setNewGroupName('');
+      // Find color of selected category
+      const selectedColor = folders.find(f => f.name === wordForm.category)?.color || folderForm.color.hex;
+
+      if (modalMode === 'edit_word' && editTarget) {
+        // UPDATE EXISTING
+        const docRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank', editTarget.id);
+        await updateDoc(docRef, {
+          term: wordForm.term,
+          definition: wordForm.definition,
+          category: wordForm.category,
+          folderColor: selectedColor
+        });
+      } else {
+        // CREATE NEW
+        await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'), {
+          ...wordForm,
+          folderColor: selectedColor, // Save color to word so we remember it
+          createdAt: serverTimestamp(),
+          mastery: 0,
+        });
+      }
+      closeModal();
     } catch (error) {
-      alert("Error: " + error.message);
+      console.error("Error saving:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteWord = async (id) => {
-    if(!window.confirm("Delete this word?")) return;
-    await deleteDoc(doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank', id));
+    if (!window.confirm("Delete this word?")) return;
+    try {
+      await deleteDoc(doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank', id));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // --- RENDER ---
+  const openEditModal = (word) => {
+    setEditTarget(word);
+    setWordForm({ term: word.term, definition: word.definition, category: word.category });
+    setModalMode('edit_word');
+    setActiveMenu(null);
+  };
+
+  const closeModal = () => {
+    setModalMode(null);
+    setEditTarget(null);
+    setWordForm({ term: '', definition: '', category: '' });
+    setFolderForm({ name: '', color: FOLDER_COLORS[0] });
+  };
+
+  // Filter Logic
+  const visibleWords = words.filter(w => {
+    const matchesSearch = w.term.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFolder = currentFolder ? w.category === currentFolder.name : true;
+    return searchTerm ? matchesSearch : matchesFolder;
+  });
+
+  // --- 3. UI COMPONENTS ---
+
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
+    <div className="max-w-6xl mx-auto min-h-[80vh] flex flex-col animate-in fade-in duration-500">
       
-      {/* HEADER & ACTIONS */}
-      <div className="flex flex-col md:flex-row justify-between items-end gap-4 pt-4">
-        <div>
-          <h1 className="text-4xl font-bold text-white tracking-tight mb-2">Word Bank</h1>
-          <p className="text-slate-400">Your personal collection of <span className="text-cyan-400 font-bold">{words.length}</span> words.</p>
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 pt-4">
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          {currentFolder && !searchTerm && (
+            <button 
+              onClick={() => setCurrentFolder(null)}
+              className="p-2 rounded-xl hover:bg-white/10 text-slate-400 transition-colors"
+            >
+              <ArrowLeft size={24} />
+            </button>
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-white tracking-tight">
+              {searchTerm ? 'Search' : (currentFolder?.name || 'My Collections')}
+            </h1>
+            <p className="text-slate-400 text-sm">
+              {currentFolder ? `${visibleWords.length} words` : 'Organize your vocabulary'}
+            </p>
+          </div>
         </div>
 
-        <div className="flex gap-3">
-          {/* NEW GROUP BUTTON */}
-          <button 
-            onClick={() => setShowAddGroup(true)}
-            className="bg-[#0f172a] border border-slate-700 text-white px-5 py-3 rounded-xl font-bold hover:bg-slate-800 hover:border-slate-600 transition-all flex items-center gap-2"
-          >
-            <FolderPlus size={20} className="text-slate-400" /> <span className="hidden sm:inline">New Group</span>
-          </button>
+        <div className="flex gap-3 w-full md:w-auto">
+           {/* Search */}
+           <div className="relative flex-1 md:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+            <input 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search..." 
+              className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50"
+            />
+          </div>
 
-          {/* NEW WORD BUTTON */}
+          {/* Action Buttons */}
           <button 
-            onClick={() => setShowAddWord(true)}
-            className="bg-white text-slate-900 px-6 py-3 rounded-xl font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-cyan-50 transition-all active:scale-95 flex items-center gap-2"
+            onClick={() => setModalMode('add_folder')}
+            className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-white/5 transition-colors"
+            title="New Folder"
           >
-            <Plus size={20} /> New Word
+            <FolderPlus size={20} />
+          </button>
+          <button 
+            onClick={() => { setWordForm(prev => ({...prev, category: currentFolder?.name || ''})); setModalMode('add_word'); }}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-900/20 active:scale-95 transition-all"
+          >
+            <Plus size={18} /> <span className="hidden sm:inline">Word</span>
           </button>
         </div>
       </div>
 
-      {/* GROUPS / TABS SCROLL */}
-      {groups.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          <button
-            onClick={() => setSelectedGroup('All')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors border ${selectedGroup === 'All' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-[#0f172a] border-white/10 text-slate-400 hover:bg-slate-800'}`}
-          >
-            All Words
-          </button>
-          {groups.map(g => (
-            <button
-              key={g.id}
-              onClick={() => setSelectedGroup(g.name)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors border ${selectedGroup === g.name ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-[#0f172a] border-white/10 text-slate-400 hover:bg-slate-800'}`}
+      {/* --- VIEW: FOLDERS --- */}
+      {!currentFolder && !searchTerm && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {folders.map(folder => (
+            <button 
+              key={folder.name} 
+              onClick={() => setCurrentFolder(folder)}
+              className="group relative flex flex-col items-start p-6 bg-slate-900/40 border border-white/5 rounded-3xl transition-all duration-300 hover:bg-slate-800/60"
+              style={{ borderColor: `${folder.color}33` }} // 33 is opacity for hex
             >
-              {g.name}
+              <div 
+                className="mb-4 p-3 rounded-2xl transition-transform group-hover:scale-110"
+                style={{ backgroundColor: `${folder.color}20`, color: folder.color }}
+              >
+                <Folder size={28} fill="currentColor" className="opacity-80" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-100 mb-1">{folder.name}</h3>
+              <p className="text-sm text-slate-500 font-medium">{folder.count} words</p>
             </button>
           ))}
+
+          {folders.length === 0 && (
+            <div className="col-span-full py-16 text-center border border-dashed border-white/10 rounded-3xl">
+              <p className="text-slate-500">No collections found. Create a folder to get started.</p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* SEARCH BAR */}
-      <div className="relative group">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-400/20 rounded-2xl blur-md group-hover:blur-lg transition-all opacity-50" />
-        <div className="relative bg-[#0f172a] border border-white/10 rounded-2xl flex items-center p-4 transition-colors focus-within:border-cyan-500/50">
-          <Search className="text-slate-500 mr-3" size={24} />
-          <input 
-            type="text" 
-            placeholder="Search your words..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-transparent w-full text-white placeholder-slate-500 focus:outline-none text-lg"
-          />
-        </div>
-      </div>
-
-      {/* WORD GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredWords.length > 0 ? (
-          filteredWords.map((w) => (
-            <div key={w.id} className="group relative bg-[#0f172a] border border-white/5 rounded-2xl p-6 hover:border-cyan-500/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_30px_-10px_rgba(34,211,238,0.15)]">
-              <div className="flex justify-between items-start mb-4">
-                <div className="w-10 h-10 rounded-lg bg-slate-800/50 flex items-center justify-center text-cyan-400 border border-white/5">
-                  <BookOpen size={20} />
+      {/* --- VIEW: WORD LIST --- */}
+      {(currentFolder || searchTerm) && (
+        <div className="space-y-3">
+          {visibleWords.map((word) => (
+            <div 
+              key={word.id} 
+              className="group relative flex items-center justify-between p-4 bg-slate-900/40 border border-white/5 rounded-2xl hover:border-white/10 transition-all"
+            >
+              <div className="flex items-center gap-4">
+                {/* Colored Indicator */}
+                <div 
+                  className="w-1.5 h-10 rounded-full" 
+                  style={{ backgroundColor: word.folderColor || '#3b82f6' }} 
+                />
+                
+                <div>
+                  <h4 className="text-lg font-bold text-white">{word.term}</h4>
+                  <p className="text-slate-400 text-sm">{word.definition}</p>
                 </div>
-                <button onClick={() => handleDeleteWord(w.id)} className="text-slate-600 hover:text-red-400 transition-colors p-2">
-                  <Trash2 size={18} />
-                </button>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-1">{w.term}</h3>
-              <p className="text-cyan-200/80 text-lg font-medium mb-6">{w.translation}</p>
-              <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-                  <Tag size={10} /> {w.category}
-                </span>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="col-span-full py-20 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/5 rounded-3xl bg-white/5">
-            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
-              <BookOpen size={32} className="text-slate-500" />
-            </div>
-            <h3 className="text-xl font-bold text-white">No words found</h3>
-            <p className="text-slate-400 mt-1">Add your first word to get started!</p>
-          </div>
-        )}
-      </div>
 
-      {/* --- MODAL: ADD WORD --- */}
-      {showAddWord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0f172a] border border-slate-700 p-8 rounded-3xl shadow-2xl w-full max-w-md relative">
-            <button onClick={() => setShowAddWord(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white"><X size={24} /></button>
-            <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><Plus className="text-cyan-400" /> Add New Entry</h3>
-            <form onSubmit={handleAddWord} className="space-y-5">
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1 block">Term</label>
-                <input autoFocus className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-white focus:outline-none focus:border-cyan-500 transition-colors text-lg" placeholder="e.g. Bonjour" value={newWord.term} onChange={e => setNewWord({...newWord, term: e.target.value})} />
+              {/* Quick Actions Menu */}
+              <div className="relative">
+                <button 
+                  onClick={() => setActiveMenu(activeMenu === word.id ? null : word.id)}
+                  className="p-2 text-slate-600 hover:text-white transition-colors"
+                >
+                  <MoreHorizontal size={20} />
+                </button>
+
+                {activeMenu === word.id && (
+                  <div className="absolute right-0 top-full mt-2 w-32 bg-slate-800 border border-white/10 rounded-xl shadow-xl overflow-hidden z-20">
+                    <button 
+                      onClick={() => openEditModal(word)}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white text-left"
+                    >
+                      <Edit2 size={14} /> Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteWord(word.id)}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 text-left"
+                    >
+                      <Trash2 size={14} /> Delete
+                    </button>
+                  </div>
+                )}
               </div>
+            </div>
+          ))}
+          
+          {/* Overlay to close menu when clicking outside */}
+          {activeMenu && (
+            <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
+          )}
+        </div>
+      )}
+
+      {/* --- MODAL: CREATE FOLDER --- */}
+      {modalMode === 'add_folder' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0f172a] border border-white/10 w-full max-w-sm rounded-3xl p-6 shadow-2xl relative">
+            <button onClick={closeModal} className="absolute top-4 right-4 text-slate-500 hover:text-white"><X size={20}/></button>
+            
+            <h2 className="text-xl font-bold text-white mb-4">New Collection</h2>
+            <form onSubmit={handleCreateFolder} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1 block">Translation</label>
-                <input className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-white focus:outline-none focus:border-cyan-500 transition-colors" placeholder="e.g. Hello" value={newWord.translation} onChange={e => setNewWord({...newWord, translation: e.target.value})} />
+                <label className="text-xs font-bold text-slate-500 uppercase ml-1">Name</label>
+                <input 
+                  autoFocus
+                  value={folderForm.name}
+                  onChange={e => setFolderForm({...folderForm, name: e.target.value})}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+                  placeholder="e.g. Verbs"
+                />
               </div>
               
-              {/* DYNAMIC GROUP SELECTION */}
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1 block">Group / Category</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['General', ...groups.map(g => g.name)].slice(0, 6).map(cat => (
-                    <button type="button" key={cat} onClick={() => setNewWord({...newWord, category: cat})} className={`py-2 px-1 truncate rounded-lg text-xs font-bold border ${newWord.category === cat ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-900 border-slate-800 text-slate-500 hover:bg-slate-800'}`}>
-                      {cat}
-                    </button>
+                <label className="text-xs font-bold text-slate-500 uppercase ml-1 mb-2 block">Color Code</label>
+                <div className="flex gap-2 flex-wrap">
+                  {FOLDER_COLORS.map(c => (
+                    <button
+                      key={c.name}
+                      type="button"
+                      onClick={() => setFolderForm({...folderForm, color: c})}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${c.bg} ${folderForm.color.name === c.name ? 'border-white scale-110' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                    />
                   ))}
                 </div>
               </div>
 
-              <button type="submit" disabled={isSubmitting} className="w-full py-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all active:scale-95 mt-4">
-                {isSubmitting ? 'Saving...' : 'Save to Word Bank'}
+              <button className="w-full py-3 bg-slate-200 hover:bg-white text-slate-900 font-bold rounded-xl mt-4">
+                Create & Add First Word
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* --- MODAL: ADD GROUP --- */}
-      {showAddGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0f172a] border border-slate-700 p-8 rounded-3xl shadow-2xl w-full max-w-sm relative">
-            <button onClick={() => setShowAddGroup(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white"><X size={24} /></button>
-            <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><FolderPlus className="text-slate-400" /> New Group</h3>
-            <p className="text-slate-400 text-sm mb-6">Create a folder to organize your words.</p>
+      {/* --- MODAL: ADD / EDIT WORD --- */}
+      {(modalMode === 'add_word' || modalMode === 'edit_word') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0f172a] border border-white/10 w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
+            <button onClick={closeModal} className="absolute top-4 right-4 text-slate-500 hover:text-white"><X size={20}/></button>
+
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {modalMode === 'edit_word' ? 'Edit Word' : 'New Word'}
+            </h2>
             
-            <form onSubmit={handleAddGroup} className="space-y-5">
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1 block">Group Name</label>
-                <input autoFocus className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-white focus:outline-none focus:border-white transition-colors text-lg" placeholder="e.g. Verbs, Travel, Food" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} />
+            {/* LIMIT CHECK (Only for Add mode) */}
+            {modalMode === 'add_word' && hasReachedLimit ? (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center mt-4">
+                <Lock className="mx-auto text-amber-500 mb-2" />
+                <p className="text-white font-bold">Daily Limit Reached</p>
+                <p className="text-slate-400 text-xs mb-3">Upgrade to add more words.</p>
+                <button className="bg-amber-500 text-black px-4 py-2 rounded-lg text-sm font-bold w-full">Upgrade</button>
               </div>
-              <button type="submit" disabled={isSubmitting} className="w-full py-4 rounded-xl bg-slate-100 hover:bg-white text-slate-900 font-bold transition-all active:scale-95 mt-2">
-                {isSubmitting ? 'Creating...' : 'Create Group'}
-              </button>
-            </form>
+            ) : (
+              <form onSubmit={handleSaveWord} className="space-y-4 mt-4">
+                
+                {/* Folder Selection (Quick Move) */}
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Folder</label>
+                  <div className="grid grid-cols-2 gap-2 mt-1 max-h-32 overflow-y-auto pr-1">
+                    {folders.map(f => (
+                      <button
+                        key={f.name}
+                        type="button"
+                        onClick={() => setWordForm({...wordForm, category: f.name})}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-all ${
+                          wordForm.category === f.name 
+                          ? 'bg-blue-600 border-blue-500 text-white' 
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+                        }`}
+                      >
+                        <div className="w-2 h-2 rounded-full" style={{background: f.color}} />
+                        <span className="truncate">{f.name}</span>
+                      </button>
+                    ))}
+                    {/* Option to create new if list is empty or user wants new */}
+                    <button
+                      type="button"
+                      onClick={() => { closeModal(); setModalMode('add_folder'); }}
+                      className="px-3 py-2 rounded-lg border border-dashed border-slate-700 text-slate-500 text-sm hover:text-white hover:border-slate-500"
+                    >
+                      + New Folder
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Term</label>
+                  <input 
+                    value={wordForm.term}
+                    onChange={e => setWordForm({...wordForm, term: e.target.value})}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+                    placeholder="e.g. Bonjour"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Definition</label>
+                  <input 
+                    value={wordForm.definition}
+                    onChange={e => setWordForm({...wordForm, definition: e.target.value})}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+                    placeholder="e.g. Hello"
+                  />
+                </div>
+
+                <button 
+                  disabled={isSubmitting} 
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg mt-2"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
-
     </div>
   );
 }
