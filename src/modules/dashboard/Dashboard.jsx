@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { generateContent } from '../../lib/ai'
 import {
   Calendar as CalendarIcon,
   Book,
@@ -16,52 +15,22 @@ import {
   Trophy,
 } from 'lucide-react'
 
-// --- YOUR LIBRARY IMPORTS ---
 import { calculateStats } from '../../lib/gamification'
+import { generateContent } from '../../lib/ai'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-
-async function generateContent(prompt) {
-  const res = await fetch('/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
-  })
-
-  const raw = await res.text()
-
-  if (!res.ok) {
-    // try to show server error
-    try {
-      const parsed = JSON.parse(raw)
-      throw new Error(parsed?.text || `Request failed (${res.status})`)
-    } catch {
-      throw new Error(raw || `Request failed (${res.status})`)
-    }
-  }
-
-  try {
-    const data = JSON.parse(raw)
-    return (data.text || '').trim() || 'No response'
-  } catch {
-    return raw.trim() || 'No response'
-  }
-}
 
 export default function Dashboard({ user, words = [], events = [] }) {
   const navigate = useNavigate()
   const upcomingCount = events.length || 0
 
-  // Real-time Gamification Stats
   const stats = useMemo(() => calculateStats(words), [words])
 
-  // Translator State
   const [inputText, setInputText] = useState('')
   const [translatedText, setTranslatedText] = useState('')
   const [isTranslating, setIsTranslating] = useState(false)
   const [hasSaved, setHasSaved] = useState(false)
 
-  // --- 1. TRANSLATION HANDLER ---
   const handleTranslate = async () => {
     if (!inputText.trim()) return
 
@@ -75,32 +44,17 @@ export default function Dashboard({ user, words = [], events = [] }) {
       setTranslatedText(result.trim())
     } catch (error) {
       console.error('Translation Failed:', error)
-      setTranslatedText(`Error: ${error?.message || 'Connection failed'}`)
+      setTranslatedText(`Error: ${error?.message || 'AI request failed'}`)
     } finally {
       setIsTranslating(false)
     }
   }
 
-  // --- 2. SAVE TO WORD BANK HANDLER ---
   const saveToWordBank = async () => {
-    if (
-      !translatedText ||
-      translatedText === 'Translation...' ||
-      hasSaved ||
-      !user ||
-      translatedText.startsWith('Error:')
-    )
-      return
+    if (!translatedText || hasSaved || !user || translatedText.startsWith('Error:')) return
 
     try {
-      const wordsRef = collection(
-        db,
-        'artifacts',
-        'language-hub-v2',
-        'users',
-        user.uid,
-        'wordbank'
-      )
+      const wordsRef = collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank')
 
       await addDoc(wordsRef, {
         term: translatedText,
@@ -169,11 +123,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
             </div>
 
             <div className="hidden md:flex flex-col items-center justify-center pt-6 text-indigo-400">
-              {isTranslating ? (
-                <Loader2 size={24} className="animate-spin" />
-              ) : (
-                <ArrowRight size={24} />
-              )}
+              {isTranslating ? <Loader2 size={24} className="animate-spin" /> : <ArrowRight size={24} />}
             </div>
 
             <div className="space-y-2">
@@ -183,9 +133,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
               <div className="relative group">
                 <div
                   className={`w-full bg-[#0f172a]/80 border ${
-                    translatedText
-                      ? 'border-purple-500/50 text-white'
-                      : 'border-indigo-500/10 text-slate-600'
+                    translatedText ? 'border-purple-500/50 text-white' : 'border-indigo-500/10 text-slate-600'
                   } rounded-2xl p-4 text-lg min-h-[62px] flex items-center pr-12 transition-all`}
                 >
                   {translatedText || 'Translation...'}
@@ -214,11 +162,11 @@ export default function Dashboard({ user, words = [], events = [] }) {
         </div>
       </div>
 
+      {/* Rest of your dashboard below... */}
       <header className="text-center space-y-6">
         <div>
           <h1 className="text-4xl font-bold text-white mb-2 flex items-center justify-center gap-3">
-            Hey {user?.displayName?.split(' ')[0] || 'Student'}{' '}
-            <span className="animate-wave inline-block">👋</span>
+            Hey {user?.displayName?.split(' ')[0] || 'Student'} <span className="animate-wave inline-block">👋</span>
           </h1>
           <p className="text-lg text-slate-400 font-medium flex items-center justify-center gap-2">
             One step closer to fluency
@@ -259,41 +207,10 @@ export default function Dashboard({ user, words = [], events = [] }) {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4 md:px-0">
-        <MenuCard
-          icon={<Book />}
-          title="Word Bank"
-          stats={`${words.length} words collected.`}
-          desc="Grow your vocabulary."
-          btnText="Open Word Bank"
-          onClick={() => navigate('/words')}
-        />
-
-        <MenuCard
-          icon={<CalendarIcon />}
-          title="Schedule"
-          stats={`${upcomingCount} lessons planned.`}
-          desc="Plan your week."
-          btnText="View Schedule"
-          onClick={() => navigate('/calendar')}
-        />
-
-        <MenuCard
-          icon={<Brain />}
-          title="Study Mode"
-          stats="Flashcards & quizzes."
-          desc="Earn XP by practicing."
-          btnText="Start Studying"
-          onClick={() => navigate('/study')}
-        />
-
-        <MenuCard
-          icon={<Sparkles />}
-          title="AI Tools"
-          stats="Translate & summarize."
-          desc="Get smart assistance."
-          btnText="Open AI Tools"
-          onClick={() => navigate('/tools')}
-        />
+        <MenuCard icon={<Book />} title="Word Bank" stats={`${words.length} words collected.`} desc="Grow your vocabulary." btnText="Open Word Bank" onClick={() => navigate('/words')} />
+        <MenuCard icon={<CalendarIcon />} title="Schedule" stats={`${upcomingCount} lessons planned.`} desc="Plan your week." btnText="View Schedule" onClick={() => navigate('/calendar')} />
+        <MenuCard icon={<Brain />} title="Study Mode" stats="Flashcards & quizzes." desc="Earn XP by practicing." btnText="Start Studying" onClick={() => navigate('/study')} />
+        <MenuCard icon={<Sparkles />} title="AI Tools" stats="Translate & summarize." desc="Get smart assistance." btnText="Open AI Tools" onClick={() => navigate('/tools')} />
       </div>
     </div>
   )
@@ -301,12 +218,8 @@ export default function Dashboard({ user, words = [], events = [] }) {
 
 function MenuCard({ icon, title, stats, desc, btnText, onClick }) {
   return (
-    <div
-      onClick={onClick}
-      className="group relative rounded-3xl p-1 cursor-pointer transition-transform duration-300 hover:-translate-y-1"
-    >
+    <div onClick={onClick} className="group relative rounded-3xl p-1 cursor-pointer transition-transform duration-300 hover:-translate-y-1">
       <div className="absolute inset-0 rounded-3xl bg-[#1e293b] opacity-60 backdrop-blur-xl border border-slate-800 group-hover:border-slate-600 transition-colors" />
-
       <div className="relative z-10 p-6 flex flex-col h-full justify-between">
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-4">
