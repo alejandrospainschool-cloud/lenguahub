@@ -1,4 +1,7 @@
-const GEMINI_API_KEY = "AIzaSyCZcEsfkUpTRijrfLTWDvojCFi6n7w35zM";
+// Prefer a server-side API key via env (process.env.GEMINI_API_KEY),
+// otherwise fall back to any hardcoded key (not recommended for production).
+const GEMINI_API_KEY = (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY)
+  || "AIzaSyCZcEsfkUpTRijrfLTWDvojCFi6n7w35zM";
 
 export const generateContent = async (prompt) => {
   if (!GEMINI_API_KEY) return 'Missing API key';
