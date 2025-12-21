@@ -1,3 +1,4 @@
+// src/modules/dashboard/Dashboard.jsx
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -13,6 +14,8 @@ import {
   Check,
   X,
   Trophy,
+  FolderPlus,
+  Folder
 } from 'lucide-react'
 
 import { calculateStats } from '../../lib/gamification'
@@ -20,16 +23,43 @@ import { generateContent } from '../../lib/ai'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 
+// Consistent colors for new folders
+const FOLDER_COLORS = [
+  '#3b82f6', // Blue
+  '#a855f7', // Purple
+  '#22c55e', // Green
+  '#f97316', // Orange
+  '#ec4899', // Pink
+  '#ef4444', // Red
+];
+
 export default function Dashboard({ user, words = [], events = [] }) {
   const navigate = useNavigate()
   const upcomingCount = events.length || 0
 
   const stats = useMemo(() => calculateStats(words), [words])
 
+  // --- TRANSLATOR STATE ---
   const [inputText, setInputText] = useState('')
   const [translatedText, setTranslatedText] = useState('')
   const [isTranslating, setIsTranslating] = useState(false)
+  
+  // --- SAVE MODAL STATE ---
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  const [targetFolder, setTargetFolder] = useState('') // Name of selected/new folder
+  const [isNewFolder, setIsNewFolder] = useState(false) // Toggle input for new folder
   const [hasSaved, setHasSaved] = useState(false)
+
+  // 1. EXTRACT EXISTING FOLDERS (Same logic as WordBank)
+  const existingFolders = useMemo(() => {
+    const map = new Map();
+    words.forEach(w => {
+      if (!map.has(w.category)) {
+        map.set(w.category, { name: w.category, color: w.folderColor || '#3b82f6' });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [words]);
 
   const handleTranslate = async () => {
     if (!inputText.trim()) return
@@ -51,35 +81,47 @@ export default function Dashboard({ user, words = [], events = [] }) {
   }
 
   const saveToWordBank = async () => {
-    if (!translatedText || hasSaved || !user || translatedText.startsWith('Error:')) return
+    if (!translatedText || !user || !targetFolder) return
 
     try {
       const wordsRef = collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank')
 
+      // Determine color: Use existing if folder exists, else pick random
+      const existing = existingFolders.find(f => f.name === targetFolder);
+      const colorToUse = existing ? existing.color : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
+
       await addDoc(wordsRef, {
         term: translatedText,
         translation: inputText,
-        category: 'Saved',
+        category: targetFolder, // Uses the selected folder name
+        folderColor: colorToUse,
         createdAt: serverTimestamp(),
         mastery: 0,
       })
 
+      // Success UI
+      setShowSaveModal(false)
       setHasSaved(true)
+      setTargetFolder('')
+      setIsNewFolder(false)
 
       setTimeout(() => {
         setInputText('')
         setTranslatedText('')
         setHasSaved(false)
       }, 2000)
+
     } catch (err) {
       console.error('Failed to save word:', err)
-      alert('Error saving to Word Bank. Check your internet connection.')
+      alert('Error saving to Word Bank.')
     }
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-12">
-      <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 border border-indigo-500/30 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl">
+    <div className="w-full max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-12 relative">
+      
+      {/* --- QUICK TRANSLATOR CARD --- */}
+      <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 border border-indigo-500/30 rounded-3xl p-6 md:p-8 relative overflow-visible shadow-2xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
         <div className="relative z-10">
@@ -92,12 +134,13 @@ export default function Dashboard({ user, words = [], events = [] }) {
             </div>
             {hasSaved && (
               <span className="text-green-400 text-sm font-bold flex items-center gap-1 animate-in fade-in">
-                <Check size={16} /> Saved to Word Bank
+                <Check size={16} /> Saved!
               </span>
             )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center">
+            {/* ENGLISH INPUT */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-indigo-300 uppercase ml-2 tracking-wider">
                 English
@@ -122,10 +165,12 @@ export default function Dashboard({ user, words = [], events = [] }) {
               </div>
             </div>
 
+            {/* ARROW ICON */}
             <div className="hidden md:flex flex-col items-center justify-center pt-6 text-indigo-400">
               {isTranslating ? <Loader2 size={24} className="animate-spin" /> : <ArrowRight size={24} />}
             </div>
 
+            {/* SPANISH OUTPUT */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-purple-300 uppercase ml-2 tracking-wider">
                 Spanish
@@ -139,9 +184,10 @@ export default function Dashboard({ user, words = [], events = [] }) {
                   {translatedText || 'Translation...'}
                 </div>
 
+                {/* SAVE BUTTON */}
                 {translatedText && !hasSaved && !translatedText.startsWith('Error:') && (
                   <button
-                    onClick={saveToWordBank}
+                    onClick={() => setShowSaveModal(true)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all shadow-lg shadow-purple-500/20 active:scale-95"
                     title="Save to Word Bank"
                   >
@@ -151,6 +197,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
               </div>
             </div>
 
+            {/* MOBILE TRANSLATE BUTTON */}
             <button
               onClick={handleTranslate}
               disabled={isTranslating}
@@ -160,9 +207,84 @@ export default function Dashboard({ user, words = [], events = [] }) {
             </button>
           </div>
         </div>
+
+        {/* --- SAVE FOLDER MODAL OVERLAY --- */}
+        {showSaveModal && (
+          <div className="absolute inset-0 z-50 rounded-3xl bg-[#02040a]/95 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
+            <div className="w-full max-w-sm p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold text-lg">Save to Collection</h3>
+                <button onClick={() => setShowSaveModal(false)} className="text-slate-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {/* EXISTING FOLDERS LIST */}
+                {!isNewFolder && (
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                    {existingFolders.map(f => (
+                      <button
+                        key={f.name}
+                        onClick={() => setTargetFolder(f.name)}
+                        className={`p-3 rounded-xl border text-left text-sm font-medium transition-all flex items-center gap-2 ${
+                          targetFolder === f.name 
+                          ? 'bg-indigo-600 border-indigo-500 text-white' 
+                          : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
+                        <span className="truncate">{f.name}</span>
+                      </button>
+                    ))}
+                    
+                    {/* BUTTON TO TOGGLE NEW FOLDER INPUT */}
+                    <button
+                      onClick={() => { setIsNewFolder(true); setTargetFolder(''); }}
+                      className="p-3 rounded-xl border border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-slate-400 text-sm flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <FolderPlus size={16} /> New Folder
+                    </button>
+                  </div>
+                )}
+
+                {/* NEW FOLDER INPUT */}
+                {isNewFolder && (
+                  <div className="animate-in slide-in-from-bottom-2">
+                    <label className="text-xs text-slate-400 mb-1 block">New Folder Name</label>
+                    <div className="flex gap-2">
+                      <input 
+                        autoFocus
+                        value={targetFolder}
+                        onChange={(e) => setTargetFolder(e.target.value)}
+                        placeholder="e.g. Verbs, Travel..."
+                        className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                      />
+                      <button 
+                        onClick={() => setIsNewFolder(false)}
+                        className="p-2 text-slate-400 hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* CONFIRM BUTTON */}
+              <button
+                disabled={!targetFolder}
+                onClick={saveToWordBank}
+                className="w-full py-3 bg-white text-slate-900 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors mt-2"
+              >
+                Confirm Save
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Rest of your dashboard below... */}
+      {/* --- DASHBOARD STATS HEADER --- */}
       <header className="text-center space-y-6">
         <div>
           <h1 className="text-4xl font-bold text-white mb-2 flex items-center justify-center gap-3">
@@ -206,6 +328,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
         </div>
       </header>
 
+      {/* --- NAVIGATION GRID --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4 md:px-0">
         <MenuCard icon={<Book />} title="Word Bank" stats={`${words.length} words collected.`} desc="Grow your vocabulary." btnText="Open Word Bank" onClick={() => navigate('/words')} />
         <MenuCard icon={<CalendarIcon />} title="Schedule" stats={`${upcomingCount} lessons planned.`} desc="Plan your week." btnText="View Schedule" onClick={() => navigate('/calendar')} />
