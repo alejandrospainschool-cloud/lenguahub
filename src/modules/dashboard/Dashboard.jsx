@@ -1,4 +1,3 @@
-// src/modules/dashboard/Dashboard.jsx
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -91,9 +90,9 @@ export default function Dashboard({ user, words = [], events = [] }) {
       const colorToUse = existing ? existing.color : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
 
       await addDoc(wordsRef, {
-        term: translatedText,
-        translation: inputText,
-        category: targetFolder, // Uses the selected folder name
+        term: translatedText,    // SPANISH (Top line)
+        definition: inputText,   // ENGLISH (Bottom line) - Changed from 'translation' to 'definition'
+        category: targetFolder, 
         folderColor: colorToUse,
         createdAt: serverTimestamp(),
         mastery: 0,
