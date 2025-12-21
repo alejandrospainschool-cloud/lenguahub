@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom'; // 1. Import this hook
 import { auth, provider } from '../../lib/firebase';
 import { Brain, Globe, Timer } from 'lucide-react';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate(); // 2. Initialize navigation
 
   const signInWithGoogle = async () => {
     setLoading(true);
@@ -28,10 +30,11 @@ export default function Login() {
       if (token) {
         // Save the token to session storage
         sessionStorage.setItem("google_access_token", token);
-        console.log("Token saved to storage. Reloading...");
+        console.log("Token saved. Redirecting to Home...");
         
-        // FORCE RELOAD: This guarantees App.jsx picks up the new token immediately
-        window.location.reload(); 
+        // 3. FIX: Navigate to home instead of reloading
+        // This prevents the 404 error on servers like Vercel/Netlify
+        navigate('/'); 
       } else {
         console.error("ERROR: Login succeeded but NO TOKEN returned.");
         alert("Login successful, but Google didn't return a Calendar permission token. Please try again and ensure you check all permission boxes.");
