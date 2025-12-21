@@ -1,4 +1,3 @@
-// src/modules/dashboard/Dashboard.jsx
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -46,11 +45,11 @@ export default function Dashboard({ user, words = [], events = [] }) {
   
   // --- SAVE MODAL STATE ---
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [targetFolder, setTargetFolder] = useState('') // Name of selected/new folder
-  const [isNewFolder, setIsNewFolder] = useState(false) // Toggle input for new folder
+  const [targetFolder, setTargetFolder] = useState('') 
+  const [isNewFolder, setIsNewFolder] = useState(false) 
   const [hasSaved, setHasSaved] = useState(false)
 
-  // 1. EXTRACT EXISTING FOLDERS (Same logic as WordBank)
+  // 1. EXTRACT EXISTING FOLDERS
   const existingFolders = useMemo(() => {
     const map = new Map();
     words.forEach(w => {
@@ -67,6 +66,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
     setIsTranslating(true)
     setHasSaved(false)
 
+    
     const prompt = `Translate the following English text to Spanish. Return ONLY the Spanish translation, nothing else. Text: "${inputText}"`
 
     try {
@@ -86,7 +86,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
     try {
       const wordsRef = collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank')
 
-      // Determine color: Use existing if folder exists, else pick random
+      // Determine color
       const existing = existingFolders.find(f => f.name === targetFolder);
       const colorToUse = existing ? existing.color : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
 
@@ -121,10 +121,16 @@ export default function Dashboard({ user, words = [], events = [] }) {
     <div className="w-full max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-12 relative">
       
       {/* --- QUICK TRANSLATOR CARD --- */}
-      {/* FIX: Changed overflow-visible to overflow-hidden to fix UI glitch */}
-      <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 border border-indigo-500/30 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-
+      {/* FIX: Removed the 'absolute' glow div. Using radial-gradient in 'style' to create the glow safely. */}
+      <div 
+        className="border border-indigo-500/30 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl"
+        style={{
+          background: `
+            radial-gradient(circle at top right, rgba(168, 85, 247, 0.2), transparent 40%),
+            linear-gradient(to bottom right, rgba(49, 46, 129, 0.5), rgba(88, 28, 135, 0.5))
+          `
+        }}
+      >
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
