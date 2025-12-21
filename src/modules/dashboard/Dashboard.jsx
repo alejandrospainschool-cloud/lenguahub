@@ -120,7 +120,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
     <div className="w-full max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-12 relative">
       
       {/* --- QUICK TRANSLATOR CARD --- */}
-      <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 border border-indigo-500/30 rounded-3xl p-6 md:p-8 relative overflow-visible shadow-2xl">
+<div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 border border-indigo-500/30 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
         <div className="relative z-10">
