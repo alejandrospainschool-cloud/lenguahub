@@ -17,9 +17,22 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { generateContent } from '../../lib/ai'
 
-function safeJsonParse(maybeJson) {
+function extractJson(text) {
+  if (!text) return null
+
+  // 1) Strip Markdown code fences if present (```json ... ```)
+  let cleaned = String(text).trim()
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim()
+
+  // 2) If model added extra text, try to slice the first JSON object
+  const firstBrace = cleaned.indexOf('{')
+  const lastBrace = cleaned.lastIndexOf('}')
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1)
+  }
+
   try {
-    return JSON.parse(maybeJson)
+    return JSON.parse(cleaned)
   } catch {
     return null
   }
@@ -30,12 +43,17 @@ function clampItems(items, max = 10) {
   return items
     .filter(Boolean)
     .slice(0, max)
-    .map((x, idx) => ({
-      id: x.id || `item:${(x.term || '').toLowerCase()}:${idx}`,
-      term: String(x.term || '').trim(),
-      translation: String(x.translation || '').trim(),
-      definition: String(x.definition || '').trim(),
-    }))
+    .map((x, idx) => {
+      const term = String(x.term || x.word || '').trim()
+      const translation = String(x.translation || x.english || '').trim()
+      const definition = String(x.definition || x.note || '').trim()
+      return {
+        id: `term:${term.toLowerCase()}:${idx}`,
+        term,
+        translation,
+        definition,
+      }
+    })
     .filter((x) => x.term)
 }
 
@@ -43,7 +61,7 @@ export default function Tools({ user }) {
   const [activeTab, setActiveTab] = useState('vocab') // 'vocab' | 'summary'
   const [inputText, setInputText] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [results, setResults] = useState(null)
+  const [results, setResults] = useState(null) // {type:'summary', content} | {type:'vocab', items}
   const [savedIDs, setSavedIDs] = useState([])
   const [toast, setToast] = useState('')
 
@@ -53,17 +71,37 @@ export default function Tools({ user }) {
     return t ? t.split(/\s+/).length : 0
   }, [inputText])
 
+  const vocabItems = results?.type === 'vocab' ? results.items : []
+  const savedCount = useMemo(
+    () => vocabItems.filter((i) => savedIDs.includes(i.id)).length,
+    [vocabItems, savedIDs]
+  )
+
+  const canGenerate = !!inputText.trim() && !isProcessing
+
   const showToast = (msg) => {
     setToast(msg)
     window.clearTimeout(showToast._t)
     showToast._t = window.setTimeout(() => setToast(''), 1500)
   }
 
-  const vocabItems = results?.type === 'vocab' ? results.items : []
-  const savedCount = useMemo(() => vocabItems.filter((i) => savedIDs.includes(i.id)).length, [vocabItems, savedIDs])
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('Copied')
+    } catch {
+      showToast('Copy failed')
+    }
+  }
 
-  const canGenerate = !!inputText.trim() && !isProcessing
+  const resetAll = () => {
+    setInputText('')
+    setResults(null)
+    setSavedIDs([])
+    showToast('Reset')
+  }
 
+  // --- AI: Summary or Vocab extraction (Gemini via /api/generate) ---
   const processAI = async () => {
     if (!inputText.trim()) return
     setIsProcessing(true)
@@ -83,8 +121,10 @@ ${inputText}
         setResults({ type: 'summary', content: out.trim() || '—' })
       } else {
         const prompt = `
+Return ONLY raw JSON text (no \`\`\` fences, no markdown, no explanation).
+
 Extract useful vocabulary from the text below (assume it's Spanish unless obvious otherwise).
-Return ONLY valid JSON (no backticks, no commentary) in this exact shape:
+Return valid JSON in this exact shape:
 
 {
   "items": [
@@ -103,24 +143,17 @@ ${inputText}
 `.trim()
 
         const out = await generateContent(prompt)
-        const parsed = safeJsonParse(out)
+        const parsed = extractJson(out)
         const items = clampItems(parsed?.items, 10)
 
         if (!items.length) {
-          // fallback: show raw output so you can debug prompt behavior
           setResults({
             type: 'summary',
             content:
               'Could not parse vocab JSON. Here is the raw model output:\n\n' + out,
           })
         } else {
-          // stable ids based on term
-          const withIds = items.map((x, idx) => ({
-            ...x,
-            id: `term:${x.term.toLowerCase()}:${idx}`,
-            category: 'AI Generated',
-          }))
-          setResults({ type: 'vocab', items: withIds })
+          setResults({ type: 'vocab', items })
         }
       }
     } catch (err) {
@@ -134,6 +167,7 @@ ${inputText}
     }
   }
 
+  // --- Save to Word Bank (match your Dashboard schema: term + definition) ---
   const handleSaveToBank = async (item) => {
     if (!user?.uid) {
       showToast('Sign in to save.')
@@ -145,8 +179,8 @@ ${inputText}
       await addDoc(
         collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'),
         {
-          term: item.term,              // Spanish
-          definition: item.translation, // English (match Dashboard schema)
+          term: item.term, // Spanish
+          definition: item.translation || item.definition || '', // English
           category: 'AI Generated',
           createdAt: serverTimestamp(),
           mastery: 0,
@@ -167,22 +201,6 @@ ${inputText}
       // eslint-disable-next-line no-await-in-loop
       await handleSaveToBank(item)
     }
-  }
-
-  const copyToClipboard = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      showToast('Copied')
-    } catch {
-      showToast('Copy failed')
-    }
-  }
-
-  const resetAll = () => {
-    setInputText('')
-    setResults(null)
-    setSavedIDs([])
-    showToast('Reset')
   }
 
   const placeholder =
@@ -320,9 +338,7 @@ ${inputText}
                   <Brain size={24} className="text-purple-400 animate-pulse" />
                 </div>
               </div>
-              <p className="text-slate-400 mt-6 font-medium animate-pulse">
-                AI is analyzing your text...
-              </p>
+              <p className="text-slate-400 mt-6 font-medium animate-pulse">AI is analyzing your text...</p>
             </div>
           )}
 
@@ -407,6 +423,7 @@ ${inputText}
                               ? 'bg-green-500 text-white shadow-lg shadow-green-500/20'
                               : 'bg-slate-800 text-slate-400 hover:bg-purple-600 hover:text-white hover:shadow-[0_0_15px_rgba(168,85,247,0.4)]'
                           }`}
+                          title={isSaved ? 'Saved' : 'Save to Word Bank'}
                         >
                           {isSaved ? <Check size={20} /> : <Plus size={20} />}
                         </button>
