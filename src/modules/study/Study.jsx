@@ -82,6 +82,15 @@ const generateAIContext = async (term, translation) => {
   }
 };
 
+// small helper to call callbacks safely
+const safeCall = (fn, ...args) => {
+  try {
+    if (typeof fn === 'function') return fn(...args);
+  } catch (err) {
+    console.error('safeCall error', err);
+  }
+};
+
 export default function Study({ words = [], userXP = 0, onUpdateXP, targetLanguage = 'es-ES' }) {
   const [mode, setMode] = useState('menu'); // 'menu', 'flashcards', 'quiz'
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -257,23 +266,25 @@ export default function Study({ words = [], userXP = 0, onUpdateXP, targetLangua
 
       {mode === 'quiz' && (
         <QuizSession 
-          words={activeWords} 
-          addXP={handleAddXP}
-          onComplete={() => incrementUsage('quizzes')}
-          updateMastery={updateMastery}
+          words={activeWords}
+          addXP={(v) => safeCall(handleAddXP, v)}
+          onComplete={() => safeCall(() => incrementUsage('quizzes'))}
+          updateMastery={(id, delta) => safeCall(updateMastery, id, delta)}
           isTypingMode={isTypingMode}
           targetLanguage={targetLanguage}
+          onDone={() => setMode('menu')}
         />
       )}
 
       {mode === 'match' && (
         <MatchSession 
           words={activeWords} 
-          addXP={handleAddXP}
-          onComplete={() => incrementUsage('matches')}
-          updateMastery={updateMastery}
+          addXP={(v) => safeCall(handleAddXP, v)}
+          onComplete={() => safeCall(() => incrementUsage('matches'))}
+          updateMastery={(id, delta) => safeCall(updateMastery, id, delta)}
           checkLimit={() => checkLimit('matches')}
           targetLanguage={targetLanguage}
+          onDone={() => setMode('menu')}
         />
       )}
 
@@ -881,80 +892,80 @@ function QuizResult({ words, score, addXP }) {
 // ==========================================
 // 4. MATCH SESSION (NEW)
 // ==========================================
-function MatchSession({ words = [], addXP, onComplete, updateMastery, checkLimit }) {
-  const [pairs, setPairs] = useState([]); // [{id, term, translation}]
-  const [left, setLeft] = useState([]); // terms
-  const [right, setRight] = useState([]); // translations (shuffled)
-  const [selectedLeft, setSelectedLeft] = useState(null);
-  const [selectedRight, setSelectedRight] = useState(null);
-  const [matchedIds, setMatchedIds] = useState(new Set());
-  const [score, setScore] = useState(0);
-  const [done, setDone] = useState(false);
+function MatchSession({ words = [], addXP, onComplete, updateMastery, checkLimit, onDone }) {
+   const [pairs, setPairs] = useState([]); // [{id, term, translation}]
+   const [left, setLeft] = useState([]); // terms
+   const [right, setRight] = useState([]); // translations (shuffled)
+   const [selectedLeft, setSelectedLeft] = useState(null);
+   const [selectedRight, setSelectedRight] = useState(null);
+   const [matchedIds, setMatchedIds] = useState(new Set());
+   const [score, setScore] = useState(0);
+   const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    // Prepare a small set for a match session (up to 6 pairs)
-    const sample = words.slice(0, Math.min(words.length, 6)).map(w => ({
-      id: w.id,
-      term: w.term,
-      translation: getWordContent(w)
-    }));
-    const shuffledRight = shuffleArray(sample.map(s => ({ id: s.id, text: s.translation })));
-    setPairs(sample);
-    setLeft(sample.map(s => ({ id: s.id, text: s.term })));
-    setRight(shuffledRight);
-    setSelectedLeft(null);
-    setSelectedRight(null);
-    setMatchedIds(new Set());
-    setScore(0);
-    setDone(false);
-  }, [words]);
+   useEffect(() => {
+     // Prepare a small set for a match session (up to 6 pairs)
+     const sample = words.slice(0, Math.min(words.length, 6)).map(w => ({
+       id: w.id,
+       term: w.term,
+       translation: getWordContent(w)
+     }));
+     const shuffledRight = shuffleArray(sample.map(s => ({ id: s.id, text: s.translation })));
+     setPairs(sample);
+     setLeft(sample.map(s => ({ id: s.id, text: s.term })));
+     setRight(shuffledRight);
+     setSelectedLeft(null);
+     setSelectedRight(null);
+     setMatchedIds(new Set());
+     setScore(0);
+     setDone(false);
+   }, [words]);
 
-  useEffect(() => {
-    if (pairs.length > 0 && matchedIds.size === pairs.length) {
-      // Completed
-      setDone(true);
-      addXP(score * XP_REWARDS.match_correct);
-      if (onComplete) onComplete();
-    }
-  }, [matchedIds]);
+   useEffect(() => {
+     if (pairs.length > 0 && matchedIds.size === pairs.length) {
+       // Completed
+       setDone(true);
+       safeCall(addXP, score * XP_REWARDS.match_correct);
+       safeCall(onComplete);
+     }
+   }, [matchedIds]);
 
-  const handleSelectLeft = (item) => {
-    if (matchedIds.has(item.id)) return;
-    setSelectedLeft(item);
-    if (selectedRight) attemptMatch(item, selectedRight);
-  };
+   const handleSelectLeft = (item) => {
+     if (matchedIds.has(item.id)) return;
+     setSelectedLeft(item);
+     if (selectedRight) attemptMatch(item, selectedRight);
+   };
 
-  const handleSelectRight = (item) => {
-    if (matchedIds.has(item.id)) return;
-    setSelectedRight(item);
-    if (selectedLeft) attemptMatch(selectedLeft, item);
-  };
+   const handleSelectRight = (item) => {
+     if (matchedIds.has(item.id)) return;
+     setSelectedRight(item);
+     if (selectedLeft) attemptMatch(selectedLeft, item);
+   };
 
-  const attemptMatch = (l, r) => {
-    if (!l || !r) return;
-    if (l.id === r.id) {
-      // correct
-      setMatchedIds(prev => new Set(prev).add(l.id));
-      setScore(s => s + 1);
-      updateMastery?.(l.id, 1);
-      // clear selections
-      setSelectedLeft(null);
-      setSelectedRight(null);
-    } else {
-      // incorrect
-      updateMastery?.(l.id, -1);
-      // brief feedback: clear selections after small delay
-      setTimeout(() => {
-        setSelectedLeft(null);
-        setSelectedRight(null);
-      }, 700);
-    }
-  };
+   const attemptMatch = (l, r) => {
+     if (!l || !r) return;
+     if (l.id === r.id) {
+       // correct
+       setMatchedIds(prev => new Set(prev).add(l.id));
+       setScore(s => s + 1);
+       updateMastery?.(l.id, 1);
+       // clear selections
+       setSelectedLeft(null);
+       setSelectedRight(null);
+     } else {
+       // incorrect
+       updateMastery?.(l.id, -1);
+       // brief feedback: clear selections after small delay
+       setTimeout(() => {
+         setSelectedLeft(null);
+         setSelectedRight(null);
+       }, 700);
+     }
+   };
 
-  if (!pairs || pairs.length === 0) return <div className="text-center text-slate-400">Not enough words to match.</div>;
+   if (!pairs || pairs.length === 0) return <div className="text-center text-slate-400">Not enough words to match.</div>;
 
-  return (
-    <div className="max-w-3xl mx-auto">
+   return (
+     <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-2xl font-bold text-white">Match</h2>
@@ -1016,7 +1027,7 @@ function MatchSession({ words = [], addXP, onComplete, updateMastery, checkLimit
             Completed • +{score * XP_REWARDS.match_correct} XP
           </div>
           <div className="mt-4">
-            <button onClick={() => window.location.reload()} className="mt-4 px-6 py-3 rounded-xl bg-white text-slate-900 font-bold">Back to Menu</button>
+            <button onClick={() => safeCall(onDone)} className="mt-4 px-6 py-3 rounded-xl bg-white text-slate-900 font-bold">Back to Menu</button>
           </div>
         </div>
       )}
