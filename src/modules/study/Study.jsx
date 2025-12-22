@@ -387,7 +387,7 @@ function StudyMenu({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6"> {/* changed to 3 columns */
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6"> {/* changed to 3 columns */}
         
         {/* Flashcards Option */}
         <button
