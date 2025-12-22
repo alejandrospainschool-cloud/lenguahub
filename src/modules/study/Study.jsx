@@ -700,16 +700,18 @@ function QuizSession({
 
   // Build choices (for non-typing mode)
   const getChoices = () => {
-    const other = shuffleArray(words.filter(w => w.id !== current.id).slice(0, 3));
+    // guard: if we don't have a current item yet return an empty array
+    if (!current || !words || words.length === 0) return [];
+    const other = shuffleArray(words.filter(w => w.id !== current.id)).slice(0, 3);
     const choices = [correctAnswer, ...other.map(w => getWordContent(w))];
     return shuffleArray(choices);
   };
 
-  const [choices, setChoices] = useState(() => getChoices());
+  const [choices, setChoices] = useState([]);
 
   // regenerate choices when index changes (unless typing mode)
   useEffect(() => {
-    if (!isTypingMode) setChoices(getChoices());
+    if (!isTypingMode && current) setChoices(getChoices());
     setSelected(null);
     setShowFeedback(false);
     setTypingValue('');
