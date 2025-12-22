@@ -651,240 +651,245 @@ function FlashcardSession({ words, addXP, incrementUsage, usage, checkLimit, tar
 // ==========================================
 // 3. QUIZ SESSION (Enhanced with Typing Mode)
 // ==========================================
-function QuizSession({ words, addXP, onComplete, updateMastery, isTypingMode, targetLanguage }) {
-  const [currentQ, setCurrentQ] = useState(0);
+function QuizSession({
+  words = [],
+  addXP,
+  onComplete,
+  updateMastery,
+  isTypingMode = false,
+  targetLanguage = 'es-ES',
+  onDone,
+}) {
+  const [order, setOrder] = useState([]);
+  const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [showResult, setShowResult] = useState(false);
-  
-  // Multiple Choice State
-  const [options, setOptions] = useState([]);
-  const [selectedOption, setSelectedOption] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [results, setResults] = useState([]); // { id, term, correctAnswer, selectedAnswer, correct }
+  const [typingValue, setTypingValue] = useState('');
+  const [finished, setFinished] = useState(false);
 
-  // Typing Mode State
-  const [typedAnswer, setTypedAnswer] = useState('');
-  const [typingFeedback, setTypingFeedback] = useState(null); // 'correct' | 'incorrect' | null
-
-  // Generate question
   useEffect(() => {
-    if (currentQ >= words.length) {
-      setShowResult(true);
-      onComplete();
-      return;
-    }
+    // create a randomized order for the quiz
+    if (!words || words.length === 0) return;
+    const arr = shuffleArray(words.slice(0, Math.max(4, Math.min(words.length, 12))));
+    setOrder(arr);
+    setIndex(0);
+    setScore(0);
+    setSelected(null);
+    setShowFeedback(false);
+    setResults([]);
+    setTypingValue('');
+    setFinished(false);
+  }, [words, isTypingMode]);
 
-    const correct = words[currentQ];
-    
-    if (!isTypingMode) {
-      const wrong = words
-        .filter(w => w.id !== correct.id)
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 3);
-      setOptions([correct, ...wrong].sort(() => 0.5 - Math.random()));
-      setSelectedOption(null);
-    } else {
-      setTypedAnswer('');
-      setTypingFeedback(null);
-    }
+  useEffect(() => {
+    if (!finished) return;
+    // Quiz completed: award XP and call callbacks safely
+    const totalXP = score * XP_REWARDS.quiz_correct + (score === order.length ? XP_REWARDS.quiz_perfect_bonus : 0);
+    safeCall(addXP, totalXP);
+    safeCall(onComplete);
+  }, [finished]);
 
-  }, [currentQ, words, isTypingMode]);
-
-  const handleMultipleChoice = (option) => {
-    if (selectedOption) return;
-    setSelectedOption(option);
-
-    const isCorrect = option.id === words[currentQ].id;
-    if (isCorrect) {
-      setScore(s => s + 1);
-      addXP(XP_REWARDS.quiz_correct);
-      updateMastery(words[currentQ].id, 1); // Increase mastery
-    } else {
-      updateMastery(words[currentQ].id, -1); // Decrease mastery
-    }
-
-    setTimeout(() => setCurrentQ(prev => prev + 1), 1200);
-  };
-
-  const handleTypingSubmit = (e) => {
-    e.preventDefault();
-    if (typingFeedback) return;
-
-    const correctTranslation = getWordContent(words[currentQ]).toLowerCase().trim();
-    const userAns = typedAnswer.toLowerCase().trim();
-    const isCorrect = userAns === correctTranslation;
-
-    setTypingFeedback(isCorrect ? 'correct' : 'incorrect');
-
-    if (isCorrect) {
-      setScore(s => s + 1);
-      addXP(XP_REWARDS.quiz_correct + XP_REWARDS.typing_bonus); // Bonus for hard mode
-      updateMastery(words[currentQ].id, 2); // Double mastery boost for typing
-      speak("Correct!", 'en-US');
-    } else {
-      updateMastery(words[currentQ].id, -1);
-      speak("Incorrect", 'en-US');
-    }
-
-    setTimeout(() => setCurrentQ(prev => prev + 1), 2000); // Longer delay to read feedback
-  };
-
-  if (showResult) {
-    return <QuizResult words={words} score={score} addXP={addXP} />;
+  if (!order || order.length === 0) {
+    return <div className="text-center text-slate-400">Not enough words for a quiz.</div>;
   }
 
-  const currentWord = words[currentQ];
-  if (!currentWord) return <div>Loading...</div>;
+  const current = order[index];
+  const correctAnswer = getWordContent(current);
+
+  // Build choices (for non-typing mode)
+  const getChoices = () => {
+    const other = shuffleArray(words.filter(w => w.id !== current.id).slice(0, 3));
+    const choices = [correctAnswer, ...other.map(w => getWordContent(w))];
+    return shuffleArray(choices);
+  };
+
+  const [choices, setChoices] = useState(() => getChoices());
+
+  // regenerate choices when index changes (unless typing mode)
+  useEffect(() => {
+    if (!isTypingMode) setChoices(getChoices());
+    setSelected(null);
+    setShowFeedback(false);
+    setTypingValue('');
+  }, [index, isTypingMode]);
+
+  const finishQuiz = () => {
+    setFinished(true);
+  };
+
+  const recordResultAndContinue = (selectedAnswer, correct) => {
+    setResults(r => [
+      ...r,
+      {
+        id: current.id,
+        term: current.term,
+        correctAnswer,
+        selectedAnswer,
+        correct,
+      },
+    ]);
+    // small delay for feedback then advance
+    setTimeout(() => {
+      if (index + 1 >= order.length) {
+        finishQuiz();
+      } else {
+        setIndex(i => i + 1);
+      }
+    }, 700);
+  };
+
+  const handleChoice = (choice) => {
+    if (showFeedback) return;
+    setSelected(choice);
+    const correct = choice?.toString().trim().toLowerCase() === (correctAnswer || '').toString().trim().toLowerCase();
+    setShowFeedback(true);
+    if (correct) {
+      setScore(s => s + 1);
+      safeCall(updateMastery, current.id, 1);
+    } else {
+      safeCall(updateMastery, current.id, -1);
+    }
+    recordResultAndContinue(choice, correct);
+  };
+
+  const handleTypingSubmit = () => {
+    if (showFeedback) return;
+    const user = typingValue.trim().toLowerCase();
+    const correct = user === (correctAnswer || '').toString().trim().toLowerCase();
+    setShowFeedback(true);
+    if (correct) {
+      setScore(s => s + 1);
+      safeCall(updateMastery, current.id, 1);
+    } else {
+      safeCall(updateMastery, current.id, -1);
+    }
+    recordResultAndContinue(typingValue, correct);
+  };
+
+  if (finished) {
+    const totalXP = score * XP_REWARDS.quiz_correct + (score === order.length ? XP_REWARDS.quiz_perfect_bonus : 0);
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-white">Quiz Complete</h2>
+          <p className="text-slate-400">You scored {score} / {order.length}</p>
+          <div className="mt-3 inline-flex items-center gap-3">
+            <div className="px-4 py-2 rounded-full bg-amber-400 text-slate-900 font-bold shadow">{totalXP} XP</div>
+            <button
+              onClick={() => safeCall(onDone)}
+              className="px-4 py-2 rounded-xl bg-white text-slate-900 font-bold"
+            >
+              Back to Menu
+            </button>
+            <button
+              onClick={() => {
+                // restart quiz
+                setIndex(0);
+                setScore(0);
+                setResults([]);
+                setFinished(false);
+                setSelected(null);
+                setShowFeedback(false);
+                if (!isTypingMode) setChoices(getChoices());
+              }}
+              className="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700"
+            >
+              Retake
+            </button>
+          </div>
+        </div>
+
+        {/* Post-quiz review */}
+        <div className="bg-[#0b1220] border border-slate-800 rounded-2xl p-6 space-y-4">
+          <h3 className="text-lg font-bold text-white">Review</h3>
+          <div className="space-y-3">
+            {results.map((r, i) => (
+              <div key={r.id} className="p-3 rounded-xl border border-slate-800 flex items-start gap-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${r.correct ? 'bg-green-500 text-white' : 'bg-rose-500 text-white'}`}>
+                  {r.correct ? '✓' : '✕'}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-slate-300 font-semibold">{r.term}</div>
+                    <div className="text-sm text-slate-400">Q {i + 1}</div>
+                  </div>
+                  <div className="mt-1 text-sm text-slate-400">
+                    <div><span className="text-slate-300">Your answer:</span> <span className={r.correct ? 'text-green-300' : 'text-rose-300'}>{r.selectedAnswer || '—'}</span></div>
+                    {!r.correct && <div><span className="text-slate-300">Correct:</span> <span className="text-amber-200">{r.correctAnswer}</span></div>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
-      
-      {/* Progress & Header */}
-      <div className="flex justify-between text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
-        <span>Progress</span>
-        <span>{Math.round(((currentQ) / words.length) * 100)}%</span>
-      </div>
-      <div className="w-full h-3 bg-slate-800 rounded-full mb-8 overflow-hidden">
-        <div 
-          className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-out"
-          style={{ width: `${((currentQ) / words.length) * 100}%` }}
-        />
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Quiz</h2>
+          <p className="text-slate-400 text-sm">Question {index + 1} / {order.length}</p>
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-slate-400 uppercase">Score</div>
+          <div className="text-lg font-bold text-white">{score}</div>
+        </div>
       </div>
 
-      <div className="text-center mb-10 relative">
-        <span className="text-slate-500 font-bold tracking-widest text-sm uppercase mb-4 block">Translate this</span>
-        <h2 className="text-5xl font-bold text-white break-words px-4 mb-4">{currentWord.term}</h2>
-        {/* Speak Question Term Button */}
-        <button 
-           onClick={() => speak(currentWord.term, targetLanguage)}
-           className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 text-slate-400 mx-auto transition-colors"
-           title="Hear Word"
-        >
-           <Volume2 size={20} />
-        </button>
-
-        {isTypingMode && (
-           <div className="flex justify-center mt-4">
-             <span className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs font-bold border border-purple-500/30 flex items-center gap-2">
-               <Keyboard size={12} /> Typing Mode (+5 XP)
-             </span>
-           </div>
-        )}
+      <div className="bg-[#061025] border border-slate-800 rounded-2xl p-6 mb-4">
+        <div className="text-slate-300 text-sm mb-2">Translate</div>
+        <div className="text-xl font-bold text-white">{current.term}</div>
       </div>
 
-      {/* --- TYPING MODE UI --- */}
-      {isTypingMode ? (
-        <form onSubmit={handleTypingSubmit} className="max-w-md mx-auto relative">
-          <input
-            type="text"
-            value={typedAnswer}
-            onChange={(e) => setTypedAnswer(e.target.value)}
-            disabled={!!typingFeedback}
-            placeholder="Type meaning here..."
-            className={`w-full p-6 text-xl text-center rounded-2xl bg-[#1e293b] border-2 outline-none transition-all ${
-              typingFeedback === 'correct' ? 'border-green-500 text-green-400 bg-green-500/10' :
-              typingFeedback === 'incorrect' ? 'border-red-500 text-red-400 bg-red-500/10' :
-              'border-slate-700 focus:border-purple-500 text-white'
-            }`}
-            autoFocus
-          />
-          
-          {/* Feedback Overlay */}
-          {typingFeedback === 'incorrect' && (
-             <div className="absolute -bottom-16 left-0 w-full text-center animate-in fade-in slide-in-from-top-2">
-               <div className="inline-block bg-red-500/20 text-red-400 px-4 py-2 rounded-xl border border-red-500/50">
-                 Answer: <strong>{getWordContent(currentWord)}</strong>
-               </div>
-             </div>
-          )}
-
-          {!typingFeedback && (
-            <button 
-              type="submit" 
-              className="mt-6 w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-all"
-            >
-              Check Answer
-            </button>
-          )}
-        </form>
-      ) : (
-        /* --- MULTIPLE CHOICE UI --- */
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {options.map((option) => {
-            let btnStyle = "bg-[#1e293b] border-slate-700 hover:border-purple-500 hover:bg-slate-800";
-            let icon = null;
-            
-            if (selectedOption) {
-              if (option.id === currentWord.id) {
-                btnStyle = "bg-green-500/20 border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.3)]";
-                icon = <CheckCircle2 size={20} className="animate-bounce" />;
-              } else if (option.id === selectedOption.id) {
-                btnStyle = "bg-red-500/20 border-red-500 text-red-400"; 
-                icon = <XCircle size={20} />;
-              } else {
-                btnStyle = "opacity-30 bg-[#1e293b] border-slate-800 scale-95 grayscale";
-              }
-            }
+      {!isTypingMode ? (
+        <div className="grid grid-cols-1 gap-3">
+          {choices.map((c) => {
+            const isSelected = selected === c;
+            const correct = c?.toString().trim().toLowerCase() === (correctAnswer || '').toString().trim().toLowerCase();
+            const showCorrectState = showFeedback && (isSelected || correct);
+            const bgClass = showCorrectState ? (correct ? 'bg-green-600/10 border-green-500 text-green-300' : (isSelected ? 'bg-rose-600/10 border-rose-500 text-rose-300' : 'bg-[#0f172a] border-slate-800 text-white')) : 'bg-[#0f172a] border-slate-800 text-white hover:bg-slate-800';
+            const borderClass = showCorrectState ? (correct ? 'border-green-500' : (isSelected ? 'border-rose-500' : 'border-slate-800')) : 'border-slate-800';
 
             return (
               <button
-                key={option.id}
-                onClick={() => handleMultipleChoice(option)}
-                disabled={!!selectedOption}
-                className={`relative p-6 rounded-2xl border-2 font-bold text-lg transition-all duration-300 flex items-center justify-between group ${btnStyle} text-white min-h-[100px]`}
+                key={c}
+                disabled={showFeedback}
+                onClick={() => handleChoice(c)}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${bgClass} ${borderClass}`}
               >
-                <span className="break-words w-full text-left">{getWordContent(option)}</span>
-                {icon}
+                {c}
               </button>
             );
           })}
         </div>
-      )}
-
-    </div>
-  );
-}
-
-// Result Component
-function QuizResult({ words, score, addXP }) {
-  useEffect(() => {
-    if (score === words.length) {
-      addXP(XP_REWARDS.quiz_perfect_bonus);
-    }
-  }, []);
-
-  return (
-    <div className="flex flex-col items-center justify-center py-10 bg-[#0f172a] rounded-[40px] border border-slate-800 animate-in zoom-in-95 duration-300">
-      <div className="w-32 h-32 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-purple-500/30">
-        {score === words.length ? <Trophy size={64} className="text-yellow-200 animate-bounce" /> : <Brain size={64} className="text-white" />}
-      </div>
-      
-      <h2 className="text-4xl font-bold text-white mb-2">
-        {score === words.length ? 'Perfect Score!' : 'Quiz Complete!'}
-      </h2>
-      
-      <p className="text-slate-400 text-lg mb-8">
-        You scored <span className="text-purple-400 font-bold">{score} / {words.length}</span>
-      </p>
-
-      {/* XP Summary */}
-      <div className="flex gap-4 mb-8">
-        <div className="bg-slate-800 rounded-2xl p-4 text-center min-w-[100px]">
-          <span className="text-xs text-slate-400 uppercase font-bold block mb-1">Base XP</span>
-          <span className="text-xl font-bold text-white">+{score * XP_REWARDS.quiz_correct}</span>
-        </div>
-        {score === words.length && (
-          <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/50 rounded-2xl p-4 text-center min-w-[100px]">
-            <span className="text-xs text-yellow-500 uppercase font-bold block mb-1">Bonus</span>
-            <span className="text-xl font-bold text-yellow-400">+{XP_REWARDS.quiz_perfect_bonus}</span>
+      ) : (
+        <div className="space-y-3">
+          <input
+            value={typingValue}
+            onChange={(e) => setTypingValue(e.target.value)}
+            placeholder="Type the translation..."
+            className="w-full p-3 rounded-xl bg-[#071022] border border-slate-800 text-white"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleTypingSubmit();
+            }}
+            disabled={showFeedback}
+          />
+          <div className="flex gap-3">
+            <button onClick={handleTypingSubmit} disabled={showFeedback} className="px-4 py-2 rounded-xl bg-amber-500 text-slate-900 font-bold">Submit</button>
+            <button onClick={() => { setTypingValue(''); }} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 border border-slate-700">Clear</button>
           </div>
-        )}
-      </div>
-
-      <button 
-        onClick={() => window.location.reload()} 
-        className="px-8 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-200 transition"
-      >
-        Back to Menu
-      </button>
+          {showFeedback && (
+            <div className={`mt-3 text-sm ${results[results.length - 1]?.correct ? 'text-green-300' : 'text-rose-300'}`}>
+              {results[results.length - 1]?.correct ? 'Correct' : `Not quite — correct: ${correctAnswer}`}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
