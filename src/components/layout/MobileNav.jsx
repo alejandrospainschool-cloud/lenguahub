@@ -9,7 +9,7 @@ export default function MobileNav({ activeTab, setActiveTab, onTools }) {
 
       <button
         onClick={() => setActiveTab('home')}
-        className={activeTab === 'home' ? 'text-indigo-400' : 'text-slate-300'}
+        className={activeTab === 'home' ? 'text-amber-400' : 'text-slate-300'}
       >
         <LayoutGrid />
       </button>
@@ -24,7 +24,7 @@ export default function MobileNav({ activeTab, setActiveTab, onTools }) {
       {/* Center AI Button */}
       <button
         onClick={onTools}
-        className="-mt-6 bg-indigo-500 text-white p-3 rounded-full shadow-2xl"
+        className="-mt-6 bg-amber-500 text-white p-3 rounded-full shadow-2xl"
       >
         <Brain size={20} />
       </button>
@@ -38,7 +38,7 @@ export default function MobileNav({ activeTab, setActiveTab, onTools }) {
 
       <button
         onClick={() => setActiveTab('study')}
-        className={activeTab === 'study' ? 'text-indigo-400' : 'text-slate-300'}
+        className={activeTab === 'study' ? 'text-amber-400' : 'text-slate-300'}
       >
         <GraduationCap />
       </button>

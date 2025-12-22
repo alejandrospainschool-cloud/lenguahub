@@ -141,7 +141,7 @@ function StudentLayout({ user }) {
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-400 hover:text-white">
           <Menu size={28} />
         </button>
-        <span className="font-bold text-lg text-slate-200">LenguaHub</span>
+        <span className="font-bold text-lg text-slate-200">Olé Learning</span>
       </header>
 
       {/* Sidebar */}
@@ -168,9 +168,9 @@ function LoadingScreen() {
   return (
     <div className="h-screen w-full flex items-center justify-center bg-[#02040a] text-slate-400">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
         <div className="animate-pulse text-sm font-medium tracking-widest uppercase">
-          Loading Hub
+          Cargando Olé Learning
         </div>
       </div>
     </div>

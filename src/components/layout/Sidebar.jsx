@@ -51,11 +51,11 @@ export default function Sidebar({ user, isOpen, onClose }) {
         {/* Header */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
-              LH
+            <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center font-bold text-white shadow-lg shadow-amber-500/20">
+              OL
             </div>
             <span className="font-bold text-lg text-white tracking-tight">
-              LenguaHub
+              Olé Learning
             </span>
           </div>
           <button 
@@ -69,7 +69,7 @@ export default function Sidebar({ user, isOpen, onClose }) {
         {/* Navigation Links */}
         <div className="p-4 space-y-2">
           <p className="px-4 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-4">
-            Menu
+            Menú
           </p>
           
           {menuItems.map((item) => (
@@ -80,7 +80,7 @@ export default function Sidebar({ user, isOpen, onClose }) {
               className={`
                 flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
                 ${isActive(item.path) 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20 font-medium' 
+                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/20 font-medium' 
                   : 'text-slate-400 hover:bg-white/5 hover:text-white'
                 }
               `}

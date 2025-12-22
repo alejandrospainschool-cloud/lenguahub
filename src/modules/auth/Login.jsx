@@ -60,7 +60,7 @@ export default function Login() {
         style={{ 
           width: '500px', 
           height: '500px', 
-          backgroundColor: 'rgba(37, 99, 235, 0.2)', 
+          backgroundColor: 'rgba(245, 158, 11, 0.14)', 
           filter: 'blur(120px)' 
         }} 
       />
@@ -82,7 +82,7 @@ export default function Login() {
           }}
         >
           <h1 className="text-3xl font-bold text-white tracking-tight mb-4 mt-2">
-            LenguaHub
+            Olé Learning
           </h1>
           
           <p className="text-slate-400 text-sm mb-8 opacity-90 leading-6 font-medium">
@@ -102,12 +102,12 @@ export default function Login() {
         <button
           onClick={signInWithGoogle}
           disabled={loading}
-          className="relative flex items-center justify-center gap-3 py-4 rounded-full shadow-2xl transition-transform duration-300 ease-out hover:scale-105 active:scale-95 hover:shadow-indigo-500/20"
+          className="relative flex items-center justify-center gap-3 py-4 rounded-full shadow-2xl transition-transform duration-300 ease-out hover:scale-105 active:scale-95 hover:shadow-amber-500/20"
           style={{ 
             width: '350px', 
-            backgroundColor: '#1e2a45', 
+            backgroundColor: '#3a1f12', 
             color: 'white',
-            border: '1px solid rgba(255,255,255,0.1)' 
+            border: '1px solid rgba(255,255,255,0.06)' 
           }}
         >
           {loading ? (
@@ -149,8 +149,8 @@ function IconBox({ icon }) {
     >
       {React.cloneElement(icon, { 
         size: 26,
-        color: '#60a5fa', 
-        style: { filter: 'drop-shadow(0 0 8px rgba(96, 165, 250, 0.6))' }
+        color: '#fb923c', 
+        style: { filter: 'drop-shadow(0 0 8px rgba(251, 146, 60, 0.45))' }
       })}
     </div>
   );

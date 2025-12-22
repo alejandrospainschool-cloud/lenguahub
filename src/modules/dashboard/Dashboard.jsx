@@ -134,11 +134,11 @@ export default function Dashboard({ user, words = [], events = [] }) {
     <div className="w-full max-w-5xl mx-auto px-4 md:px-8 space-y-10 animate-in fade-in duration-500 pb-12">
       {/* --- QUICK TRANSLATOR CARD --- */}
       <section
-        className="border border-indigo-500/20 rounded-3xl p-5 md:p-6 relative overflow-hidden shadow-xl"
+        className="border border-amber-500/20 rounded-3xl p-5 md:p-6 relative overflow-hidden shadow-xl"
         style={{
           background: `
-            radial-gradient(circle at top right, rgba(168, 85, 247, 0.18), transparent 45%),
-            linear-gradient(to bottom right, rgba(49, 46, 129, 0.45), rgba(88, 28, 135, 0.45))
+            radial-gradient(circle at top right, rgba(245, 158, 11, 0.12), transparent 45%),
+            linear-gradient(to bottom right, rgba(124, 58, 237, 0.06), rgba(168, 85, 247, 0.03))
           `,
         }}
       >
@@ -161,7 +161,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
           <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center">
             {/* ENGLISH INPUT */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-indigo-300 uppercase ml-2 tracking-wider">
+              <label className="text-xs font-bold text-amber-300 uppercase ml-2 tracking-wider">
                 English
               </label>
 
@@ -188,7 +188,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
             </div>
 
             {/* ARROW ICON */}
-            <div className="hidden md:flex flex-col items-center justify-center pt-6 text-indigo-400">
+            <div className="hidden md:flex flex-col items-center justify-center pt-6 text-amber-400">
               {isTranslating ? (
                 <Loader2 size={22} className="animate-spin" />
               ) : (
@@ -198,7 +198,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
 
             {/* SPANISH OUTPUT */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-purple-300 uppercase ml-2 tracking-wider">
+              <label className="text-xs font-bold text-rose-300 uppercase ml-2 tracking-wider">
                 Spanish
               </label>
 
@@ -206,8 +206,8 @@ export default function Dashboard({ user, words = [], events = [] }) {
                 <div
                   className={`w-full h-[62px] bg-[#0f172a]/80 border ${
                     translatedText
-                      ? 'border-purple-500/50 text-white'
-                      : 'border-indigo-500/10 text-slate-600'
+                      ? 'border-rose-500/50 text-white'
+                      : 'border-amber-500/10 text-slate-600'
                   } rounded-2xl px-4 text-lg flex items-center pr-12 transition-all`}
                 >
                   {translatedText || 'Translation...'}
@@ -217,7 +217,7 @@ export default function Dashboard({ user, words = [], events = [] }) {
                 {canSave && (
                   <button
                     onClick={() => setShowSaveModal(true)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all shadow-lg shadow-purple-500/20 active:scale-95"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl transition-all shadow-lg shadow-rose-500/20 active:scale-95"
                     title="Save to Word Bank"
                   >
                     <Save size={18} />
@@ -374,10 +374,10 @@ export default function Dashboard({ user, words = [], events = [] }) {
 
           <div className="h-3 bg-slate-700/50 rounded-full overflow-hidden">
             <div
-              className="h-full relative bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full transition-all duration-1000 ease-out"
+              className="h-full relative bg-gradient-to-r from-amber-500 to-orange-400 rounded-full transition-all duration-1000 ease-out"
               style={{
                 width: `${progressPct}%`,
-                boxShadow: '0 0 20px rgba(34, 211, 238, 0.5)',
+                boxShadow: '0 0 20px rgba(245, 158, 11, 0.35)',
               }}
             >
               {/* shimmer highlight */}
