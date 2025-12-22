@@ -24,14 +24,16 @@ import {
 // --- CONSTANTS & CONFIG ---
 const FREE_LIMITS = {
   flashcards: 20,
-  quizzes: 3
+  quizzes: 3,
+  matches: 10, // NEW: free limit for Match mode
 };
 
 const XP_REWARDS = {
   quiz_correct: 10,
   quiz_perfect_bonus: 50,
   flashcard_flip: 1,
-  typing_bonus: 5 // Extra XP for typing mode
+  typing_bonus: 5, // Extra XP for typing mode
+  match_correct: 8, // NEW: XP for each correct match
 };
 
 // --- HELPER: SAFE TEXT CONTENT ---
@@ -98,14 +100,14 @@ export default function Study({ words = [], userXP = 0, onUpdateXP, targetLangua
         const parsed = JSON.parse(saved);
         // Reset limits if new day, keep mastery scores
         if (parsed.date !== today) {
-          return { ...parsed, date: today, usage: { flashcards: 0, quizzes: 0 } };
+          return { ...parsed, date: today, usage: { flashcards: 0, quizzes: 0, matches: 0 } };
         }
         return parsed;
       }
     } catch (e) { console.error(e); }
     return { 
       date: new Date().toDateString(), 
-      usage: { flashcards: 0, quizzes: 0 },
+      usage: { flashcards: 0, quizzes: 0, matches: 0 }, // include matches
       mastery: {} // { wordId: score } (High score = known well, Low = needs review)
     };
   });
@@ -238,6 +240,7 @@ export default function Study({ words = [], userXP = 0, onUpdateXP, targetLangua
           setIsTypingMode={setIsTypingMode}
           isSmartReview={isSmartReview}
           setIsSmartReview={setIsSmartReview}
+          setShowPaywall={setShowPaywall} // NEW: for upgrade promo
         />
       )}
 
@@ -259,6 +262,17 @@ export default function Study({ words = [], userXP = 0, onUpdateXP, targetLangua
           onComplete={() => incrementUsage('quizzes')}
           updateMastery={updateMastery}
           isTypingMode={isTypingMode}
+          targetLanguage={targetLanguage}
+        />
+      )}
+
+      {mode === 'match' && (
+        <MatchSession 
+          words={activeWords} 
+          addXP={handleAddXP}
+          onComplete={() => incrementUsage('matches')}
+          updateMastery={updateMastery}
+          checkLimit={() => checkLimit('matches')}
           targetLanguage={targetLanguage}
         />
       )}
@@ -296,11 +310,13 @@ function StudyMenu({
   categories, selectedCategory, setSelectedCategory, 
   setMode, wordCount, usage, checkLimit,
   isTypingMode, setIsTypingMode,
-  isSmartReview, setIsSmartReview
+  isSmartReview, setIsSmartReview,
+  setShowPaywall // NEW
 }) {
   
   const handleModeSelect = (modeType) => {
-    const limitType = modeType === 'flashcards' ? 'flashcards' : 'quizzes';
+    const limitMap = { flashcards: 'flashcards', quiz: 'quizzes', match: 'matches' };
+    const limitType = limitMap[modeType] || 'flashcards';
     if (checkLimit(limitType)) {
       setMode(modeType);
     }
@@ -338,6 +354,22 @@ function StudyMenu({
           </button>
         </div>
 
+        {/* UPGRADE PROMO */}
+        <div className="mb-4 rounded-2xl overflow-hidden border border-yellow-600/10 bg-gradient-to-r from-yellow-400/5 to-orange-400/5 p-3 flex items-center justify-between">
+          <div>
+            <div className="text-sm font-bold text-yellow-300">Upgrade to Pro</div>
+            <div className="text-slate-300 text-sm">Unlimited practice, smart review tuning, and more.</div>
+          </div>
+          <div>
+            <button
+              onClick={() => setShowPaywall(true)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 font-bold shadow-lg"
+            >
+              Learn More
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           {categories.map(cat => (
             <button
@@ -355,7 +387,7 @@ function StudyMenu({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6"> {/* changed to 3 columns */
         
         {/* Flashcards Option */}
         <button 
@@ -388,7 +420,7 @@ function StudyMenu({
 
         {/* Quiz Option */}
         <div className="relative group">
-           <button 
+          <button 
             onClick={() => handleModeSelect('quiz')}
             disabled={wordCount < 4}
             className="w-full h-full relative bg-[#0f172a] border border-slate-800 hover:border-purple-500/50 rounded-[32px] p-8 text-left transition-all duration-300 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden z-10"
@@ -414,26 +446,36 @@ function StudyMenu({
             <h2 className="text-3xl font-bold text-white mb-2">Quiz Mode</h2>
             <p className="text-slate-400 mb-4">Test your knowledge.</p>
           </button>
-          
-          {/* Enhanced Typing Mode Toggle - Moved to Bottom Right */}
-          <div className="absolute bottom-6 right-8 z-20">
-             <button
-              onClick={(e) => { e.stopPropagation(); setIsTypingMode(!isTypingMode); }}
-              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg backdrop-blur-md ${
-                isTypingMode 
-                  ? 'bg-purple-500/90 text-white border border-purple-400 shadow-purple-500/20' 
-                  : 'bg-slate-800/90 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-white'
-              }`}
-             >
-                <div className={`p-1 rounded-md ${isTypingMode ? 'bg-white/20' : 'bg-slate-600/50'}`}>
-                  {isTypingMode ? <Keyboard size={14} /> : <MousePointer2 size={14} />}
+        </div>
+
+        {/* NEW: Match Option */}
+        <div className="relative group">
+          <button 
+            onClick={() => handleModeSelect('match')}
+            disabled={wordCount < 2}
+            className="w-full h-full relative bg-[#0f172a] border border-slate-800 hover:border-green-500/50 rounded-[32px] p-8 text-left transition-all duration-300 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden z-10"
+          >
+            <div className="flex justify-between items-start mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-400 group-hover:scale-110 transition-transform">
+                <CheckCircle2 size={32} />
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-xs font-bold text-slate-500 mb-1">DAILY LIMIT</span>
+                <div className="flex items-center gap-2 text-sm text-slate-300">
+                  {usage.matches >= FREE_LIMITS.matches && <Lock size={14} className="text-orange-500" />}
+                  <span>{usage.matches}/{FREE_LIMITS.matches}</span>
                 </div>
-                <div className="flex flex-col items-start leading-none">
-                   <span className="uppercase opacity-70 text-[10px] mb-0.5">Input Mode</span>
-                   <span className="text-sm">{isTypingMode ? 'Typing' : 'Clicking'}</span>
+                <div className="w-20 h-1 bg-slate-800 rounded-full mt-2">
+                  <div 
+                    className={`h-full rounded-full ${usage.matches >= FREE_LIMITS.matches ? 'bg-orange-500' : 'bg-green-500'}`} 
+                    style={{ width: `${getLimitProgress(usage.matches, FREE_LIMITS.matches)}%` }}
+                  />
                 </div>
-             </button>
-          </div>
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-2">Match</h2>
+            <p className="text-slate-400">Match terms to their translations.</p>
+          </button>
         </div>
 
       </div>
@@ -834,4 +876,160 @@ function QuizResult({ words, score, addXP }) {
       </button>
     </div>
   );
+}
+
+// ==========================================
+// 4. MATCH SESSION (NEW)
+// ==========================================
+function MatchSession({ words = [], addXP, onComplete, updateMastery, checkLimit }) {
+  const [pairs, setPairs] = useState([]); // [{id, term, translation}]
+  const [left, setLeft] = useState([]); // terms
+  const [right, setRight] = useState([]); // translations (shuffled)
+  const [selectedLeft, setSelectedLeft] = useState(null);
+  const [selectedRight, setSelectedRight] = useState(null);
+  const [matchedIds, setMatchedIds] = useState(new Set());
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    // Prepare a small set for a match session (up to 6 pairs)
+    const sample = words.slice(0, Math.min(words.length, 6)).map(w => ({
+      id: w.id,
+      term: w.term,
+      translation: getWordContent(w)
+    }));
+    const shuffledRight = shuffleArray(sample.map(s => ({ id: s.id, text: s.translation })));
+    setPairs(sample);
+    setLeft(sample.map(s => ({ id: s.id, text: s.term })));
+    setRight(shuffledRight);
+    setSelectedLeft(null);
+    setSelectedRight(null);
+    setMatchedIds(new Set());
+    setScore(0);
+    setDone(false);
+  }, [words]);
+
+  useEffect(() => {
+    if (pairs.length > 0 && matchedIds.size === pairs.length) {
+      // Completed
+      setDone(true);
+      addXP(score * XP_REWARDS.match_correct);
+      if (onComplete) onComplete();
+    }
+  }, [matchedIds]);
+
+  const handleSelectLeft = (item) => {
+    if (matchedIds.has(item.id)) return;
+    setSelectedLeft(item);
+    if (selectedRight) attemptMatch(item, selectedRight);
+  };
+
+  const handleSelectRight = (item) => {
+    if (matchedIds.has(item.id)) return;
+    setSelectedRight(item);
+    if (selectedLeft) attemptMatch(selectedLeft, item);
+  };
+
+  const attemptMatch = (l, r) => {
+    if (!l || !r) return;
+    if (l.id === r.id) {
+      // correct
+      setMatchedIds(prev => new Set(prev).add(l.id));
+      setScore(s => s + 1);
+      updateMastery?.(l.id, 1);
+      // clear selections
+      setSelectedLeft(null);
+      setSelectedRight(null);
+    } else {
+      // incorrect
+      updateMastery?.(l.id, -1);
+      // brief feedback: clear selections after small delay
+      setTimeout(() => {
+        setSelectedLeft(null);
+        setSelectedRight(null);
+      }, 700);
+    }
+  };
+
+  if (!pairs || pairs.length === 0) return <div className="text-center text-slate-400">Not enough words to match.</div>;
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Match</h2>
+          <p className="text-slate-400 text-sm">Tap a term and its translation to pair them.</p>
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-slate-400 uppercase">Score</div>
+          <div className="text-lg font-bold text-white">{score} / {pairs.length}</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-3">
+          {left.map(item => {
+            const isMatched = matchedIds.has(item.id);
+            const isSelected = selectedLeft?.id === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleSelectLeft(item)}
+                disabled={isMatched}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                  isMatched ? 'bg-green-500/10 border-green-500 text-green-300' :
+                  isSelected ? 'bg-yellow-500/10 border-yellow-500 text-yellow-300' :
+                  'bg-[#0f172a] border-slate-800 text-white hover:bg-slate-800'
+                }`}
+              >
+                {item.text}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="space-y-3">
+          {right.map(item => {
+            const isMatched = matchedIds.has(item.id);
+            const isSelected = selectedRight?.id === item.id;
+            return (
+              <button
+                key={item.id + '-r'}
+                onClick={() => handleSelectRight(item)}
+                disabled={isMatched}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                  isMatched ? 'bg-green-500/10 border-green-500 text-green-300' :
+                  isSelected ? 'bg-yellow-500/10 border-yellow-500 text-yellow-300' :
+                  'bg-[#0f172a] border-slate-800 text-white hover:bg-slate-800'
+                }`}
+              >
+                {item.text}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {done && (
+        <div className="mt-8 text-center">
+          <div className="inline-block bg-gradient-to-tr from-green-400 to-teal-400 text-slate-900 px-6 py-3 rounded-2xl font-bold shadow-lg">
+            Completed • +{score * XP_REWARDS.match_correct} XP
+          </div>
+          <div className="mt-4">
+            <button onClick={() => window.location.reload()} className="mt-4 px-6 py-3 rounded-xl bg-white text-slate-900 font-bold">Back to Menu</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper: shuffle array
+function shuffleArray(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
