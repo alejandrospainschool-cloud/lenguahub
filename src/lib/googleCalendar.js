@@ -43,8 +43,8 @@ export const createGoogleCalendarEvent = async (token, eventDetails) => {
   const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
 
   const eventPayload = {
-    summary: `LenguaHub: ${title}`,
-    description: `Language lesson booking via LenguaHub.`,
+    summary: `Olé Learning: ${title}`,
+    description: `Language lesson booking via Olé Learning.`,
     start: {
       dateTime: startDateTime.toISOString(),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,

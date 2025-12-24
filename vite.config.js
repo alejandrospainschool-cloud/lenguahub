@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://lenguahubai.vercel.app',
+        target: 'https://olelearning.vip',
         changeOrigin: true,
         secure: true,
       },
