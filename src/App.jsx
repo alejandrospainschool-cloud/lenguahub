@@ -1,8 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-
-// Icons
 import { Menu } from 'lucide-react'
 
 // Components
@@ -15,8 +13,9 @@ import Tools from './modules/ai/Tools'
 import Login from './modules/auth/Login'
 import TeacherDashboard from './modules/dashboard/TeacherDashboard'
 
-// Firebase
+// Firebase & Freemium Logic
 import { onUserStateChange, logout, db } from './lib/firebase'
+import { getEmptyUsage } from './lib/freemium' // Import the helper
 import {
   collection,
   query,
@@ -24,6 +23,8 @@ import {
   orderBy,
   doc,
   setDoc,
+  updateDoc,
+  increment,
   serverTimestamp,
 } from 'firebase/firestore'
 
@@ -79,10 +80,7 @@ function MainContent() {
   // 2. ROUTING LOGIC
   return (
     <Routes>
-      {/* Public Login Route */}
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-
-      {/* Protected Routes */}
       <Route
         path="/*"
         element={
@@ -104,16 +102,21 @@ function StudentLayout({ user }) {
   const [words, setWords] = useState([])
   const [events, setEvents] = useState([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  
+  // FREEMIUM STATE
+  const [isPremium, setIsPremium] = useState(false)
+  const [dailyUsage, setDailyUsage] = useState(getEmptyUsage())
+
   const location = useLocation()
 
   // Close sidebar automatically on mobile when route changes
   useEffect(() => setIsSidebarOpen(false), [location])
 
-  // Fetch Data (Only for Students)
+  // Fetch Data & Settings
   useEffect(() => {
     if (!user) return
 
-    // Word Bank
+    // 1. Fetch Words
     const qWords = query(
       collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'),
       orderBy('createdAt', 'desc')
@@ -122,17 +125,71 @@ function StudentLayout({ user }) {
       setWords(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     )
 
-    // Events
+    // 2. Fetch Events
     const eventsRef = collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'events')
     const unsubEvents = onSnapshot(eventsRef, (snap) =>
       setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     )
 
+    // 3. Fetch Metadata (Premium & Usage)
+    const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
+    const unsubMeta = onSnapshot(metaRef, async (snap) => {
+      if (snap.exists()) {
+        const data = snap.data()
+        setIsPremium(data.isPremium || false)
+
+        // Check if day has changed
+        const today = new Date().toDateString()
+        if (data.usage?.date !== today) {
+          // Reset usage for new day
+          const newUsage = getEmptyUsage()
+          await setDoc(metaRef, { usage: newUsage }, { merge: true })
+          setDailyUsage(newUsage)
+        } else {
+          setDailyUsage(data.usage)
+        }
+      } else {
+        // Initialize if missing
+        await setDoc(metaRef, { isPremium: false, usage: getEmptyUsage() })
+      }
+    })
+
     return () => {
       unsubWords()
       unsubEvents()
+      unsubMeta()
     }
   }, [user])
+
+  // --- ACTIONS ---
+
+  // Track usage in DB
+  const trackUsage = async (metricKey) => {
+    if (isPremium) return // Don't track if premium
+
+    // Optimistic UI update
+    setDailyUsage(prev => ({ ...prev, [metricKey]: (prev[metricKey] || 0) + 1 }))
+
+    // DB Update
+    try {
+      const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
+      await updateDoc(metaRef, {
+        [`usage.${metricKey}`]: increment(1)
+      })
+    } catch (err) {
+      console.error("Usage tracking failed:", err)
+    }
+  }
+
+  // Handle Upgrade (Mock for now)
+  const handleUpgrade = async () => {
+    const confirm = window.confirm("Mock Payment: Upgrade to Premium for £9.99?")
+    if (confirm) {
+      const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
+      await updateDoc(metaRef, { isPremium: true })
+      alert("Welcome to Premium! Unlimited access granted.")
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-blue-500/30">
@@ -151,10 +208,28 @@ function StudentLayout({ user }) {
       <main className="pt-24 md:pt-10 md:pl-72 p-6 min-h-screen max-w-7xl mx-auto">
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Routes>
-            <Route path="/" element={<Dashboard user={user} words={words} events={events} />} />
+            <Route path="/" element={
+              <Dashboard 
+                user={user} 
+                words={words} 
+                events={events} 
+                isPremium={isPremium}
+                dailyUsage={dailyUsage}
+                trackUsage={trackUsage}
+                onUpgrade={handleUpgrade}
+              />
+            } />
             <Route path="/words" element={<WordBank user={user} words={words} />} />
             <Route path="/calendar" element={<CalendarView user={user} events={events} setEvents={setEvents} />} />
-            <Route path="/study" element={<Study words={words} />} />
+            <Route path="/study" element={
+              <Study 
+                words={words}
+                isPremium={isPremium}
+                dailyUsage={dailyUsage}
+                trackUsage={trackUsage}
+                onUpgrade={handleUpgrade}
+              />
+            } />
             <Route path="/tools" element={<Tools user={user} />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
