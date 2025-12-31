@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
@@ -31,6 +30,9 @@ import {
 
 // Freemium Helper
 import { getEmptyUsage } from './lib/freemium'
+
+// Logo Import
+import logo from './logo.png' 
 
 // --- CONFIG ---
 const TEACHER_EMAIL = 'alejandropotter16@gmail.com'
@@ -208,7 +210,7 @@ function StudentLayout({ user }) {
           <Menu size={28} />
         </button>
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Olé Learning" className="h-8 w-8 rounded-lg shadow-lg shadow-amber-500/20" />
+          <img src={logo} alt="Olé Learning" className="h-8 w-8 rounded-lg shadow-lg shadow-amber-500/20" />
           <span className="font-bold text-lg text-slate-200">Olé Learning</span>
         </div>
       </header>

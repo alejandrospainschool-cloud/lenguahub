@@ -1,9 +1,9 @@
-// src/modules/auth/Login.jsx
 import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { auth, provider } from '../../lib/firebase';
 import { Brain, Globe, Timer } from 'lucide-react';
+import logo from '../../logo.png'; // IMPORT LOGO
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -15,10 +15,8 @@ export default function Login() {
       provider.setCustomParameters({ prompt: 'select_account' });
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
-
-      if (token) {
-        sessionStorage.setItem("google_access_token", token);
+      if (credential?.accessToken) {
+        sessionStorage.setItem("google_access_token", credential.accessToken);
         navigate('/'); 
       } else {
         alert("Login successful, but Google didn't return a token. Please try again.");
@@ -68,7 +66,7 @@ export default function Login() {
           <div className="mx-auto w-24 h-24 mb-6 relative group">
             <div className="absolute inset-0 bg-orange-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all" />
             <img 
-              src="/logo.png" 
+              src={logo} 
               alt="Olé Learning" 
               className="relative w-full h-full object-cover rounded-2xl shadow-2xl ring-2 ring-orange-500/20" 
             />

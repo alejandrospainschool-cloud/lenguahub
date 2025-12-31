@@ -1,4 +1,3 @@
-// src/components/layout/Sidebar.jsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -11,6 +10,7 @@ import {
   X 
 } from 'lucide-react';
 import { logout } from '../../lib/firebase';
+import logo from '../../logo.png'; // IMPORTING LOGO FROM SRC
 
 export default function Sidebar({ user, isOpen, onClose }) {
   const location = useLocation();
@@ -52,9 +52,8 @@ export default function Sidebar({ user, isOpen, onClose }) {
         {/* Header */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-white/5">
           <div className="flex items-center gap-3">
-            {/* BRAND LOGO */}
             <img 
-              src="/logo.png" 
+              src={logo} 
               alt="Olé Learning" 
               className="w-10 h-10 rounded-xl object-cover shadow-lg shadow-amber-500/20" 
             />
