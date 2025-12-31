@@ -1,32 +1,49 @@
 // src/components/ui/AdBanner.jsx
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 
-export default function AdBanner({ isPremium }) {
-  // If user is premium, render nothing
+export default function AdBanner({ isPremium, dataAdSlot }) {
+  // 1. If Premium, render nothing
   if (isPremium) return null
 
+  // YOUR SPECIFIC GOOGLE ADSENSE IDS
+  const AD_CLIENT_ID = "ca-pub-4296401310188622" 
+  const DEFAULT_SLOT_ID = "5285433846" // Your Dashboard Banner ID
+  
+  // Use prop if provided, otherwise fallback to default
+  const slotId = dataAdSlot || DEFAULT_SLOT_ID
+
+  const adRef = useRef(null)
+
   useEffect(() => {
-    // This is where you would initialize the Google AdSense push
-    // try {
-    //   (window.adsbygoogle = window.adsbygoogle || []).push({});
-    // } catch (err) { console.error(err) }
+    // Safety check: prevent double-pushing ads in React Strict Mode
+    // We check if the ad element exists and is empty before pushing
+    if (adRef.current && adRef.current.innerHTML === "") {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({})
+      } catch (err) {
+        console.error("AdSense Error:", err)
+      }
+    }
   }, [])
 
   return (
-    <div className="w-full my-6 flex justify-center">
-      {/* Google AdSense Placeholder container */}
-      <div className="bg-slate-800/50 border border-slate-700 w-full max-w-[728px] h-[90px] flex items-center justify-center text-slate-500 text-xs uppercase tracking-widest rounded-lg">
-        Google Ad Banner (728x90)
-      </div>
+    <div className="w-full my-6 flex flex-col items-center gap-2 overflow-hidden">
+      <span className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">
+        Advertisement
+      </span>
       
-      {/* Example AdSense Code Structure (Commented out until you have your ID) */}
-      {/* <ins className="adsbygoogle"
-           style={{ display: 'block' }}
-           data-ad-client="ca-pub-YOUR_ID_HERE"
-           data-ad-slot="YOUR_SLOT_ID"
-           data-ad-format="auto"
-           data-full-width-responsive="true"></ins> 
-      */}
+      {/* Ad Container */}
+      <div className="w-full max-w-[728px] min-h-[90px] bg-slate-800/30 rounded-lg flex justify-center items-center">
+        <ins
+          className="adsbygoogle"
+          style={{ display: 'block', width: '100%' }}
+          data-ad-client={AD_CLIENT_ID}
+          data-ad-slot={slotId}
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+          ref={adRef} 
+        />
+      </div>
     </div>
   )
 }

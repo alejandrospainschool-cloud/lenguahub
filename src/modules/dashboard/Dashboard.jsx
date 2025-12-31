@@ -4,15 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import {
   Calendar as CalendarIcon, Book, Sparkles, Brain, ArrowRight,
   Flame, Languages, Loader2, Save, Check, X, Trophy, FolderPlus,
-  Crown, Lock // Added Icons
+  Crown, Lock
 } from 'lucide-react'
 
 import { calculateStats } from '../../lib/gamification'
 import { generateContent } from '../../lib/ai'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { hasReachedLimit } from '../../lib/freemium' // Import helper
-import AdBanner from '../../components/ui/AdBanner' // Import Ad
+import { hasReachedLimit } from '../../lib/freemium' 
+import AdBanner from '../../components/ui/AdBanner' 
 
 const FOLDER_COLORS = ['#3b82f6', '#a855f7', '#22c55e', '#f97316', '#ec4899', '#ef4444']
 
@@ -29,7 +29,7 @@ export default function Dashboard({
   const [translatedText, setTranslatedText] = useState('')
   const [isTranslating, setIsTranslating] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [showPaywall, setShowPaywall] = useState(false) // New Paywall State
+  const [showPaywall, setShowPaywall] = useState(false) 
   const [targetFolder, setTargetFolder] = useState('')
   const [isNewFolder, setIsNewFolder] = useState(false)
   const [hasSaved, setHasSaved] = useState(false)
@@ -114,8 +114,8 @@ export default function Dashboard({
   return (
     <div className="w-full max-w-5xl mx-auto px-4 md:px-8 space-y-10 animate-in fade-in duration-500 pb-12">
       
-      {/* 1. AD BANNER */}
-      <AdBanner isPremium={isPremium} />
+      {/* 1. AD BANNER (Uses your ID: 5285433846) */}
+      <AdBanner isPremium={isPremium} dataAdSlot="5285433846" />
 
       {/* 2. TRANSLATOR */}
       <section className="border border-amber-500/20 rounded-3xl p-5 md:p-6 relative overflow-hidden shadow-xl"
@@ -133,7 +133,6 @@ export default function Dashboard({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center">
-             {/* Inputs (Simplified for brevity - logic remains the same) */}
              <div className="space-y-2">
                <label className="text-xs font-bold text-amber-300 uppercase ml-2">English</label>
                <input value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleTranslate()} className="w-full h-[62px] bg-[#0f172a]/60 border border-indigo-500/30 rounded-2xl px-4 text-lg text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none" placeholder="Type to translate..." />
@@ -163,7 +162,6 @@ export default function Dashboard({
             <div className="w-full max-w-sm space-y-4">
               <div className="flex justify-between text-white font-bold"><h3>Save to Collection</h3><button onClick={() => setShowSaveModal(false)}><X /></button></div>
               
-              {/* Folder Selector Logic */}
               {!isNewFolder ? (
                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                    {existingFolders.map(f => (
@@ -185,7 +183,6 @@ export default function Dashboard({
                 onClick={saveToWordBank} 
                 className="w-full py-3 bg-white text-slate-900 font-bold rounded-xl disabled:opacity-50 hover:bg-slate-200 mt-2 flex items-center justify-center gap-2"
               >
-                {/* Visual Lock if Limit Reached */}
                 {hasReachedLimit(dailyUsage, 'wordsAdded', isPremium) && <Lock size={16} className="text-red-600"/>}
                 Confirm Save
               </button>
@@ -204,7 +201,6 @@ export default function Dashboard({
           </p>
         </div>
         
-        {/* Progress Bar */}
         <div className="max-w-xl mx-auto bg-[#1e293b] p-4 rounded-2xl border border-slate-800">
            <div className="flex justify-between text-sm font-bold text-slate-400 mb-2">
              <span className="text-white flex items-center gap-2"><Trophy size={14} className="text-yellow-500"/> Level {stats.level}</span>
