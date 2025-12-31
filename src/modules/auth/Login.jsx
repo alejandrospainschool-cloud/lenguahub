@@ -1,46 +1,29 @@
+// src/modules/auth/Login.jsx
 import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom'; // 1. Import this hook
+import { useNavigate } from 'react-router-dom';
 import { auth, provider } from '../../lib/firebase';
 import { Brain, Globe, Timer } from 'lucide-react';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate(); // 2. Initialize navigation
+  const navigate = useNavigate();
 
   const signInWithGoogle = async () => {
     setLoading(true);
     try {
-      console.log("Attempting Google Sign-In...");
-      
-      // Force account selection to ensure we get a fresh token
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
-
+      provider.setCustomParameters({ prompt: 'select_account' });
       const result = await signInWithPopup(auth, provider);
-      
-      // Get the Google Access Token
       const credential = GoogleAuthProvider.credentialFromResult(result);
       const token = credential?.accessToken;
 
-      console.log("Sign-In Result:", result);
-      console.log("Token received:", token ? "YES" : "NO");
-
       if (token) {
-        // Save the token to session storage
         sessionStorage.setItem("google_access_token", token);
-        console.log("Token saved. Redirecting to Home...");
-        
-        // 3. FIX: Navigate to home instead of reloading
-        // This prevents the 404 error on servers like Vercel/Netlify
         navigate('/'); 
       } else {
-        console.error("ERROR: Login succeeded but NO TOKEN returned.");
-        alert("Login successful, but Google didn't return a Calendar permission token. Please try again and ensure you check all permission boxes.");
+        alert("Login successful, but Google didn't return a token. Please try again.");
         setLoading(false);
       }
-
     } catch (err) {
       console.error("Login Failed:", err);
       setLoading(false);
@@ -81,14 +64,22 @@ export default function Login() {
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
           }}
         >
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-4 mt-2">
-            Olé Learning
+          {/* LOGO SECTION */}
+          <div className="mx-auto w-24 h-24 mb-6 relative group">
+            <div className="absolute inset-0 bg-orange-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all" />
+            <img 
+              src="/logo.png" 
+              alt="Olé Learning" 
+              className="relative w-full h-full object-cover rounded-2xl shadow-2xl ring-2 ring-orange-500/20" 
+            />
+          </div>
+
+          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
+            Welcome Back
           </h1>
           
           <p className="text-slate-400 text-sm mb-8 opacity-90 leading-6 font-medium">
-            An app built to help your learning,
-            <br />
-            by Alejandro
+            Sign in to continue your learning journey
           </p>
 
           <div className="flex justify-center gap-5 w-full">

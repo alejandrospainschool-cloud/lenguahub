@@ -1,3 +1,4 @@
+// src/components/layout/Sidebar.jsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -51,9 +52,12 @@ export default function Sidebar({ user, isOpen, onClose }) {
         {/* Header */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center font-bold text-white shadow-lg shadow-amber-500/20">
-              OL
-            </div>
+            {/* BRAND LOGO */}
+            <img 
+              src="/logo.png" 
+              alt="Olé Learning" 
+              className="w-10 h-10 rounded-xl object-cover shadow-lg shadow-amber-500/20" 
+            />
             <span className="font-bold text-lg text-white tracking-tight">
               Olé Learning
             </span>

@@ -202,11 +202,15 @@ function StudentLayout({ user }) {
 
   return (
     <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-blue-500/30">
+      {/* UPDATED MOBILE HEADER */}
       <header className="fixed top-0 left-0 right-0 h-20 px-6 flex items-center justify-between z-30 md:hidden bg-[#02040a]/80 backdrop-blur-md border-b border-white/5">
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-400 hover:text-white">
           <Menu size={28} />
         </button>
-        <span className="font-bold text-lg text-slate-200">Olé Learning</span>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="Olé Learning" className="h-8 w-8 rounded-lg shadow-lg shadow-amber-500/20" />
+          <span className="font-bold text-lg text-slate-200">Olé Learning</span>
+        </div>
       </header>
 
       <Sidebar user={user} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
