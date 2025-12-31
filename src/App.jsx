@@ -1,6 +1,8 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+
+// Icons
 import { Menu } from 'lucide-react'
 
 // Components
@@ -13,9 +15,8 @@ import Tools from './modules/ai/Tools'
 import Login from './modules/auth/Login'
 import TeacherDashboard from './modules/dashboard/TeacherDashboard'
 
-// Firebase & Freemium Logic
+// Firebase
 import { onUserStateChange, logout, db } from './lib/firebase'
-import { getEmptyUsage } from './lib/freemium' // Import the helper
 import {
   collection,
   query,
@@ -27,6 +28,9 @@ import {
   increment,
   serverTimestamp,
 } from 'firebase/firestore'
+
+// Freemium Helper
+import { getEmptyUsage } from './lib/freemium'
 
 // --- CONFIG ---
 const TEACHER_EMAIL = 'alejandropotter16@gmail.com'
@@ -80,7 +84,10 @@ function MainContent() {
   // 2. ROUTING LOGIC
   return (
     <Routes>
+      {/* Public Login Route */}
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+
+      {/* Protected Routes */}
       <Route
         path="/*"
         element={
@@ -102,21 +109,20 @@ function StudentLayout({ user }) {
   const [words, setWords] = useState([])
   const [events, setEvents] = useState([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  
+  const location = useLocation()
+
   // FREEMIUM STATE
   const [isPremium, setIsPremium] = useState(false)
   const [dailyUsage, setDailyUsage] = useState(getEmptyUsage())
 
-  const location = useLocation()
-
   // Close sidebar automatically on mobile when route changes
   useEffect(() => setIsSidebarOpen(false), [location])
 
-  // Fetch Data & Settings
+  // Fetch Data (Only for Students)
   useEffect(() => {
     if (!user) return
 
-    // 1. Fetch Words
+    // 1. Word Bank
     const qWords = query(
       collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'),
       orderBy('createdAt', 'desc')
@@ -125,17 +131,18 @@ function StudentLayout({ user }) {
       setWords(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     )
 
-    // 2. Fetch Events
+    // 2. Events
     const eventsRef = collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'events')
     const unsubEvents = onSnapshot(eventsRef, (snap) =>
       setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     )
 
-    // 3. Fetch Metadata (Premium & Usage)
+    // 3. User Metadata (Premium & Usage)
     const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
-    const unsubMeta = onSnapshot(metaRef, async (snap) => {
-      if (snap.exists()) {
-        const data = snap.data()
+    
+    const unsubMeta = onSnapshot(metaRef, async (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data()
         setIsPremium(data.isPremium || false)
 
         // Check if day has changed
@@ -149,8 +156,11 @@ function StudentLayout({ user }) {
           setDailyUsage(data.usage)
         }
       } else {
-        // Initialize if missing
-        await setDoc(metaRef, { isPremium: false, usage: getEmptyUsage() })
+        // Init metadata if doesn't exist
+        await setDoc(metaRef, { 
+          isPremium: false, 
+          usage: getEmptyUsage() 
+        })
       }
     })
 
@@ -181,13 +191,31 @@ function StudentLayout({ user }) {
     }
   }
 
-  // Handle Upgrade (Mock for now)
+  // --- STRIPE CHECKOUT HANDLER ---
   const handleUpgrade = async () => {
-    const confirm = window.confirm("Mock Payment: Upgrade to Premium for £9.99?")
-    if (confirm) {
-      const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
-      await updateDoc(metaRef, { isPremium: true })
-      alert("Welcome to Premium! Unlimited access granted.")
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          email: user.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url; // Redirect to Stripe
+      } else {
+        console.error("Stripe Error:", data);
+        alert("Failed to start checkout. Please try again.");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      alert("Something went wrong with the payment server. Please try again.");
     }
   }
 
@@ -212,7 +240,7 @@ function StudentLayout({ user }) {
               <Dashboard 
                 user={user} 
                 words={words} 
-                events={events} 
+                events={events}
                 isPremium={isPremium}
                 dailyUsage={dailyUsage}
                 trackUsage={trackUsage}
@@ -223,7 +251,7 @@ function StudentLayout({ user }) {
             <Route path="/calendar" element={<CalendarView user={user} events={events} setEvents={setEvents} />} />
             <Route path="/study" element={
               <Study 
-                words={words}
+                words={words} 
                 isPremium={isPremium}
                 dailyUsage={dailyUsage}
                 trackUsage={trackUsage}
