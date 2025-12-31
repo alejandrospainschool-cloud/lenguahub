@@ -53,12 +53,10 @@ function MainContent() {
         return
       }
 
-      // Restore Google Token if needed
       const storedToken = sessionStorage.getItem('google_access_token')
       const userData = { ...u, token: storedToken }
       setUser(userData)
 
-      // Sync User to DB
       try {
         await setDoc(
           doc(db, 'users', u.uid),
@@ -84,10 +82,8 @@ function MainContent() {
   // 2. ROUTING LOGIC
   return (
     <Routes>
-      {/* Public Login Route */}
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
 
-      {/* Protected Routes */}
       <Route
         path="/*"
         element={
@@ -104,7 +100,6 @@ function MainContent() {
   )
 }
 
-// --- STUDENT LAYOUT & DATA FETCHING ---
 function StudentLayout({ user }) {
   const [words, setWords] = useState([])
   const [events, setEvents] = useState([])
@@ -115,14 +110,11 @@ function StudentLayout({ user }) {
   const [isPremium, setIsPremium] = useState(false)
   const [dailyUsage, setDailyUsage] = useState(getEmptyUsage())
 
-  // Close sidebar automatically on mobile when route changes
   useEffect(() => setIsSidebarOpen(false), [location])
 
-  // Fetch Data (Only for Students)
   useEffect(() => {
     if (!user) return
 
-    // 1. Word Bank
     const qWords = query(
       collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'),
       orderBy('createdAt', 'desc')
@@ -131,13 +123,11 @@ function StudentLayout({ user }) {
       setWords(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     )
 
-    // 2. Events
     const eventsRef = collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'events')
     const unsubEvents = onSnapshot(eventsRef, (snap) =>
       setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     )
 
-    // 3. User Metadata (Premium & Usage)
     const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
     
     const unsubMeta = onSnapshot(metaRef, async (docSnap) => {
@@ -145,10 +135,8 @@ function StudentLayout({ user }) {
         const data = docSnap.data()
         setIsPremium(data.isPremium || false)
 
-        // Check if day has changed
         const today = new Date().toDateString()
         if (data.usage?.date !== today) {
-          // Reset usage for new day
           const newUsage = getEmptyUsage()
           await setDoc(metaRef, { usage: newUsage }, { merge: true })
           setDailyUsage(newUsage)
@@ -156,7 +144,6 @@ function StudentLayout({ user }) {
           setDailyUsage(data.usage)
         }
       } else {
-        // Init metadata if doesn't exist
         await setDoc(metaRef, { 
           isPremium: false, 
           usage: getEmptyUsage() 
@@ -171,16 +158,11 @@ function StudentLayout({ user }) {
     }
   }, [user])
 
-  // --- ACTIONS ---
-
-  // Track usage in DB
   const trackUsage = async (metricKey) => {
-    if (isPremium) return // Don't track if premium
+    if (isPremium) return 
 
-    // Optimistic UI update
     setDailyUsage(prev => ({ ...prev, [metricKey]: (prev[metricKey] || 0) + 1 }))
 
-    // DB Update
     try {
       const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
       await updateDoc(metaRef, {
@@ -191,7 +173,6 @@ function StudentLayout({ user }) {
     }
   }
 
-  // --- STRIPE CHECKOUT HANDLER ---
   const handleUpgrade = async () => {
     try {
       const response = await fetch('/api/checkout', {
@@ -208,7 +189,7 @@ function StudentLayout({ user }) {
       const data = await response.json();
 
       if (data.url) {
-        window.location.href = data.url; // Redirect to Stripe
+        window.location.href = data.url; 
       } else {
         console.error("Stripe Error:", data);
         alert("Failed to start checkout. Please try again.");
@@ -221,7 +202,6 @@ function StudentLayout({ user }) {
 
   return (
     <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-blue-500/30">
-      {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 h-20 px-6 flex items-center justify-between z-30 md:hidden bg-[#02040a]/80 backdrop-blur-md border-b border-white/5">
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-400 hover:text-white">
           <Menu size={28} />
@@ -229,10 +209,8 @@ function StudentLayout({ user }) {
         <span className="font-bold text-lg text-slate-200">Olé Learning</span>
       </header>
 
-      {/* Sidebar */}
       <Sidebar user={user} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      {/* Content Area */}
       <main className="pt-24 md:pt-10 md:pl-72 p-6 min-h-screen max-w-7xl mx-auto">
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Routes>
@@ -267,7 +245,15 @@ function StudentLayout({ user }) {
                 onUpgrade={handleUpgrade}
               />
             } />
-            <Route path="/tools" element={<Tools user={user} />} />
+            <Route path="/tools" element={
+              <Tools 
+                user={user} 
+                isPremium={isPremium}
+                dailyUsage={dailyUsage}
+                trackUsage={trackUsage}
+                onUpgrade={handleUpgrade}
+              />
+            } />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>
