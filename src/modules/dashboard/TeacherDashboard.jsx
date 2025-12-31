@@ -1,9 +1,16 @@
 // src/modules/dashboard/TeacherDashboard.jsx
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { 
+  collection, getDocs, orderBy, query, addDoc, deleteDoc, 
+  doc, onSnapshot, serverTimestamp, setDoc 
+} from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar';
-import { Users, ShieldCheck, Search, Calendar as CalendarIcon, ArrowLeft, Plus, Trash2, ChevronRight } from 'lucide-react';
+import { 
+  Users, ShieldCheck, Search, Calendar as CalendarIcon, 
+  ArrowLeft, Plus, Trash2, ChevronRight, Crown, Mail, 
+  Clock, LogOut, CheckCircle2, XCircle, TrendingUp 
+} from 'lucide-react';
 import CalendarView from '../calendar/Calendar';
 
 export default function TeacherDashboard({ user, logout }) {
@@ -20,11 +27,10 @@ export default function TeacherDashboard({ user, logout }) {
         const snapshot = await getDocs(q);
         const studentData = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          // Hide yourself from the student list
-          .filter(s => s.email.toLowerCase() !== user.email.toLowerCase());
+          .filter(s => s.email?.toLowerCase() !== user.email?.toLowerCase()); // Hide yourself
         setStudents(studentData);
       } catch (error) {
-        console.error("Error:", error);
+        console.error("Error fetching students:", error);
       } finally {
         setLoading(false);
       }
@@ -33,84 +39,107 @@ export default function TeacherDashboard({ user, logout }) {
   }, [user.email]);
 
   return (
-    <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans p-6 md:p-10">
+    <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-cyan-500/30">
       
       {/* HEADER */}
-      <header className="flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto mb-10 gap-6">
-        <div>
-          <h1 className="text-4xl font-bold text-white flex items-center gap-3">
-            <ShieldCheck className="text-cyan-400" size={32} /> Teacher Hub
-          </h1>
-          <p className="text-slate-400 mt-2">Logged in as: <span className="text-white font-mono">{user.email}</span></p>
-        </div>
-        
-        {/* TABS */}
-        <div className="flex items-center gap-3 bg-[#0f172a] p-1.5 rounded-xl border border-white/10">
-          <button 
-            onClick={() => { setCurrentView('roster'); setSelectedStudent(null); }}
-            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${currentView === 'roster' || currentView === 'student-detail' ? 'bg-slate-700 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-          >
-            <Users size={16} /> Students
-          </button>
-          <button 
-            onClick={() => setCurrentView('calendar')}
-            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${currentView === 'calendar' ? 'bg-slate-700 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-          >
-            <CalendarIcon size={16} /> My Calendar
-          </button>
-        </div>
+      <header className="bg-[#0f172a] border-b border-white/5 px-6 md:px-10 py-6 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center border border-cyan-500/20">
+               <ShieldCheck className="text-cyan-400" size={24} /> 
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white tracking-tight">Teacher Command</h1>
+              <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/>
+                {user.email}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="flex bg-[#02040a] p-1 rounded-xl border border-white/10">
+              <button 
+                onClick={() => { setCurrentView('roster'); setSelectedStudent(null); }}
+                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'roster' || currentView === 'student-detail' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+              >
+                <Users size={16} /> Students
+              </button>
+              <button 
+                onClick={() => setCurrentView('calendar')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'calendar' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+              >
+                <CalendarIcon size={16} /> Calendar
+              </button>
+            </div>
 
-        <button 
-  onClick={() => {
-    sessionStorage.removeItem("google_access_token"); // Destroy Key
-    logout(); // Sign out of Firebase
-    window.location.reload(); // Force clean slate
-  }}
-  className="px-6 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg font-bold text-sm transition-colors border border-red-500/20"
->
-  Log Out
-</button>
+            <button 
+              onClick={() => {
+                sessionStorage.removeItem("google_access_token");
+                logout();
+                window.location.reload();
+              }}
+              className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-colors"
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </div>
       </header>
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto p-6 md:p-10">
         
         {/* VIEW 1: STUDENT ROSTER */}
         {currentView === 'roster' && (
-          <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in">
-            <div className="p-6 border-b border-white/10 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">Student Roster</h2>
-              <div className="bg-slate-900 border border-white/10 rounded-lg flex items-center px-3 py-2 text-sm text-slate-400">
-                <Search size={16} className="mr-2" />
-                <input placeholder="Search..." className="bg-transparent outline-none placeholder-slate-600" />
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
+                <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400"><Users size={24} /></div>
+                <div><div className="text-2xl font-bold text-white">{students.length}</div><div className="text-xs text-slate-400 uppercase font-bold">Total Students</div></div>
+              </div>
+              <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
+                <div className="p-3 bg-green-500/10 rounded-xl text-green-400"><TrendingUp size={24} /></div>
+                <div><div className="text-2xl font-bold text-white">Active</div><div className="text-xs text-slate-400 uppercase font-bold">Recent Logins</div></div>
+              </div>
+              <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
+                <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400"><Crown size={24} /></div>
+                <div><div className="text-2xl font-bold text-white">Manager</div><div className="text-xs text-slate-400 uppercase font-bold">Premium Controls</div></div>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold tracking-wider">
-                  <tr>
-                    <th className="p-6">Student</th>
-                    <th className="p-6">Email</th>
-                    <th className="p-6">Last Login</th>
-                    <th className="p-6 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {students.map((student) => (
-                    <tr key={student.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="p-6 font-bold text-white">{student.displayName || 'Unknown'}</td>
-                      <td className="p-6 text-slate-400 font-mono text-sm">{student.email}</td>
-                      <td className="p-6 text-slate-400 text-sm">
-                        {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleDateString() : 'Never'}
-                      </td>
-                      <td className="p-6 text-right">
-                        <button onClick={() => { setSelectedStudent(student); setCurrentView('student-detail'); }} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-2 ml-auto">
-                          Manage Words <ChevronRight size={14} />
-                        </button>
-                      </td>
+
+            {/* Table */}
+            <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+              <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+                <h2 className="text-xl font-bold text-white">Class Roster</h2>
+                <div className="bg-[#02040a] border border-white/10 rounded-xl flex items-center px-4 py-2.5 text-sm text-slate-400 w-full md:w-auto">
+                  <Search size={16} className="mr-2" />
+                  <input placeholder="Search student..." className="bg-transparent outline-none placeholder-slate-600 w-full" />
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-[#02040a] text-slate-400 text-xs uppercase font-bold tracking-wider">
+                    <tr>
+                      <th className="p-6">Student</th>
+                      <th className="p-6">Status</th>
+                      <th className="p-6">Last Login</th>
+                      <th className="p-6 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {students.map((student) => (
+                      <StudentRow 
+                        key={student.id} 
+                        student={student} 
+                        onManage={() => { setSelectedStudent(student); setCurrentView('student-detail'); }}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -125,6 +154,75 @@ export default function TeacherDashboard({ user, logout }) {
         
       </div>
     </div>
+  );
+}
+
+// --- COMPONENT: ROW WITH REAL-TIME PREMIUM TOGGLE ---
+function StudentRow({ student, onManage }) {
+  const [isPremium, setIsPremium] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Listen to premium status real-time
+  useEffect(() => {
+    const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata');
+    const unsub = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        setIsPremium(snap.data().isPremium || false);
+      }
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [student.uid]);
+
+  const togglePremium = async () => {
+    if(!window.confirm(`Change ${student.displayName}'s status to ${!isPremium ? 'Premium' : 'Free'}?`)) return;
+    try {
+      const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata');
+      await setDoc(ref, { isPremium: !isPremium }, { merge: true });
+    } catch (err) {
+      console.error(err);
+      alert("Error updating status");
+    }
+  };
+
+  return (
+    <tr className="hover:bg-white/[0.02] transition-colors group">
+      <td className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-white/10">
+            {student.photoURL ? (
+              <img src={student.photoURL} className="w-full h-full rounded-full" alt="" />
+            ) : (
+              <span className="font-bold text-slate-400">{student.displayName?.[0]}</span>
+            )}
+          </div>
+          <div>
+            <div className="font-bold text-white">{student.displayName || 'Unknown'}</div>
+            <div className="text-xs text-slate-500 flex items-center gap-1"><Mail size={10} /> {student.email}</div>
+          </div>
+        </div>
+      </td>
+      <td className="p-6">
+        <button 
+          onClick={togglePremium}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+            isPremium 
+              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20' 
+              : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white'
+          }`}
+        >
+          {loading ? '...' : (isPremium ? <><Crown size={12} fill="currentColor" /> Premium</> : 'Student')}
+        </button>
+      </td>
+      <td className="p-6 text-slate-400 text-sm flex items-center gap-2">
+         <Clock size={14} /> {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleDateString() : 'Never'}
+      </td>
+      <td className="p-6 text-right">
+        <button onClick={onManage} className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg text-xs font-bold transition-all border border-blue-500/20 hover:border-blue-500 flex items-center gap-2 ml-auto">
+          Manage Words <ChevronRight size={14} />
+        </button>
+      </td>
+    </tr>
   );
 }
 
@@ -145,57 +243,92 @@ function StudentManager({ student, onBack }) {
     e.preventDefault();
     if (!newWord.term) return;
     await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'), {
-      ...newWord, createdAt: serverTimestamp(),
+      ...newWord, createdAt: serverTimestamp(), mastery: 0
     });
     setNewWord({ term: '', translation: '', category: 'Teacher Added' });
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete word?")) return;
+    if (!window.confirm("Delete this word from student's bank?")) return;
     await deleteDoc(doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank', id));
   };
 
   return (
     <div className="animate-in slide-in-from-right-8 duration-300">
-      <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 font-bold text-sm">
-        <ArrowLeft size={16} /> Back to Roster
-      </button>
-      <div className="bg-[#0f172a] border border-white/10 rounded-3xl p-8 shadow-2xl">
-        <div className="flex justify-between items-start mb-8">
-          <h2 className="text-2xl font-bold text-white">{student.displayName}'s Word Bank</h2>
-          <form onSubmit={handleAdd} className="flex gap-2 bg-slate-900 p-2 rounded-xl border border-white/5">
-            <input placeholder="Term" className="bg-transparent px-3 py-2 text-white outline-none w-32 border-r border-white/10" value={newWord.term} onChange={e => setNewWord({...newWord, term: e.target.value})} />
-            <input placeholder="Translation" className="bg-transparent px-3 py-2 text-white outline-none w-32" value={newWord.translation} onChange={e => setNewWord({...newWord, translation: e.target.value})} />
-            <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg"><Plus size={20} /></button>
-          </form>
+      <div className="flex items-center justify-between mb-8">
+        <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white font-bold text-sm bg-[#0f172a] px-4 py-2 rounded-xl border border-white/5 transition-colors">
+          <ArrowLeft size={16} /> Back to Roster
+        </button>
+        <div className="text-right">
+          <h2 className="text-2xl font-bold text-white">{student.displayName}</h2>
+          <p className="text-slate-400 text-sm">Managing Word Bank</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {words.map(w => (
-            <div key={w.id} className="bg-slate-900/50 border border-white/5 p-4 rounded-xl flex justify-between items-start group hover:border-blue-500/30">
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* ADD FORM */}
+        <div className="lg:col-span-1">
+          <div className="bg-[#0f172a] border border-white/10 rounded-3xl p-6 sticky top-24">
+            <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Plus size={18} className="text-green-400"/> Add New Word</h3>
+            <form onSubmit={handleAdd} className="space-y-4">
               <div>
-                <div className="font-bold text-white">{w.term}</div>
-                <div className="text-sm text-slate-400">{w.translation}</div>
-                <div className="text-[10px] text-slate-500 mt-2 uppercase font-bold">{w.category}</div>
+                <label className="text-xs font-bold text-slate-500 uppercase ml-1">Spanish Term</label>
+                <input 
+                  className="w-full bg-[#02040a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="e.g. Biblioteca"
+                  value={newWord.term} 
+                  onChange={e => setNewWord({...newWord, term: e.target.value})} 
+                />
               </div>
-              <button onClick={() => handleDelete(w.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
-            </div>
-          ))}
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase ml-1">English Translation</label>
+                <input 
+                  className="w-full bg-[#02040a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="e.g. Library"
+                  value={newWord.translation} 
+                  onChange={e => setNewWord({...newWord, translation: e.target.value})} 
+                />
+              </div>
+              <button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-cyan-900/20">
+                Add to Student Bank
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* WORD LIST */}
+        <div className="lg:col-span-2 space-y-4">
+          <h3 className="font-bold text-slate-400 uppercase text-xs tracking-wider mb-2">Current Collection ({words.length})</h3>
+          {words.length === 0 && (
+             <div className="p-8 border border-dashed border-white/10 rounded-2xl text-center text-slate-500">Student has no words yet.</div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {words.map(w => (
+              <div key={w.id} className="bg-[#0f172a] border border-white/5 p-4 rounded-xl flex justify-between items-start group hover:border-cyan-500/30 transition-all">
+                <div>
+                  <div className="font-bold text-white text-lg">{w.term}</div>
+                  <div className="text-sm text-slate-400">{w.translation}</div>
+                  <div className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 uppercase">{w.category}</div>
+                </div>
+                <button onClick={() => handleDelete(w.id)} className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// --- SUB-COMPONENT: TEACHER CALENDAR (Shows EVERYTHING) ---
+// --- SUB-COMPONENT: TEACHER CALENDAR ---
 function TeacherCalendar({ user }) {
   const [googleEvents, setGoogleEvents] = useState([]);
   const [localEvents, setLocalEvents] = useState([]); 
 
   useEffect(() => {
     const loadGoogleEvents = async () => {
-      // PRIVACY CHECK: This token belongs to the CURRENTLY logged in user.
-      // If YOU are logged in, it fetches YOUR calendar. 
-      // It cannot physically fetch anyone else's.
       if (user.token) {
         const gEvents = await fetchGoogleCalendarEvents(user.token);
         const formattedEvents = gEvents.map(e => ({
@@ -212,14 +345,13 @@ function TeacherCalendar({ user }) {
   }, [user.token]);
 
   return (
-    <div className="animate-in fade-in">
-      <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-2xl mb-6 flex items-center gap-3">
-        <CalendarIcon className="text-blue-400" />
+    <div className="animate-in fade-in bg-[#0f172a] border border-white/10 rounded-3xl p-6 shadow-2xl">
+      <div className="bg-blue-900/10 border border-blue-500/20 p-4 rounded-2xl mb-6 flex items-center gap-3">
+        <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400"><CalendarIcon size={20} /></div>
         <span className="text-blue-200 font-medium text-sm">
-          Showing <strong>All Events</strong> (Personal + Lessons) from your Google Calendar.
+          Master View: Showing personal events + scheduled lessons.
         </span>
       </div>
-
       <CalendarView 
         user={user} 
         events={[...localEvents, ...googleEvents]} 
