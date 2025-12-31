@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { addDoc, collection, serverTimestamp, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { hasReachedLimit } from '../../lib/freemium'; // Import helper
 
 // Predefined Folder Colors
 const FOLDER_COLORS = [
@@ -18,16 +19,19 @@ const FOLDER_COLORS = [
   { name: 'Slate', hex: '#64748b', bg: 'bg-slate-500' },
 ];
 
-export default function WordBank({ user, words = [] }) {
+export default function WordBank({ 
+  user, words = [], 
+  isPremium, dailyUsage, trackUsage, onUpgrade 
+}) {
   // Navigation & UI State
   const [currentFolder, setCurrentFolder] = useState(null); 
-  const [viewMode, setViewMode] = useState('folders'); // 'folders' or 'list'
+  const [viewMode, setViewMode] = useState('folders'); 
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeMenu, setActiveMenu] = useState(null); // ID of word with open menu
+  const [activeMenu, setActiveMenu] = useState(null); 
 
   // Modals
   const [modalMode, setModalMode] = useState(null); // 'add_word', 'add_folder', 'edit_word'
-  const [editTarget, setEditTarget] = useState(null); // The word object being edited
+  const [editTarget, setEditTarget] = useState(null); 
 
   // Form States
   const [folderForm, setFolderForm] = useState({ name: '', color: FOLDER_COLORS[0] });
@@ -36,7 +40,7 @@ export default function WordBank({ user, words = [] }) {
 
   // --- 1. DATA LOGIC ---
 
-  // Extract unique categories with their assigned colors (based on the first word found in that cat)
+  // Extract unique categories
   const folders = useMemo(() => {
     const map = new Map();
     words.forEach(w => {
@@ -49,37 +53,27 @@ export default function WordBank({ user, words = [] }) {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [words]);
 
-  // Daily Limit Check
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const wordsAddedToday = words.filter(word => {
-    if (!word.createdAt) return false;
-    const date = word.createdAt.toDate ? word.createdAt.toDate() : new Date(word.createdAt);
-    return date >= startOfToday;
-  }).length;
-  const DAILY_LIMIT = 5;
-  const isPremium = user?.isPremium === true;
-  const hasReachedLimit = !isPremium && wordsAddedToday >= DAILY_LIMIT;
-
   // --- 2. ACTIONS ---
 
-  // Create New Folder (Actually just sets state to allow adding words to it)
   const handleCreateFolder = (e) => {
     e.preventDefault();
     if (!folderForm.name) return;
-    // In NoSQL, folders often don't exist until a word is in them. 
-    // We will simulate it by opening the Add Word modal with this folder pre-selected
     setWordForm({ ...wordForm, category: folderForm.name });
-    setModalMode('add_word'); // Switch straight to adding a word to this new folder
+    setModalMode('add_word'); 
   };
 
   const handleSaveWord = async (e) => {
     e.preventDefault();
     if (!wordForm.term || !wordForm.definition || !wordForm.category) return;
 
+    // Check Limit ONLY if creating new (not editing)
+    if (modalMode === 'add_word' && hasReachedLimit(dailyUsage, 'wordsAdded', isPremium)) {
+      // Should handle via UI but double check here
+      return; 
+    }
+
     setIsSubmitting(true);
     try {
-      // Find color of selected category
       const selectedColor = folders.find(f => f.name === wordForm.category)?.color || folderForm.color.hex;
 
       if (modalMode === 'edit_word' && editTarget) {
@@ -95,10 +89,13 @@ export default function WordBank({ user, words = [] }) {
         // CREATE NEW
         await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'), {
           ...wordForm,
-          folderColor: selectedColor, // Save color to word so we remember it
+          folderColor: selectedColor,
           createdAt: serverTimestamp(),
           mastery: 0,
         });
+        
+        // Track usage
+        trackUsage('wordsAdded');
       }
       closeModal();
     } catch (error) {
@@ -141,7 +138,7 @@ export default function WordBank({ user, words = [] }) {
   // --- 3. UI COMPONENTS ---
 
   return (
-    <div className="max-w-6xl mx-auto min-h-[80vh] flex flex-col animate-in fade-in duration-500">
+    <div className="max-w-6xl mx-auto min-h-[80vh] flex flex-col animate-in fade-in duration-500 pb-12">
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 pt-4">
@@ -201,7 +198,7 @@ export default function WordBank({ user, words = [] }) {
               key={folder.name} 
               onClick={() => setCurrentFolder(folder)}
               className="group relative flex flex-col items-start p-6 bg-slate-900/40 border border-white/5 rounded-3xl transition-all duration-300 hover:bg-slate-800/60"
-              style={{ borderColor: `${folder.color}33` }} // 33 is opacity for hex
+              style={{ borderColor: `${folder.color}33` }} 
             >
               <div 
                 className="mb-4 p-3 rounded-2xl transition-transform group-hover:scale-110"
@@ -231,19 +228,16 @@ export default function WordBank({ user, words = [] }) {
               className="group relative flex items-center justify-between p-4 bg-slate-900/40 border border-white/5 rounded-2xl hover:border-white/10 transition-all"
             >
               <div className="flex items-center gap-4">
-                {/* Colored Indicator */}
                 <div 
                   className="w-1.5 h-10 rounded-full" 
                   style={{ backgroundColor: word.folderColor || '#3b82f6' }} 
                 />
-                
                 <div>
                   <h4 className="text-lg font-bold text-white">{word.term}</h4>
                   <p className="text-slate-400 text-sm">{word.definition}</p>
                 </div>
               </div>
 
-              {/* Quick Actions Menu */}
               <div className="relative">
                 <button 
                   onClick={() => setActiveMenu(activeMenu === word.id ? null : word.id)}
@@ -272,7 +266,6 @@ export default function WordBank({ user, words = [] }) {
             </div>
           ))}
           
-          {/* Overlay to close menu when clicking outside */}
           {activeMenu && (
             <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
           )}
@@ -331,17 +324,22 @@ export default function WordBank({ user, words = [] }) {
             </h2>
             
             {/* LIMIT CHECK (Only for Add mode) */}
-            {modalMode === 'add_word' && hasReachedLimit ? (
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center mt-4">
-                <Lock className="mx-auto text-amber-500 mb-2" />
-                <p className="text-white font-bold">Daily Limit Reached</p>
-                <p className="text-slate-400 text-xs mb-3">Upgrade to add more words.</p>
-                <button className="bg-amber-500 text-black px-4 py-2 rounded-lg text-sm font-bold w-full">Upgrade</button>
+            {modalMode === 'add_word' && hasReachedLimit(dailyUsage, 'wordsAdded', isPremium) ? (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-6 text-center mt-4">
+                <Lock className="mx-auto text-amber-500 mb-2 w-10 h-10" />
+                <h3 className="text-xl font-bold text-white mb-2">Daily Limit Reached</h3>
+                <p className="text-slate-400 text-sm mb-6">Free users can only add 5 words per day. Upgrade to Premium for unlimited access.</p>
+                <button 
+                  onClick={() => { closeModal(); onUpgrade(); }}
+                  className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold rounded-xl hover:scale-[1.02] transition-transform"
+                >
+                  Upgrade for £9.99
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSaveWord} className="space-y-4 mt-4">
                 
-                {/* Folder Selection (Quick Move) */}
+                {/* Folder Selection */}
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase ml-1">Folder</label>
                   <div className="grid grid-cols-2 gap-2 mt-1 max-h-32 overflow-y-auto pr-1">
@@ -360,7 +358,6 @@ export default function WordBank({ user, words = [] }) {
                         <span className="truncate">{f.name}</span>
                       </button>
                     ))}
-                    {/* Option to create new if list is empty or user wants new */}
                     <button
                       type="button"
                       onClick={() => { closeModal(); setModalMode('add_folder'); }}

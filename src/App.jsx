@@ -247,7 +247,16 @@ function StudentLayout({ user }) {
                 onUpgrade={handleUpgrade}
               />
             } />
-            <Route path="/words" element={<WordBank user={user} words={words} />} />
+            <Route path="/words" element={
+              <WordBank 
+                user={user} 
+                words={words} 
+                isPremium={isPremium}
+                dailyUsage={dailyUsage}
+                trackUsage={trackUsage}
+                onUpgrade={handleUpgrade}
+              />
+            } />
             <Route path="/calendar" element={<CalendarView user={user} events={events} setEvents={setEvents} />} />
             <Route path="/study" element={
               <Study 
