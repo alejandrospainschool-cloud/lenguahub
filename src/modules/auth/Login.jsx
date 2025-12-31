@@ -6,7 +6,7 @@ import { auth, provider } from '../../lib/firebase';
 import { 
   Brain, Globe, Timer, Sparkles, BookOpen, Zap, CheckCircle2, ArrowRight, Crown 
 } from 'lucide-react';
-import logo from '../../logo.png'; // Importing logo from src root
+import logo from '../../logo.png'; 
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -57,25 +57,25 @@ export default function Login() {
           {/* Left Column: Copywriting */}
           <div className="space-y-8 text-center lg:text-left animate-in slide-in-from-bottom-8 duration-700">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 text-amber-400 font-bold text-sm border border-amber-500/20 mb-4">
-              <Sparkles size={16} /> The new standard in language learning
+              <Globe size={16} /> Your language journey starts here
             </div>
             <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight">
-              Master Spanish <br />
+              Learn Spanish, <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-600">
-                on Autopilot.
+                your way.
               </span>
             </h1>
             <p className="text-lg text-slate-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-              Stop wasting time with ineffective methods. Olé Learning combines 
-              <strong className="text-slate-200"> AI-powered tools, smart flashcards, and game modes</strong> into one cohesive platform designed to make fluency inevitable.
+              Build your own vocabulary collection and master it with fun, interactive study modes. 
+              <strong className="text-slate-200"> Olé Learning</strong> is the friendly companion that helps you organize your learning and track your progress.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start text-sm font-medium text-slate-400">
-               <div className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-500" /> Free to start</div>
-               <div className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-500" /> No credit card required</div>
+               <div className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-500" /> Start for free</div>
+               <div className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-500" /> Learn at your own pace</div>
             </div>
           </div>
 
-          {/* Right Column: Login Card (The original component, styled up) */}
+          {/* Right Column: Login Card */}
           <div className="flex justify-center lg:justify-end animate-in fade-in duration-1000 delay-300">
             <div 
               className="flex flex-col items-center text-center p-8 pb-10 shadow-2xl relative group"
@@ -98,9 +98,9 @@ export default function Login() {
                 <img src={logo} alt="Olé Learning" className="relative w-full h-full object-cover rounded-3xl shadow-2xl ring-2 ring-white/10 z-10" />
               </div>
 
-              <h2 className="text-2xl font-bold text-white mb-3">Start Your Journey</h2>
+              <h2 className="text-2xl font-bold text-white mb-3">Welcome Back!</h2>
               <p className="text-slate-400 text-sm mb-8 leading-relaxed px-4">
-                Join thousands of students mastering Spanish faster with Olé Learning.
+                Ready to learn some new words today? Sign in to continue.
               </p>
 
               {/* LOGIN BUTTON */}
@@ -131,27 +131,27 @@ export default function Login() {
       <section className="py-24 relative bg-slate-900/50 border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
            <div className="text-center max-w-3xl mx-auto mb-16">
-              <h2 className="text-3xl md:text-5xl font-bold mb-6">Everything you need to achieve fluency.</h2>
-              <p className="text-lg text-slate-400">We've stripped away the fluff to focus on the three pillars of language acquisition: Input, Storage, and Recall.</p>
+              <h2 className="text-3xl md:text-5xl font-bold mb-6">Simple tools, big results.</h2>
+              <p className="text-lg text-slate-400">Everything you need to grow your vocabulary and actually remember it.</p>
            </div>
 
            <div className="grid md:grid-cols-3 gap-8">
               <FeatureCard 
-                 icon={<Sparkles />}
-                 title="AI Studio"
-                 description="Paste any Spanish text. Our AI instantly summarizes it and extracts key vocabulary into neat JSON lists ready for your Word Bank."
+                 icon={<BookOpen />}
+                 title="Your Word Bank"
+                 description="Create your own personal dictionary. Save words, organize them into folders, and track your mastery level for each one."
                  color="amber"
               />
               <FeatureCard 
-                 icon={<BookOpen />}
-                 title="Smart Word Bank"
-                 description="Your personal vocabulary repository. Track mastery levels of every word you save and build your own dictionary."
+                 icon={<Brain />}
+                 title="Fun Study Modes"
+                 description="Practice what you've saved. Flip through Flashcards, test yourself with Quizzes, or play the Speed Match game."
                  color="blue"
               />
               <FeatureCard 
-                 icon={<Brain />}
-                 title="Dynamic Study Modes"
-                 description="Master your words using Flashcards, engage with interactive Quizzes, or race the clock in Speed Match mode."
+                 icon={<Sparkles />}
+                 title="Smart Assistants"
+                 description="Need help? Use our tools to instantly summarize Spanish text or extract vocabulary lists to save time."
                  color="purple"
               />
            </div>
@@ -167,38 +167,38 @@ export default function Login() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl mb-8 shadow-2xl shadow-amber-500/30">
                <Crown size={32} className="text-white" />
             </div>
-            <h2 className="text-4xl font-bold mb-6">Start Free. Upgrade for Power.</h2>
+            <h2 className="text-4xl font-bold mb-6">Free to start. Upgrade for more.</h2>
             <p className="text-xl text-slate-400 mb-12 max-w-2xl mx-auto">
-               Olé Learning operates on a generous freemium model. Use core features daily for free, or unlock unlimited access for a one-time payment.
+               Olé Learning is free to use every day. If you need more room to grow, you can upgrade to Premium anytime.
             </p>
 
             <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
                {/* Free Tier */}
                <div className="bg-slate-800/50 border border-white/5 p-8 rounded-3xl text-left">
-                  <h3 className="text-2xl font-bold mb-2">Student Tier</h3>
+                  <h3 className="text-2xl font-bold mb-2">Student</h3>
                   <p className="text-amber-400 font-bold mb-6">Free Forever</p>
                   <ul className="space-y-3 text-slate-300 mb-8">
                      <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-slate-500" /> 5 Words added daily</li>
-                     <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-slate-500" /> 3 AI Requests daily</li>
-                     <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-slate-500" /> Limited Study Sessions</li>
+                     <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-slate-500" /> 3 Assistant requests daily</li>
+                     <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-slate-500" /> Daily study sessions</li>
                   </ul>
                   <button onClick={signInWithGoogle} className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-colors">
-                     Start Free
+                     Start Learning
                   </button>
                </div>
                {/* Premium Tier */}
                <div className="bg-gradient-to-b from-amber-900/20 to-slate-900/50 border border-amber-500/30 p-8 rounded-3xl text-left relative overflow-hidden group">
                   <div className="absolute inset-0 bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors -z-10" />
                   <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">Premium <Crown size={20} className="text-amber-400" /></h3>
-                  <p className="text-white font-bold mb-6">£9.99 <span className="text-sm font-normal text-slate-400">/ one-time</span></p>
+                  <p className="text-white font-bold mb-6">£9.99 <span className="text-sm font-normal text-slate-400">/ month</span></p>
                   <ul className="space-y-3 text-white mb-8">
                      <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-400" /> <strong>Unlimited</strong> Words</li>
-                     <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-400" /> <strong>Unlimited</strong> AI Usage</li>
+                     <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-400" /> <strong>Unlimited</strong> Assistant Usage</li>
                      <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-400" /> <strong>Unlimited</strong> Study</li>
                      <li className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-400" /> No Ads</li>
                   </ul>
                   <button onClick={signInWithGoogle} className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-xl font-bold shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02]">
-                     Unlock Everything
+                     Go Premium
                   </button>
                </div>
             </div>
