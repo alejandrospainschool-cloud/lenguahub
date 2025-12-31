@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
@@ -13,6 +14,10 @@ import Study from './modules/study/Study'
 import Tools from './modules/ai/Tools'
 import Login from './modules/auth/Login'
 import TeacherDashboard from './modules/dashboard/TeacherDashboard'
+
+// Legal Pages (NEW)
+import PrivacyPolicy from './modules/legal/PrivacyPolicy'
+import TermsOfService from './modules/legal/TermsOfService'
 
 // Firebase
 import { onUserStateChange, logout, db } from './lib/firebase'
@@ -84,8 +89,12 @@ function MainContent() {
   // 2. ROUTING LOGIC
   return (
     <Routes>
+      {/* Public Routes */}
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
 
+      {/* Protected Routes */}
       <Route
         path="/*"
         element={
