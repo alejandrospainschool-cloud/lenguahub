@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signOut, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // ✅ ADD THESE:
@@ -39,8 +39,6 @@ export const onUserStateChange = (callback) => {
 // Guest sign-in function
 export const signInAsGuest = async () => {
   try {
-    // Sign in anonymously
-    const { signInAnonymously } = await import('firebase/auth');
     const result = await signInAnonymously(auth);
     return result.user;
   } catch (err) {
