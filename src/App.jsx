@@ -50,34 +50,43 @@ export default function App() {
 function MainContent() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isGuest, setIsGuest] = useState(false)
 
   // 1. AUTH LISTENER
   useEffect(() => {
     return onUserStateChange(async (u) => {
       if (!u) {
         setUser(null)
+        setIsGuest(false)
         setLoading(false)
         return
       }
+
+      // Check if user is a guest (anonymous user)
+      const guestMode = u.isAnonymous
+      setIsGuest(guestMode)
 
       const storedToken = sessionStorage.getItem('google_access_token')
       const userData = { ...u, token: storedToken }
       setUser(userData)
 
-      try {
-        await setDoc(
-          doc(db, 'users', u.uid),
-          {
-            uid: u.uid,
-            email: u.email,
-            displayName: u.displayName,
-            photoURL: u.photoURL,
-            lastLogin: serverTimestamp(),
-          },
-          { merge: true }
-        )
-      } catch (err) {
-        console.error('User Sync Error:', err)
+      // Only sync non-guest users to database
+      if (!guestMode) {
+        try {
+          await setDoc(
+            doc(db, 'users', u.uid),
+            {
+              uid: u.uid,
+              email: u.email,
+              displayName: u.displayName,
+              photoURL: u.photoURL,
+              lastLogin: serverTimestamp(),
+            },
+            { merge: true }
+          )
+        } catch (err) {
+          console.error('User Sync Error:', err)
+        }
       }
 
       setLoading(false)
@@ -103,7 +112,7 @@ function MainContent() {
           ) : isTeacher(user) ? (
             <TeacherDashboard user={user} logout={logout} />
           ) : (
-            <StudentLayout user={user} />
+            <StudentLayout user={user} isGuest={isGuest} />
           )
         }
       />
@@ -111,7 +120,7 @@ function MainContent() {
   )
 }
 
-function StudentLayout({ user }) {
+function StudentLayout({ user, isGuest }) {
   const [words, setWords] = useState([])
   const [events, setEvents] = useState([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -124,7 +133,7 @@ function StudentLayout({ user }) {
   useEffect(() => setIsSidebarOpen(false), [location])
 
   useEffect(() => {
-    if (!user) return
+    if (!user || isGuest) return
 
     const qWords = query(
       collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'),
@@ -167,7 +176,7 @@ function StudentLayout({ user }) {
       unsubEvents()
       unsubMeta()
     }
-  }, [user])
+  }, [user, isGuest])
 
   const trackUsage = async (metricKey) => {
     if (isPremium) return 

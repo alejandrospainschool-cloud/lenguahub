@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useNavigate, Link } from 'react-router-dom';
-import { auth, provider } from '../../lib/firebase';
+import { auth, provider, signInAsGuest } from '../../lib/firebase';
 import { 
-  Brain, Globe, Timer, Sparkles, BookOpen, Zap, CheckCircle2, ArrowRight, Crown 
+  Brain, Globe, Timer, Sparkles, BookOpen, Zap, CheckCircle2, ArrowRight, Crown, Zap as Zap2
 } from 'lucide-react';
 import logo from '../../logo.png'; 
 
@@ -29,6 +29,18 @@ export default function Login() {
       console.error("Login Failed:", err);
       setLoading(false);
       alert("Login Error: " + err.message);
+    }
+  };
+
+  const handleGuestSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInAsGuest();
+      navigate('/');
+    } catch (err) {
+      console.error("Guest sign-in failed:", err);
+      setLoading(false);
+      alert("Guest sign-in failed: " + err.message);
     }
   };
 
@@ -119,8 +131,27 @@ export default function Login() {
                   </>
                 )}
               </button>
-              <p className="text-xs text-slate-500 mt-6">
-                By continuing, you agree to our <Link to="/terms" className="underline hover:text-slate-300">Terms</Link> and <Link to="/privacy" className="underline hover:text-slate-300">Privacy Policy</Link>.
+
+              {/* GUEST BUTTON */}
+              <button
+                onClick={handleGuestSignIn}
+                disabled={loading}
+                className="relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl shadow-lg transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border border-slate-600 hover:border-slate-400 bg-transparent hover:bg-slate-900/30 group mt-3"
+              >
+                {loading ? (
+                  <span className="text-sm font-bold">Connecting...</span>
+                ) : (
+                  <>
+                    <Zap2 size={18} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm font-bold tracking-wide">Continue as Guest</span>
+                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </button>
+
+              <p className="text-xs text-slate-500 mt-6 text-center px-4">
+                <span className="block mb-2">By continuing, you agree to our <Link to="/terms" className="underline hover:text-slate-300">Terms</Link> and <Link to="/privacy" className="underline hover:text-slate-300">Privacy Policy</Link>.</span>
+                <span className="text-slate-600">Guest mode is perfect for testing. Your progress won't be saved permanently.</span>
               </p>
             </div>
           </div>

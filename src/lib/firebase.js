@@ -36,6 +36,19 @@ export const onUserStateChange = (callback) => {
   });
 };
 
+// Guest sign-in function
+export const signInAsGuest = async () => {
+  try {
+    // Sign in anonymously
+    const { signInAnonymously } = await import('firebase/auth');
+    const result = await signInAnonymously(auth);
+    return result.user;
+  } catch (err) {
+    console.error('Guest sign-in failed:', err);
+    throw err;
+  }
+};
+
 // ✅ ADD THIS: matches your Dashboard import
 export async function generateContent(prompt) {
   try {
