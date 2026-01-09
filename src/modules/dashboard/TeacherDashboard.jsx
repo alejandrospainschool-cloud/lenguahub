@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   collection,
   getDocs,
+  getDoc,
   orderBy,
   query,
   addDoc,
@@ -29,40 +30,108 @@ import {
   Clock,
   LogOut,
   TrendingUp,
+  UserPlus,
+  UserCog,
+  Link2,
+  Unlink,
 } from 'lucide-react'
 import CalendarView from '../calendar/Calendar'
 
+/**
+ * Assignment doc id format used throughout:
+ *   `${tutorUid}_${studentUid}`
+ */
+const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}_${studentUid}`
+
 export default function TeacherDashboard({ user, logout }) {
-  const [currentView, setCurrentView] = useState('roster')
+  const [currentView, setCurrentView] = useState('roster') // roster | student-detail | calendar | admin
   const [selectedStudent, setSelectedStudent] = useState(null)
-  const [students, setStudents] = useState([])
+
+  const [role, setRole] = useState(null) // admin | tutor | student
+  const isAdmin = role === 'admin'
+  const isTutor = role === 'tutor'
+
   const [loading, setLoading] = useState(true)
+
+  // Roster data
+  const [students, setStudents] = useState([])
   const [search, setSearch] = useState('')
 
-  // FETCH STUDENT ROSTER (role-based)
+  // Admin panel data
+  const [allUsers, setAllUsers] = useState([])
+  const [assignments, setAssignments] = useState([]) // list of {id, tutorUid, studentUid, ...}
+  const [adminSearch, setAdminSearch] = useState('')
+  const [assignTutorUid, setAssignTutorUid] = useState('')
+  const [assignStudentUid, setAssignStudentUid] = useState('')
+
+  // 1) LOAD CURRENT USER ROLE (real-time)
   useEffect(() => {
-    const fetchStudents = async () => {
+    if (!user?.uid) return
+    const ref = doc(db, 'users', user.uid)
+    const unsub = onSnapshot(ref, (snap) => {
+      const data = snap.data()
+      setRole(data?.role || 'student')
+    })
+    return () => unsub()
+  }, [user?.uid])
+
+  // 2) LOAD ROSTER
+  // Admin sees all students. Tutor sees assigned students only.
+  useEffect(() => {
+    if (!role) return
+
+    const loadRoster = async () => {
       setLoading(true)
       try {
-        // Only users who are students
-        // Note: if you haven't added role to existing users yet, they may not appear.
-        const q = query(collection(db, 'users'), where('role', '==', 'student'), orderBy('lastLogin', 'desc'))
-        const snapshot = await getDocs(q)
+        if (isAdmin) {
+          // Admin: all students
+          const qStudents = query(
+            collection(db, 'users'),
+            where('role', '==', 'student'),
+            orderBy('lastLogin', 'desc')
+          )
+          const snap = await getDocs(qStudents)
+          const data = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((s) => s.uid !== user.uid)
+          setStudents(data)
+        } else if (isTutor) {
+          // Tutor: only assigned students
+          const qAssign = query(collection(db, 'assignments'), where('tutorUid', '==', user.uid))
+          const assignSnap = await getDocs(qAssign)
+          const studentUids = assignSnap.docs.map((d) => d.data().studentUid).filter(Boolean)
 
-        const studentData = snapshot.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((s) => s.email?.toLowerCase() !== user.email?.toLowerCase())
+          // Fetch each student doc
+          const studentDocs = await Promise.all(
+            studentUids.map((uid) => getDoc(doc(db, 'users', uid)))
+          )
 
-        setStudents(studentData)
-      } catch (error) {
-        console.error('Error fetching students:', error)
+          const data = studentDocs
+            .filter((s) => s.exists())
+            .map((s) => ({ id: s.id, ...s.data() }))
+            .filter((s) => s.uid !== user.uid)
+            // sort locally by lastLogin desc
+            .sort((a, b) => {
+              const ad = a.lastLogin?.toDate ? a.lastLogin.toDate().getTime() : 0
+              const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0
+              return bd - ad
+            })
+
+          setStudents(data)
+        } else {
+          // Not tutor/admin: shouldn’t happen due to routing, but be safe
+          setStudents([])
+        }
+      } catch (e) {
+        console.error('Roster load error:', e)
+        setStudents([])
       } finally {
         setLoading(false)
       }
     }
 
-    fetchStudents()
-  }, [user.email])
+    loadRoster()
+  }, [role, isAdmin, isTutor, user.uid])
 
   const filteredStudents = useMemo(() => {
     const s = search.trim().toLowerCase()
@@ -74,6 +143,103 @@ export default function TeacherDashboard({ user, logout }) {
     })
   }, [students, search])
 
+  // 3) ADMIN PANEL LOAD (users + assignments)
+  useEffect(() => {
+    if (!isAdmin) return
+
+    const loadAdminData = async () => {
+      try {
+        // Load all users (students + tutors)
+        const qUsers = query(collection(db, 'users'), orderBy('lastLogin', 'desc'))
+        const userSnap = await getDocs(qUsers)
+        const usersData = userSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        setAllUsers(usersData)
+
+        // Load all assignments
+        const qA = query(collection(db, 'assignments'))
+        const aSnap = await getDocs(qA)
+        const aData = aSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        setAssignments(aData)
+      } catch (e) {
+        console.error('Admin load error:', e)
+      }
+    }
+
+    loadAdminData()
+  }, [isAdmin])
+
+  const filteredAdminUsers = useMemo(() => {
+    const s = adminSearch.trim().toLowerCase()
+    if (!s) return allUsers
+    return allUsers.filter((u) => {
+      const name = (u.displayName || '').toLowerCase()
+      const email = (u.email || '').toLowerCase()
+      const role = (u.role || '').toLowerCase()
+      return name.includes(s) || email.includes(s) || role.includes(s)
+    })
+  }, [allUsers, adminSearch])
+
+  const tutors = useMemo(() => {
+    return allUsers.filter((u) => u.role === 'tutor' || u.role === 'admin')
+  }, [allUsers])
+
+  const studentsForAssign = useMemo(() => {
+    return allUsers.filter((u) => u.role === 'student')
+  }, [allUsers])
+
+  // ADMIN ACTIONS
+  const setUserRole = async (targetUid, newRole) => {
+    if (!window.confirm(`Set role for ${targetUid} to "${newRole}"?`)) return
+    try {
+      await setDoc(doc(db, 'users', targetUid), { role: newRole }, { merge: true })
+
+      // optimistic refresh
+      setAllUsers((prev) => prev.map((u) => (u.uid === targetUid ? { ...u, role: newRole } : u)))
+    } catch (e) {
+      console.error('Role update error:', e)
+      alert('Failed to update role. Check Firestore rules.')
+    }
+  }
+
+  const assignStudentToTutor = async () => {
+    if (!assignTutorUid || !assignStudentUid) return alert('Pick both a tutor and a student.')
+
+    const id = assignmentDocId(assignTutorUid, assignStudentUid)
+
+    try {
+      await setDoc(doc(db, 'assignments', id), {
+        tutorUid: assignTutorUid,
+        studentUid: assignStudentUid,
+        createdAt: serverTimestamp(),
+        createdBy: user.uid,
+      })
+
+      // optimistic refresh
+      setAssignments((prev) => [
+        ...prev.filter((a) => a.id !== id),
+        { id, tutorUid: assignTutorUid, studentUid: assignStudentUid, createdBy: user.uid },
+      ])
+
+      setAssignStudentUid('')
+      // keep tutor selected for speed
+    } catch (e) {
+      console.error('Assign error:', e)
+      alert('Failed to assign. Check Firestore rules.')
+    }
+  }
+
+  const unassign = async (tutorUid, studentUid) => {
+    const id = assignmentDocId(tutorUid, studentUid)
+    if (!window.confirm('Remove this assignment?')) return
+    try {
+      await deleteDoc(doc(db, 'assignments', id))
+      setAssignments((prev) => prev.filter((a) => a.id !== id))
+    } catch (e) {
+      console.error('Unassign error:', e)
+      alert('Failed to unassign. Check Firestore rules.')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-cyan-500/30">
       {/* HEADER */}
@@ -84,10 +250,12 @@ export default function TeacherDashboard({ user, logout }) {
               <ShieldCheck className="text-cyan-400" size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">Teacher Command</h1>
+              <h1 className="text-2xl font-bold text-white tracking-tight">
+                {isAdmin ? 'Admin Command' : 'Tutor Command'}
+              </h1>
               <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                {user.email}
+                {user.email} {role ? `• ${role.toUpperCase()}` : ''}
               </div>
             </div>
           </div>
@@ -107,6 +275,7 @@ export default function TeacherDashboard({ user, logout }) {
               >
                 <Users size={16} /> Students
               </button>
+
               <button
                 onClick={() => setCurrentView('calendar')}
                 className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
@@ -115,6 +284,17 @@ export default function TeacherDashboard({ user, logout }) {
               >
                 <CalendarIcon size={16} /> Calendar
               </button>
+
+              {isAdmin && (
+                <button
+                  onClick={() => setCurrentView('admin')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
+                    currentView === 'admin' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <UserCog size={16} /> Admin
+                </button>
+              )}
             </div>
 
             <button
@@ -133,7 +313,7 @@ export default function TeacherDashboard({ user, logout }) {
       </header>
 
       <div className="max-w-7xl mx-auto p-6 md:p-10">
-        {/* VIEW 1: STUDENT ROSTER */}
+        {/* VIEW: ROSTER */}
         {currentView === 'roster' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Quick Stats */}
@@ -144,7 +324,9 @@ export default function TeacherDashboard({ user, logout }) {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-white">{students.length}</div>
-                  <div className="text-xs text-slate-400 uppercase font-bold">Total Students</div>
+                  <div className="text-xs text-slate-400 uppercase font-bold">
+                    {isAdmin ? 'Total Students' : 'Assigned Students'}
+                  </div>
                 </div>
               </div>
               <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
@@ -161,8 +343,8 @@ export default function TeacherDashboard({ user, logout }) {
                   <Crown size={24} />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-white">Manager</div>
-                  <div className="text-xs text-slate-400 uppercase font-bold">Premium Controls</div>
+                  <div className="text-2xl font-bold text-white">{isAdmin ? 'Admin' : 'Tutor'}</div>
+                  <div className="text-xs text-slate-400 uppercase font-bold">Controls</div>
                 </div>
               </div>
             </div>
@@ -170,7 +352,7 @@ export default function TeacherDashboard({ user, logout }) {
             {/* Table */}
             <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
               <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-                <h2 className="text-xl font-bold text-white">Class Roster</h2>
+                <h2 className="text-xl font-bold text-white">Roster</h2>
                 <div className="bg-[#02040a] border border-white/10 rounded-xl flex items-center px-4 py-2.5 text-sm text-slate-400 w-full md:w-auto">
                   <Search size={16} className="mr-2" />
                   <input
@@ -196,7 +378,7 @@ export default function TeacherDashboard({ user, logout }) {
                     {loading && (
                       <tr>
                         <td className="p-6 text-slate-400" colSpan={4}>
-                          Loading students...
+                          Loading...
                         </td>
                       </tr>
                     )}
@@ -204,7 +386,9 @@ export default function TeacherDashboard({ user, logout }) {
                     {!loading && filteredStudents.length === 0 && (
                       <tr>
                         <td className="p-6 text-slate-500" colSpan={4}>
-                          No students found. (If you just switched to roles, older users may be missing role="student".)
+                          {isTutor
+                            ? 'No students assigned to you yet. Ask the admin to assign students.'
+                            : 'No students found.'}
                         </td>
                       </tr>
                     )}
@@ -227,18 +411,40 @@ export default function TeacherDashboard({ user, logout }) {
           </div>
         )}
 
-        {/* VIEW 2: STUDENT DETAIL */}
+        {/* VIEW: STUDENT DETAIL */}
         {currentView === 'student-detail' && selectedStudent && (
           <StudentManager student={selectedStudent} onBack={() => setCurrentView('roster')} />
         )}
 
-        {/* VIEW 3: TEACHER CALENDAR */}
+        {/* VIEW: CALENDAR */}
         {currentView === 'calendar' && <TeacherCalendar user={user} />}
+
+        {/* VIEW: ADMIN */}
+        {currentView === 'admin' && isAdmin && (
+          <AdminPanel
+            adminUid={user.uid}
+            users={filteredAdminUsers}
+            allUsers={allUsers}
+            assignments={assignments}
+            tutors={tutors}
+            students={studentsForAssign}
+            adminSearch={adminSearch}
+            setAdminSearch={setAdminSearch}
+            setUserRole={setUserRole}
+            assignTutorUid={assignTutorUid}
+            setAssignTutorUid={setAssignTutorUid}
+            assignStudentUid={assignStudentUid}
+            setAssignStudentUid={setAssignStudentUid}
+            assignStudentToTutor={assignStudentToTutor}
+            unassign={unassign}
+          />
+        )}
       </div>
     </div>
   )
 }
 
+// --- STUDENT ROW (Premium toggle + Manage Words) ---
 function StudentRow({ student, onManage }) {
   const [isPremium, setIsPremium] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -316,6 +522,7 @@ function StudentRow({ student, onManage }) {
   )
 }
 
+// --- STUDENT WORD MANAGER (unchanged logic; added createdBy for future audit) ---
 function StudentManager({ student, onBack }) {
   const [words, setWords] = useState([])
   const [newWord, setNewWord] = useState({ term: '', translation: '', category: 'Teacher Added' })
@@ -342,9 +549,8 @@ function StudentManager({ student, onBack }) {
       translation: newWord.translation.trim(),
       createdAt: serverTimestamp(),
       mastery: 0,
-      createdBy: 'tutor', // for future auditing
+      createdBy: 'tutor',
     })
-
     setNewWord({ term: '', translation: '', category: 'Teacher Added' })
   }
 
@@ -442,6 +648,210 @@ function StudentManager({ student, onBack }) {
   )
 }
 
+// --- ADMIN PANEL ---
+function AdminPanel({
+  adminUid,
+  users,
+  allUsers,
+  assignments,
+  tutors,
+  students,
+  adminSearch,
+  setAdminSearch,
+  setUserRole,
+  assignTutorUid,
+  setAssignTutorUid,
+  assignStudentUid,
+  setAssignStudentUid,
+  assignStudentToTutor,
+  unassign,
+}) {
+  const uidToUser = useMemo(() => {
+    const m = new Map()
+    allUsers.forEach((u) => {
+      if (u.uid) m.set(u.uid, u)
+    })
+    return m
+  }, [allUsers])
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Promote Tutors */}
+      <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <UserPlus size={18} className="text-cyan-400" /> Promote Tutors
+            </h2>
+            <p className="text-sm text-slate-400 mt-1">Only admin can change roles.</p>
+          </div>
+
+          <div className="bg-[#02040a] border border-white/10 rounded-xl flex items-center px-4 py-2.5 text-sm text-slate-400 w-full md:w-auto">
+            <Search size={16} className="mr-2" />
+            <input
+              placeholder="Search users..."
+              className="bg-transparent outline-none placeholder-slate-600 w-full"
+              value={adminSearch}
+              onChange={(e) => setAdminSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-[#02040a] text-slate-400 text-xs uppercase font-bold tracking-wider">
+              <tr>
+                <th className="p-6">User</th>
+                <th className="p-6">Role</th>
+                <th className="p-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {users
+                .filter((u) => u.uid !== adminUid) // don’t accidentally demote self
+                .map((u) => (
+                  <tr key={u.uid} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="p-6">
+                      <div className="font-bold text-white">{u.displayName || 'Unknown'}</div>
+                      <div className="text-xs text-slate-500">{u.email || u.uid}</div>
+                    </td>
+                    <td className="p-6">
+                      <span className="px-3 py-1 rounded-full text-xs font-bold border border-white/10 bg-white/5 text-slate-200">
+                        {(u.role || 'student').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="p-6 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => setUserRole(u.uid, 'student')}
+                          className="px-3 py-2 rounded-lg text-xs font-bold border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
+                        >
+                          Set Student
+                        </button>
+                        <button
+                          onClick={() => setUserRole(u.uid, 'tutor')}
+                          className="px-3 py-2 rounded-lg text-xs font-bold border border-cyan-500/20 bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-200"
+                        >
+                          Set Tutor
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              {users.length === 0 && (
+                <tr>
+                  <td className="p-6 text-slate-500" colSpan={3}>
+                    No users found. Ensure users have logged in at least once so `users/{uid}` exists.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Assign Students to Tutors */}
+      <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Link2 size={18} className="text-amber-400" /> Assign Students to Tutors
+            </h2>
+            <p className="text-sm text-slate-400 mt-1">Creates docs in `assignments`.</p>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <select
+              className="bg-[#02040a] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none"
+              value={assignTutorUid}
+              onChange={(e) => setAssignTutorUid(e.target.value)}
+            >
+              <option value="">Select tutor...</option>
+              {tutors.map((t) => (
+                <option key={t.uid} value={t.uid}>
+                  {(t.displayName || t.email || t.uid) + (t.role === 'admin' ? ' (admin)' : '')}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="bg-[#02040a] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none"
+              value={assignStudentUid}
+              onChange={(e) => setAssignStudentUid(e.target.value)}
+            >
+              <option value="">Select student...</option>
+              {students.map((s) => (
+                <option key={s.uid} value={s.uid}>
+                  {s.displayName || s.email || s.uid}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={assignStudentToTutor}
+              className="px-4 py-2.5 rounded-xl text-sm font-bold bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/20 text-amber-200"
+            >
+              Assign
+            </button>
+          </div>
+        </div>
+
+        {/* Existing assignments */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-[#02040a] text-slate-400 text-xs uppercase font-bold tracking-wider">
+              <tr>
+                <th className="p-6">Tutor</th>
+                <th className="p-6">Student</th>
+                <th className="p-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {assignments.map((a) => {
+                const tutor = uidToUser.get(a.tutorUid)
+                const student = uidToUser.get(a.studentUid)
+                return (
+                  <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="p-6">
+                      <div className="font-bold text-white">{tutor?.displayName || tutor?.email || a.tutorUid}</div>
+                      <div className="text-xs text-slate-500">{a.tutorUid}</div>
+                    </td>
+                    <td className="p-6">
+                      <div className="font-bold text-white">{student?.displayName || student?.email || a.studentUid}</div>
+                      <div className="text-xs text-slate-500">{a.studentUid}</div>
+                    </td>
+                    <td className="p-6 text-right">
+                      <button
+                        onClick={() => unassign(a.tutorUid, a.studentUid)}
+                        className="px-3 py-2 rounded-lg text-xs font-bold border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-200 inline-flex items-center gap-2"
+                      >
+                        <Unlink size={14} /> Remove
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+
+              {assignments.length === 0 && (
+                <tr>
+                  <td className="p-6 text-slate-500" colSpan={3}>
+                    No assignments yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="text-xs text-slate-500">
+        Note: If a user doesn’t appear here, they likely haven’t logged into the app since you added the `users/{uid}` sync.
+      </div>
+    </div>
+  )
+}
+
+// --- CALENDAR ---
 function TeacherCalendar({ user }) {
   const [googleEvents, setGoogleEvents] = useState([])
   const [localEvents, setLocalEvents] = useState([])
