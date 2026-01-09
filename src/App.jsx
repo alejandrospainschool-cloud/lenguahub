@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
 // Icons
@@ -44,18 +44,23 @@ export default function App() {
   return <MainContent />
 }
 
+/**
+ * Roles:
+ * - admin: "god" account (can promote tutors, assign students)
+ * - tutor: tutor dashboard access (only for assigned students)
+ * - student: default
+ */
 function MainContent() {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null) // "student" | "tutor" | "admin"
   const [loading, setLoading] = useState(true)
   const [isGuest, setIsGuest] = useState(false)
 
-  // AUTH LISTENER + USER SYNC + ROLE SUBSCRIBE
   useEffect(() => {
     let unsubRole = null
 
     const unsubAuth = onUserStateChange(async (u) => {
-      // Clean up prior role listener
+      // clean previous role listener
       if (unsubRole) {
         unsubRole()
         unsubRole = null
@@ -69,14 +74,13 @@ function MainContent() {
         return
       }
 
-      const guestMode = u.isAnonymous
+      const guestMode = !!u.isAnonymous
       setIsGuest(guestMode)
 
       const storedToken = sessionStorage.getItem('google_access_token')
-      const userData = { ...u, token: storedToken }
-      setUser(userData)
+      setUser({ ...u, token: storedToken })
 
-      // Guests: no DB sync, force student layout
+      // Guests: no DB sync, force student
       if (guestMode) {
         setRole('student')
         setLoading(false)
@@ -85,13 +89,13 @@ function MainContent() {
 
       try {
         const userRef = doc(db, 'users', u.uid)
-        const snap = await getDoc(userRef)
 
-        // If first time, create with default role student
+        // Ensure root /users/{uid} exists and never overwrite role
+        const snap = await getDoc(userRef)
         if (!snap.exists()) {
           await setDoc(userRef, {
             uid: u.uid,
-            email: u.email,
+            email: u.email || '',
             displayName: u.displayName || '',
             photoURL: u.photoURL || '',
             role: 'student',
@@ -99,12 +103,11 @@ function MainContent() {
             lastLogin: serverTimestamp(),
           })
         } else {
-          // Update profile + lastLogin (do not overwrite role)
           await setDoc(
             userRef,
             {
               uid: u.uid,
-              email: u.email,
+              email: u.email || '',
               displayName: u.displayName || '',
               photoURL: u.photoURL || '',
               lastLogin: serverTimestamp(),
@@ -113,15 +116,22 @@ function MainContent() {
           )
         }
 
-        // Subscribe to role changes in real time
-        unsubRole = onSnapshot(userRef, (docSnap) => {
-          const data = docSnap.data()
-          setRole(data?.role || 'student')
-          setLoading(false)
-        })
+        // Subscribe to role changes in real-time
+        unsubRole = onSnapshot(
+          userRef,
+          (docSnap) => {
+            const data = docSnap.data()
+            setRole(data?.role || 'student')
+            setLoading(false)
+          },
+          (err) => {
+            console.error('Role snapshot error:', err)
+            setRole('student')
+            setLoading(false)
+          }
+        )
       } catch (err) {
         console.error('User Sync/Role Error:', err)
-        // Safe fallback
         setRole('student')
         setLoading(false)
       }
@@ -133,7 +143,8 @@ function MainContent() {
     }
   }, [])
 
-  if (loading) return <LoadingScreen />
+  // Block rendering until role is known for non-guests
+  if (loading || (user && !isGuest && role === null)) return <LoadingScreen />
 
   return (
     <Routes>
@@ -148,8 +159,8 @@ function MainContent() {
         element={
           !user ? (
             <Navigate to="/login" />
-          ) : role === 'tutor' || role === 'admin' ? (
-            <TeacherDashboard user={user} logout={logout} />
+          ) : role === 'admin' || role === 'tutor' ? (
+            <TeacherDashboard user={user} logout={logout} role={role} />
           ) : (
             <StudentLayout user={user} isGuest={isGuest} />
           )
@@ -188,11 +199,10 @@ function StudentLayout({ user, isGuest }) {
     )
 
     const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
-
     const unsubMeta = onSnapshot(metaRef, async (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data()
-        setIsPremium(data.isPremium || false)
+        setIsPremium(!!data.isPremium)
 
         const today = new Date().toDateString()
         if (data.usage?.date !== today) {
