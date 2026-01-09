@@ -4,7 +4,6 @@ import {
   collection,
   getDocs,
   getDoc,
-  orderBy,
   query,
   addDoc,
   deleteDoc,
@@ -38,10 +37,21 @@ import {
 import CalendarView from '../calendar/Calendar'
 
 /**
- * Assignment doc id format used throughout:
+ * Assignment doc id format:
  *   `${tutorUid}_${studentUid}`
  */
 const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}_${studentUid}`
+
+// Normalize a user doc so uid is ALWAYS present
+const normalizeUser = (d) => {
+  const data = d.data ? d.data() : d
+  const id = d.id || data?.id
+  return {
+    id: id || data?.uid,
+    ...data,
+    uid: data?.uid || id, // critical
+  }
+}
 
 export default function TeacherDashboard({ user, logout }) {
   const [currentView, setCurrentView] = useState('roster') // roster | student-detail | calendar | admin
@@ -59,7 +69,7 @@ export default function TeacherDashboard({ user, logout }) {
 
   // Admin panel data
   const [allUsers, setAllUsers] = useState([])
-  const [assignments, setAssignments] = useState([]) // list of {id, tutorUid, studentUid, ...}
+  const [assignments, setAssignments] = useState([])
   const [adminSearch, setAdminSearch] = useState('')
   const [assignTutorUid, setAssignTutorUid] = useState('')
   const [assignStudentUid, setAssignStudentUid] = useState('')
@@ -68,49 +78,56 @@ export default function TeacherDashboard({ user, logout }) {
   useEffect(() => {
     if (!user?.uid) return
     const ref = doc(db, 'users', user.uid)
-    const unsub = onSnapshot(ref, (snap) => {
-      const data = snap.data()
-      setRole(data?.role || 'student')
-    })
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        const data = snap.data()
+        setRole(data?.role || 'student')
+      },
+      (err) => {
+        console.error('Role snapshot error:', err)
+        setRole('student')
+      }
+    )
     return () => unsub()
   }, [user?.uid])
 
   // 2) LOAD ROSTER
-  // Admin sees all students. Tutor sees assigned students only.
+  // Admin: all students. Tutor: assigned students only.
   useEffect(() => {
-    if (!role) return
+    if (!role || !user?.uid) return
 
     const loadRoster = async () => {
       setLoading(true)
       try {
         if (isAdmin) {
-          // Admin: all students
-          const qStudents = query(
-            collection(db, 'users'),
-            where('role', '==', 'student'),
-            orderBy('lastLogin', 'desc')
-          )
+          // IMPORTANT: avoid composite index by NOT using orderBy here
+          const qStudents = query(collection(db, 'users'), where('role', '==', 'student'))
           const snap = await getDocs(qStudents)
+
           const data = snap.docs
-            .map((d) => ({ id: d.id, ...d.data() }))
-            .filter((s) => s.uid !== user.uid)
+            .map(normalizeUser)
+            .filter((s) => s.uid && s.uid !== user.uid)
+            .sort((a, b) => {
+              const ad = a.lastLogin?.toDate ? a.lastLogin.toDate().getTime() : 0
+              const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0
+              return bd - ad
+            })
+
           setStudents(data)
         } else if (isTutor) {
-          // Tutor: only assigned students
           const qAssign = query(collection(db, 'assignments'), where('tutorUid', '==', user.uid))
           const assignSnap = await getDocs(qAssign)
           const studentUids = assignSnap.docs.map((d) => d.data().studentUid).filter(Boolean)
 
-          // Fetch each student doc
           const studentDocs = await Promise.all(
-            studentUids.map((uid) => getDoc(doc(db, 'users', uid)))
+            studentUids.map((studentUid) => getDoc(doc(db, 'users', studentUid)))
           )
 
           const data = studentDocs
             .filter((s) => s.exists())
-            .map((s) => ({ id: s.id, ...s.data() }))
-            .filter((s) => s.uid !== user.uid)
-            // sort locally by lastLogin desc
+            .map((s) => normalizeUser({ id: s.id, data: () => s.data() }))
+            .filter((s) => s.uid && s.uid !== user.uid)
             .sort((a, b) => {
               const ad = a.lastLogin?.toDate ? a.lastLogin.toDate().getTime() : 0
               const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0
@@ -119,7 +136,6 @@ export default function TeacherDashboard({ user, logout }) {
 
           setStudents(data)
         } else {
-          // Not tutor/admin: shouldn’t happen due to routing, but be safe
           setStudents([])
         }
       } catch (e) {
@@ -131,7 +147,7 @@ export default function TeacherDashboard({ user, logout }) {
     }
 
     loadRoster()
-  }, [role, isAdmin, isTutor, user.uid])
+  }, [role, isAdmin, isTutor, user?.uid])
 
   const filteredStudents = useMemo(() => {
     const s = search.trim().toLowerCase()
@@ -149,19 +165,27 @@ export default function TeacherDashboard({ user, logout }) {
 
     const loadAdminData = async () => {
       try {
-        // Load all users (students + tutors)
-        const qUsers = query(collection(db, 'users'), orderBy('lastLogin', 'desc'))
-        const userSnap = await getDocs(qUsers)
-        const usersData = userSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        // Load all users (no where/orderBy combo; sort locally)
+        const userSnap = await getDocs(collection(db, 'users'))
+        const usersData = userSnap.docs
+          .map(normalizeUser)
+          .filter((u) => !!u.uid)
+          .sort((a, b) => {
+            const ad = a.lastLogin?.toDate ? a.lastLogin.toDate().getTime() : 0
+            const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0
+            return bd - ad
+          })
+
         setAllUsers(usersData)
 
         // Load all assignments
-        const qA = query(collection(db, 'assignments'))
-        const aSnap = await getDocs(qA)
+        const aSnap = await getDocs(collection(db, 'assignments'))
         const aData = aSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
         setAssignments(aData)
       } catch (e) {
         console.error('Admin load error:', e)
+        setAllUsers([])
+        setAssignments([])
       }
     }
 
@@ -174,26 +198,20 @@ export default function TeacherDashboard({ user, logout }) {
     return allUsers.filter((u) => {
       const name = (u.displayName || '').toLowerCase()
       const email = (u.email || '').toLowerCase()
-      const role = (u.role || '').toLowerCase()
-      return name.includes(s) || email.includes(s) || role.includes(s)
+      const r = (u.role || '').toLowerCase()
+      return name.includes(s) || email.includes(s) || r.includes(s)
     })
   }, [allUsers, adminSearch])
 
-  const tutors = useMemo(() => {
-    return allUsers.filter((u) => u.role === 'tutor' || u.role === 'admin')
-  }, [allUsers])
-
-  const studentsForAssign = useMemo(() => {
-    return allUsers.filter((u) => u.role === 'student')
-  }, [allUsers])
+  const tutors = useMemo(() => allUsers.filter((u) => u.role === 'tutor' || u.role === 'admin'), [allUsers])
+  const studentsForAssign = useMemo(() => allUsers.filter((u) => u.role === 'student'), [allUsers])
 
   // ADMIN ACTIONS
   const setUserRole = async (targetUid, newRole) => {
+    if (!targetUid) return alert('Target UID missing (user doc likely missing uid field).')
     if (!window.confirm(`Set role for ${targetUid} to "${newRole}"?`)) return
     try {
       await setDoc(doc(db, 'users', targetUid), { role: newRole }, { merge: true })
-
-      // optimistic refresh
       setAllUsers((prev) => prev.map((u) => (u.uid === targetUid ? { ...u, role: newRole } : u)))
     } catch (e) {
       console.error('Role update error:', e)
@@ -203,7 +221,6 @@ export default function TeacherDashboard({ user, logout }) {
 
   const assignStudentToTutor = async () => {
     if (!assignTutorUid || !assignStudentUid) return alert('Pick both a tutor and a student.')
-
     const id = assignmentDocId(assignTutorUid, assignStudentUid)
 
     try {
@@ -214,14 +231,12 @@ export default function TeacherDashboard({ user, logout }) {
         createdBy: user.uid,
       })
 
-      // optimistic refresh
       setAssignments((prev) => [
         ...prev.filter((a) => a.id !== id),
         { id, tutorUid: assignTutorUid, studentUid: assignStudentUid, createdBy: user.uid },
       ])
 
       setAssignStudentUid('')
-      // keep tutor selected for speed
     } catch (e) {
       console.error('Assign error:', e)
       alert('Failed to assign. Check Firestore rules.')
@@ -316,7 +331,6 @@ export default function TeacherDashboard({ user, logout }) {
         {/* VIEW: ROSTER */}
         {currentView === 'roster' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
                 <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
@@ -349,7 +363,6 @@ export default function TeacherDashboard({ user, logout }) {
               </div>
             </div>
 
-            {/* Table */}
             <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
               <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
                 <h2 className="text-xl font-bold text-white">Roster</h2>
@@ -396,7 +409,7 @@ export default function TeacherDashboard({ user, logout }) {
                     {!loading &&
                       filteredStudents.map((student) => (
                         <StudentRow
-                          key={student.id}
+                          key={student.uid}
                           student={student}
                           onManage={() => {
                             setSelectedStudent(student)
@@ -444,7 +457,7 @@ export default function TeacherDashboard({ user, logout }) {
   )
 }
 
-// --- STUDENT ROW (Premium toggle + Manage Words) ---
+// --- STUDENT ROW ---
 function StudentRow({ student, onManage }) {
   const [isPremium, setIsPremium] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -452,14 +465,22 @@ function StudentRow({ student, onManage }) {
   useEffect(() => {
     if (!student?.uid) return
     const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
-    const unsub = onSnapshot(ref, (snap) => {
-      if (snap.exists()) setIsPremium(!!snap.data().isPremium)
-      setLoading(false)
-    })
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (snap.exists()) setIsPremium(!!snap.data().isPremium)
+        setLoading(false)
+      },
+      (err) => {
+        console.error('Premium snapshot error:', err)
+        setLoading(false)
+      }
+    )
     return () => unsub()
   }, [student?.uid])
 
   const togglePremium = async () => {
+    if (!student?.uid) return alert('Student UID missing.')
     if (!window.confirm(`Change ${student.displayName || 'student'} to ${!isPremium ? 'Premium' : 'Free'}?`)) return
     try {
       const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
@@ -522,27 +543,23 @@ function StudentRow({ student, onManage }) {
   )
 }
 
-// --- STUDENT WORD MANAGER (unchanged logic; added createdBy for future audit) ---
+// --- STUDENT MANAGER (your existing logic; unchanged) ---
 function StudentManager({ student, onBack }) {
   const [words, setWords] = useState([])
   const [newWord, setNewWord] = useState({ term: '', translation: '', category: 'Teacher Added' })
 
   useEffect(() => {
     if (!student?.uid) return
-    const q = query(
-      collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'),
-      orderBy('createdAt', 'desc')
-    )
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const q = query(collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'))
+    const unsub = onSnapshot(q, (snapshot) => {
       setWords(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
     })
-    return () => unsubscribe()
+    return () => unsub()
   }, [student?.uid])
 
   const handleAdd = async (e) => {
     e.preventDefault()
     if (!newWord.term?.trim()) return
-
     await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'), {
       ...newWord,
       term: newWord.term.trim(),
@@ -575,7 +592,6 @@ function StudentManager({ student, onBack }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* ADD FORM */}
         <div className="lg:col-span-1">
           <div className="bg-[#0f172a] border border-white/10 rounded-3xl p-6 sticky top-24">
             <h3 className="font-bold text-white mb-4 flex items-center gap-2">
@@ -610,7 +626,6 @@ function StudentManager({ student, onBack }) {
           </div>
         </div>
 
-        {/* WORD LIST */}
         <div className="lg:col-span-2 space-y-4">
           <h3 className="font-bold text-slate-400 uppercase text-xs tracking-wider mb-2">
             Current Collection ({words.length})
@@ -648,14 +663,14 @@ function StudentManager({ student, onBack }) {
   )
 }
 
-// --- ADMIN PANEL ---
+// --- ADMIN PANEL (your logic; hardened keys + uid safety) ---
 function AdminPanel({
   adminUid,
-  users,
-  allUsers,
-  assignments,
-  tutors,
-  students,
+  users = [],
+  allUsers = [],
+  assignments = [],
+  tutors = [],
+  students = [],
   adminSearch,
   setAdminSearch,
   setUserRole,
@@ -669,14 +684,13 @@ function AdminPanel({
   const uidToUser = useMemo(() => {
     const m = new Map()
     allUsers.forEach((u) => {
-      if (u.uid) m.set(u.uid, u)
+      if (u?.uid) m.set(u.uid, u)
     })
     return m
   }, [allUsers])
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Promote Tutors */}
       <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
         <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
@@ -708,7 +722,7 @@ function AdminPanel({
             </thead>
             <tbody className="divide-y divide-white/5">
               {users
-                .filter((u) => u.uid !== adminUid) // don’t accidentally demote self
+                .filter((u) => u?.uid && u.uid !== adminUid)
                 .map((u) => (
                   <tr key={u.uid} className="hover:bg-white/[0.02] transition-colors">
                     <td className="p-6">
@@ -738,7 +752,8 @@ function AdminPanel({
                     </td>
                   </tr>
                 ))}
-              {users.length === 0 && (
+
+              {users.filter((u) => u?.uid && u.uid !== adminUid).length === 0 && (
                 <tr>
                   <td className="p-6 text-slate-500" colSpan={3}>
                     No users found. Ensure users have logged in at least once so `users/{uid}` exists.
@@ -750,7 +765,6 @@ function AdminPanel({
         </div>
       </div>
 
-      {/* Assign Students to Tutors */}
       <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
         <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
@@ -767,7 +781,7 @@ function AdminPanel({
               onChange={(e) => setAssignTutorUid(e.target.value)}
             >
               <option value="">Select tutor...</option>
-              {tutors.map((t) => (
+              {tutors.filter((t) => t?.uid).map((t) => (
                 <option key={t.uid} value={t.uid}>
                   {(t.displayName || t.email || t.uid) + (t.role === 'admin' ? ' (admin)' : '')}
                 </option>
@@ -780,7 +794,7 @@ function AdminPanel({
               onChange={(e) => setAssignStudentUid(e.target.value)}
             >
               <option value="">Select student...</option>
-              {students.map((s) => (
+              {students.filter((s) => s?.uid).map((s) => (
                 <option key={s.uid} value={s.uid}>
                   {s.displayName || s.email || s.uid}
                 </option>
@@ -796,7 +810,6 @@ function AdminPanel({
           </div>
         </div>
 
-        {/* Existing assignments */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#02040a] text-slate-400 text-xs uppercase font-bold tracking-wider">
@@ -880,7 +893,12 @@ function TeacherCalendar({ user }) {
         </div>
         <span className="text-blue-200 font-medium text-sm">Master View: Showing personal events + scheduled lessons.</span>
       </div>
-      <CalendarView user={user} events={[...localEvents, ...googleEvents]} setEvents={setLocalEvents} setTab={() => {}} />
+      <CalendarView
+        user={user}
+        events={[...localEvents, ...googleEvents]}
+        setEvents={setLocalEvents}
+        setTab={() => {}}
+      />
     </div>
   )
 }
