@@ -1,83 +1,127 @@
 // src/modules/dashboard/TeacherDashboard.jsx
-import React, { useEffect, useState } from 'react';
-import { 
-  collection, getDocs, orderBy, query, addDoc, deleteDoc, 
-  doc, onSnapshot, serverTimestamp, setDoc 
-} from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar';
-import { 
-  Users, ShieldCheck, Search, Calendar as CalendarIcon, 
-  ArrowLeft, Plus, Trash2, ChevronRight, Crown, Mail, 
-  Clock, LogOut, CheckCircle2, XCircle, TrendingUp 
-} from 'lucide-react';
-import CalendarView from '../calendar/Calendar';
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  where,
+} from 'firebase/firestore'
+import { db } from '../../lib/firebase'
+import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar'
+import {
+  Users,
+  ShieldCheck,
+  Search,
+  Calendar as CalendarIcon,
+  ArrowLeft,
+  Plus,
+  Trash2,
+  ChevronRight,
+  Crown,
+  Mail,
+  Clock,
+  LogOut,
+  TrendingUp,
+} from 'lucide-react'
+import CalendarView from '../calendar/Calendar'
 
 export default function TeacherDashboard({ user, logout }) {
-  const [currentView, setCurrentView] = useState('roster'); 
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [currentView, setCurrentView] = useState('roster')
+  const [selectedStudent, setSelectedStudent] = useState(null)
+  const [students, setStudents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
 
-  // 1. FETCH STUDENT ROSTER
+  // FETCH STUDENT ROSTER (role-based)
   useEffect(() => {
     const fetchStudents = async () => {
+      setLoading(true)
       try {
-        const q = query(collection(db, 'users'), orderBy('lastLogin', 'desc'));
-        const snapshot = await getDocs(q);
+        // Only users who are students
+        // Note: if you haven't added role to existing users yet, they may not appear.
+        const q = query(collection(db, 'users'), where('role', '==', 'student'), orderBy('lastLogin', 'desc'))
+        const snapshot = await getDocs(q)
+
         const studentData = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(s => s.email?.toLowerCase() !== user.email?.toLowerCase()); // Hide yourself
-        setStudents(studentData);
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((s) => s.email?.toLowerCase() !== user.email?.toLowerCase())
+
+        setStudents(studentData)
       } catch (error) {
-        console.error("Error fetching students:", error);
+        console.error('Error fetching students:', error)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    fetchStudents();
-  }, [user.email]);
+    }
+
+    fetchStudents()
+  }, [user.email])
+
+  const filteredStudents = useMemo(() => {
+    const s = search.trim().toLowerCase()
+    if (!s) return students
+    return students.filter((st) => {
+      const name = (st.displayName || '').toLowerCase()
+      const email = (st.email || '').toLowerCase()
+      return name.includes(s) || email.includes(s)
+    })
+  }, [students, search])
 
   return (
     <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-cyan-500/30">
-      
       {/* HEADER */}
       <header className="bg-[#0f172a] border-b border-white/5 px-6 md:px-10 py-6 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center border border-cyan-500/20">
-               <ShieldCheck className="text-cyan-400" size={24} /> 
+              <ShieldCheck className="text-cyan-400" size={24} />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white tracking-tight">Teacher Command</h1>
               <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/>
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 {user.email}
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <div className="flex bg-[#02040a] p-1 rounded-xl border border-white/10">
-              <button 
-                onClick={() => { setCurrentView('roster'); setSelectedStudent(null); }}
-                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'roster' || currentView === 'student-detail' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+              <button
+                onClick={() => {
+                  setCurrentView('roster')
+                  setSelectedStudent(null)
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
+                  currentView === 'roster' || currentView === 'student-detail'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
                 <Users size={16} /> Students
               </button>
-              <button 
+              <button
                 onClick={() => setCurrentView('calendar')}
-                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'calendar' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
+                  currentView === 'calendar' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
               >
                 <CalendarIcon size={16} /> Calendar
               </button>
             </div>
 
-            <button 
+            <button
               onClick={() => {
-                sessionStorage.removeItem("google_access_token");
-                logout();
-                window.location.reload();
+                sessionStorage.removeItem('google_access_token')
+                logout()
+                window.location.reload()
               }}
               className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-colors"
               title="Logout"
@@ -89,23 +133,37 @@ export default function TeacherDashboard({ user, logout }) {
       </header>
 
       <div className="max-w-7xl mx-auto p-6 md:p-10">
-        
         {/* VIEW 1: STUDENT ROSTER */}
         {currentView === 'roster' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
-                <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400"><Users size={24} /></div>
-                <div><div className="text-2xl font-bold text-white">{students.length}</div><div className="text-xs text-slate-400 uppercase font-bold">Total Students</div></div>
+                <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
+                  <Users size={24} />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">{students.length}</div>
+                  <div className="text-xs text-slate-400 uppercase font-bold">Total Students</div>
+                </div>
               </div>
               <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
-                <div className="p-3 bg-green-500/10 rounded-xl text-green-400"><TrendingUp size={24} /></div>
-                <div><div className="text-2xl font-bold text-white">Active</div><div className="text-xs text-slate-400 uppercase font-bold">Recent Logins</div></div>
+                <div className="p-3 bg-green-500/10 rounded-xl text-green-400">
+                  <TrendingUp size={24} />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">Active</div>
+                  <div className="text-xs text-slate-400 uppercase font-bold">Recent Logins</div>
+                </div>
               </div>
               <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
-                <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400"><Crown size={24} /></div>
-                <div><div className="text-2xl font-bold text-white">Manager</div><div className="text-xs text-slate-400 uppercase font-bold">Premium Controls</div></div>
+                <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400">
+                  <Crown size={24} />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">Manager</div>
+                  <div className="text-xs text-slate-400 uppercase font-bold">Premium Controls</div>
+                </div>
               </div>
             </div>
 
@@ -115,10 +173,15 @@ export default function TeacherDashboard({ user, logout }) {
                 <h2 className="text-xl font-bold text-white">Class Roster</h2>
                 <div className="bg-[#02040a] border border-white/10 rounded-xl flex items-center px-4 py-2.5 text-sm text-slate-400 w-full md:w-auto">
                   <Search size={16} className="mr-2" />
-                  <input placeholder="Search student..." className="bg-transparent outline-none placeholder-slate-600 w-full" />
+                  <input
+                    placeholder="Search student..."
+                    className="bg-transparent outline-none placeholder-slate-600 w-full"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
                 </div>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-[#02040a] text-slate-400 text-xs uppercase font-bold tracking-wider">
@@ -130,13 +193,33 @@ export default function TeacherDashboard({ user, logout }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {students.map((student) => (
-                      <StudentRow 
-                        key={student.id} 
-                        student={student} 
-                        onManage={() => { setSelectedStudent(student); setCurrentView('student-detail'); }}
-                      />
-                    ))}
+                    {loading && (
+                      <tr>
+                        <td className="p-6 text-slate-400" colSpan={4}>
+                          Loading students...
+                        </td>
+                      </tr>
+                    )}
+
+                    {!loading && filteredStudents.length === 0 && (
+                      <tr>
+                        <td className="p-6 text-slate-500" colSpan={4}>
+                          No students found. (If you just switched to roles, older users may be missing role="student".)
+                        </td>
+                      </tr>
+                    )}
+
+                    {!loading &&
+                      filteredStudents.map((student) => (
+                        <StudentRow
+                          key={student.id}
+                          student={student}
+                          onManage={() => {
+                            setSelectedStudent(student)
+                            setCurrentView('student-detail')
+                          }}
+                        />
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -151,112 +234,132 @@ export default function TeacherDashboard({ user, logout }) {
 
         {/* VIEW 3: TEACHER CALENDAR */}
         {currentView === 'calendar' && <TeacherCalendar user={user} />}
-        
       </div>
     </div>
-  );
+  )
 }
 
-// --- COMPONENT: ROW WITH REAL-TIME PREMIUM TOGGLE ---
 function StudentRow({ student, onManage }) {
-  const [isPremium, setIsPremium] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isPremium, setIsPremium] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  // Listen to premium status real-time
   useEffect(() => {
-    const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata');
+    if (!student?.uid) return
+    const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
     const unsub = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        setIsPremium(snap.data().isPremium || false);
-      }
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [student.uid]);
+      if (snap.exists()) setIsPremium(!!snap.data().isPremium)
+      setLoading(false)
+    })
+    return () => unsub()
+  }, [student?.uid])
 
   const togglePremium = async () => {
-    if(!window.confirm(`Change ${student.displayName}'s status to ${!isPremium ? 'Premium' : 'Free'}?`)) return;
+    if (!window.confirm(`Change ${student.displayName || 'student'} to ${!isPremium ? 'Premium' : 'Free'}?`)) return
     try {
-      const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata');
-      await setDoc(ref, { isPremium: !isPremium }, { merge: true });
+      const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
+      await setDoc(ref, { isPremium: !isPremium }, { merge: true })
     } catch (err) {
-      console.error(err);
-      alert("Error updating status");
+      console.error(err)
+      alert('Error updating status')
     }
-  };
+  }
 
   return (
     <tr className="hover:bg-white/[0.02] transition-colors group">
       <td className="p-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-white/10">
+          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden">
             {student.photoURL ? (
               <img src={student.photoURL} className="w-full h-full rounded-full" alt="" />
             ) : (
-              <span className="font-bold text-slate-400">{student.displayName?.[0]}</span>
+              <span className="font-bold text-slate-400">{student.displayName?.[0] || '?'}</span>
             )}
           </div>
           <div>
             <div className="font-bold text-white">{student.displayName || 'Unknown'}</div>
-            <div className="text-xs text-slate-500 flex items-center gap-1"><Mail size={10} /> {student.email}</div>
+            <div className="text-xs text-slate-500 flex items-center gap-1">
+              <Mail size={10} /> {student.email || 'No email'}
+            </div>
           </div>
         </div>
       </td>
+
       <td className="p-6">
-        <button 
+        <button
           onClick={togglePremium}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-            isPremium 
-              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20' 
+            isPremium
+              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
               : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white'
           }`}
         >
-          {loading ? '...' : (isPremium ? <><Crown size={12} fill="currentColor" /> Premium</> : 'Student')}
+          {loading ? '...' : isPremium ? <><Crown size={12} fill="currentColor" /> Premium</> : 'Student'}
         </button>
       </td>
-      <td className="p-6 text-slate-400 text-sm flex items-center gap-2">
-         <Clock size={14} /> {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleDateString() : 'Never'}
+
+      <td className="p-6 text-slate-400 text-sm">
+        <div className="flex items-center gap-2">
+          <Clock size={14} />
+          {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleDateString() : 'Never'}
+        </div>
       </td>
+
       <td className="p-6 text-right">
-        <button onClick={onManage} className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg text-xs font-bold transition-all border border-blue-500/20 hover:border-blue-500 flex items-center gap-2 ml-auto">
+        <button
+          onClick={onManage}
+          className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg text-xs font-bold transition-all border border-blue-500/20 hover:border-blue-500 flex items-center gap-2 ml-auto"
+        >
           Manage Words <ChevronRight size={14} />
         </button>
       </td>
     </tr>
-  );
+  )
 }
 
-// --- SUB-COMPONENT: STUDENT WORD MANAGER ---
 function StudentManager({ student, onBack }) {
-  const [words, setWords] = useState([]);
-  const [newWord, setNewWord] = useState({ term: '', translation: '', category: 'Teacher Added' });
+  const [words, setWords] = useState([])
+  const [newWord, setNewWord] = useState({ term: '', translation: '', category: 'Teacher Added' })
 
   useEffect(() => {
-    const q = query(collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'), orderBy('createdAt', 'desc'));
+    if (!student?.uid) return
+    const q = query(
+      collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'),
+      orderBy('createdAt', 'desc')
+    )
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setWords(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    return () => unsubscribe();
-  }, [student.uid]);
+      setWords(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+    })
+    return () => unsubscribe()
+  }, [student?.uid])
 
   const handleAdd = async (e) => {
-    e.preventDefault();
-    if (!newWord.term) return;
+    e.preventDefault()
+    if (!newWord.term?.trim()) return
+
     await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'), {
-      ...newWord, createdAt: serverTimestamp(), mastery: 0
-    });
-    setNewWord({ term: '', translation: '', category: 'Teacher Added' });
-  };
+      ...newWord,
+      term: newWord.term.trim(),
+      translation: newWord.translation.trim(),
+      createdAt: serverTimestamp(),
+      mastery: 0,
+      createdBy: 'tutor', // for future auditing
+    })
+
+    setNewWord({ term: '', translation: '', category: 'Teacher Added' })
+  }
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this word from student's bank?")) return;
-    await deleteDoc(doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank', id));
-  };
+    if (!window.confirm("Delete this word from student's bank?")) return
+    await deleteDoc(doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank', id))
+  }
 
   return (
     <div className="animate-in slide-in-from-right-8 duration-300">
       <div className="flex items-center justify-between mb-8">
-        <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white font-bold text-sm bg-[#0f172a] px-4 py-2 rounded-xl border border-white/5 transition-colors">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-slate-400 hover:text-white font-bold text-sm bg-[#0f172a] px-4 py-2 rounded-xl border border-white/5 transition-colors"
+        >
           <ArrowLeft size={16} /> Back to Roster
         </button>
         <div className="text-right">
@@ -269,27 +372,32 @@ function StudentManager({ student, onBack }) {
         {/* ADD FORM */}
         <div className="lg:col-span-1">
           <div className="bg-[#0f172a] border border-white/10 rounded-3xl p-6 sticky top-24">
-            <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Plus size={18} className="text-green-400"/> Add New Word</h3>
+            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+              <Plus size={18} className="text-green-400" /> Add New Word
+            </h3>
             <form onSubmit={handleAdd} className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase ml-1">Spanish Term</label>
-                <input 
+                <input
                   className="w-full bg-[#02040a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-colors"
                   placeholder="e.g. Biblioteca"
-                  value={newWord.term} 
-                  onChange={e => setNewWord({...newWord, term: e.target.value})} 
+                  value={newWord.term}
+                  onChange={(e) => setNewWord({ ...newWord, term: e.target.value })}
                 />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase ml-1">English Translation</label>
-                <input 
+                <input
                   className="w-full bg-[#02040a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-colors"
                   placeholder="e.g. Library"
-                  value={newWord.translation} 
-                  onChange={e => setNewWord({...newWord, translation: e.target.value})} 
+                  value={newWord.translation}
+                  onChange={(e) => setNewWord({ ...newWord, translation: e.target.value })}
                 />
               </div>
-              <button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-cyan-900/20">
+              <button
+                type="submit"
+                className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-cyan-900/20"
+              >
                 Add to Student Bank
               </button>
             </form>
@@ -298,19 +406,31 @@ function StudentManager({ student, onBack }) {
 
         {/* WORD LIST */}
         <div className="lg:col-span-2 space-y-4">
-          <h3 className="font-bold text-slate-400 uppercase text-xs tracking-wider mb-2">Current Collection ({words.length})</h3>
+          <h3 className="font-bold text-slate-400 uppercase text-xs tracking-wider mb-2">
+            Current Collection ({words.length})
+          </h3>
           {words.length === 0 && (
-             <div className="p-8 border border-dashed border-white/10 rounded-2xl text-center text-slate-500">Student has no words yet.</div>
+            <div className="p-8 border border-dashed border-white/10 rounded-2xl text-center text-slate-500">
+              Student has no words yet.
+            </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {words.map(w => (
-              <div key={w.id} className="bg-[#0f172a] border border-white/5 p-4 rounded-xl flex justify-between items-start group hover:border-cyan-500/30 transition-all">
+            {words.map((w) => (
+              <div
+                key={w.id}
+                className="bg-[#0f172a] border border-white/5 p-4 rounded-xl flex justify-between items-start group hover:border-cyan-500/30 transition-all"
+              >
                 <div>
                   <div className="font-bold text-white text-lg">{w.term}</div>
                   <div className="text-sm text-slate-400">{w.translation}</div>
-                  <div className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 uppercase">{w.category}</div>
+                  <div className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 uppercase">
+                    {w.category || 'Uncategorized'}
+                  </div>
                 </div>
-                <button onClick={() => handleDelete(w.id)} className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                <button
+                  onClick={() => handleDelete(w.id)}
+                  className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                >
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -319,45 +439,38 @@ function StudentManager({ student, onBack }) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-// --- SUB-COMPONENT: TEACHER CALENDAR ---
 function TeacherCalendar({ user }) {
-  const [googleEvents, setGoogleEvents] = useState([]);
-  const [localEvents, setLocalEvents] = useState([]); 
+  const [googleEvents, setGoogleEvents] = useState([])
+  const [localEvents, setLocalEvents] = useState([])
 
   useEffect(() => {
     const loadGoogleEvents = async () => {
-      if (user.token) {
-        const gEvents = await fetchGoogleCalendarEvents(user.token);
-        const formattedEvents = gEvents.map(e => ({
-          id: e.id,
-          title: e.summary || 'Busy',
-          date: e.start.dateTime?.split('T')[0] || e.start.date,
-          time: e.start.dateTime?.split('T')[1]?.substring(0, 5) || 'All Day',
-          type: 'Google Calendar'
-        }));
-        setGoogleEvents(formattedEvents);
-      }
-    };
-    loadGoogleEvents();
-  }, [user.token]);
+      if (!user?.token) return
+      const gEvents = await fetchGoogleCalendarEvents(user.token)
+      const formattedEvents = gEvents.map((e) => ({
+        id: e.id,
+        title: e.summary || 'Busy',
+        date: e.start.dateTime?.split('T')[0] || e.start.date,
+        time: e.start.dateTime?.split('T')[1]?.substring(0, 5) || 'All Day',
+        type: 'Google Calendar',
+      }))
+      setGoogleEvents(formattedEvents)
+    }
+    loadGoogleEvents()
+  }, [user?.token])
 
   return (
     <div className="animate-in fade-in bg-[#0f172a] border border-white/10 rounded-3xl p-6 shadow-2xl">
       <div className="bg-blue-900/10 border border-blue-500/20 p-4 rounded-2xl mb-6 flex items-center gap-3">
-        <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400"><CalendarIcon size={20} /></div>
-        <span className="text-blue-200 font-medium text-sm">
-          Master View: Showing personal events + scheduled lessons.
-        </span>
+        <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
+          <CalendarIcon size={20} />
+        </div>
+        <span className="text-blue-200 font-medium text-sm">Master View: Showing personal events + scheduled lessons.</span>
       </div>
-      <CalendarView 
-        user={user} 
-        events={[...localEvents, ...googleEvents]} 
-        setEvents={setLocalEvents} 
-        setTab={() => {}} 
-      />
+      <CalendarView user={user} events={[...localEvents, ...googleEvents]} setEvents={setLocalEvents} setTab={() => {}} />
     </div>
-  );
+  )
 }

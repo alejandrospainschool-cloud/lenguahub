@@ -15,7 +15,7 @@ import Tools from './modules/ai/Tools'
 import Login from './modules/auth/Login'
 import TeacherDashboard from './modules/dashboard/TeacherDashboard'
 
-// Legal Pages (NEW)
+// Legal Pages
 import PrivacyPolicy from './modules/legal/PrivacyPolicy'
 import TermsOfService from './modules/legal/TermsOfService'
 
@@ -31,17 +31,14 @@ import {
   updateDoc,
   increment,
   serverTimestamp,
+  getDoc,
 } from 'firebase/firestore'
 
 // Freemium Helper
 import { getEmptyUsage } from './lib/freemium'
 
 // Logo Import
-import logo from './logo.png' 
-
-// --- CONFIG ---
-const TEACHER_EMAIL = 'alejandropotter16@gmail.com'
-const isTeacher = (user) => user?.email?.toLowerCase() === TEACHER_EMAIL.toLowerCase()
+import logo from './logo.png'
 
 export default function App() {
   return <MainContent />
@@ -49,20 +46,29 @@ export default function App() {
 
 function MainContent() {
   const [user, setUser] = useState(null)
+  const [role, setRole] = useState(null) // "student" | "tutor" | "admin"
   const [loading, setLoading] = useState(true)
   const [isGuest, setIsGuest] = useState(false)
 
-  // 1. AUTH LISTENER
+  // AUTH LISTENER + USER SYNC + ROLE SUBSCRIBE
   useEffect(() => {
-    return onUserStateChange(async (u) => {
+    let unsubRole = null
+
+    const unsubAuth = onUserStateChange(async (u) => {
+      // Clean up prior role listener
+      if (unsubRole) {
+        unsubRole()
+        unsubRole = null
+      }
+
       if (!u) {
         setUser(null)
+        setRole(null)
         setIsGuest(false)
         setLoading(false)
         return
       }
 
-      // Check if user is a guest (anonymous user)
       const guestMode = u.isAnonymous
       setIsGuest(guestMode)
 
@@ -70,32 +76,65 @@ function MainContent() {
       const userData = { ...u, token: storedToken }
       setUser(userData)
 
-      // Only sync non-guest users to database
-      if (!guestMode) {
-        try {
+      // Guests: no DB sync, force student layout
+      if (guestMode) {
+        setRole('student')
+        setLoading(false)
+        return
+      }
+
+      try {
+        const userRef = doc(db, 'users', u.uid)
+        const snap = await getDoc(userRef)
+
+        // If first time, create with default role student
+        if (!snap.exists()) {
+          await setDoc(userRef, {
+            uid: u.uid,
+            email: u.email,
+            displayName: u.displayName || '',
+            photoURL: u.photoURL || '',
+            role: 'student',
+            createdAt: serverTimestamp(),
+            lastLogin: serverTimestamp(),
+          })
+        } else {
+          // Update profile + lastLogin (do not overwrite role)
           await setDoc(
-            doc(db, 'users', u.uid),
+            userRef,
             {
               uid: u.uid,
               email: u.email,
-              displayName: u.displayName,
-              photoURL: u.photoURL,
+              displayName: u.displayName || '',
+              photoURL: u.photoURL || '',
               lastLogin: serverTimestamp(),
             },
             { merge: true }
           )
-        } catch (err) {
-          console.error('User Sync Error:', err)
         }
-      }
 
-      setLoading(false)
+        // Subscribe to role changes in real time
+        unsubRole = onSnapshot(userRef, (docSnap) => {
+          const data = docSnap.data()
+          setRole(data?.role || 'student')
+          setLoading(false)
+        })
+      } catch (err) {
+        console.error('User Sync/Role Error:', err)
+        // Safe fallback
+        setRole('student')
+        setLoading(false)
+      }
     })
+
+    return () => {
+      if (unsubRole) unsubRole()
+      unsubAuth()
+    }
   }, [])
 
   if (loading) return <LoadingScreen />
 
-  // 2. ROUTING LOGIC
   return (
     <Routes>
       {/* Public Routes */}
@@ -109,7 +148,7 @@ function MainContent() {
         element={
           !user ? (
             <Navigate to="/login" />
-          ) : isTeacher(user) ? (
+          ) : role === 'tutor' || role === 'admin' ? (
             <TeacherDashboard user={user} logout={logout} />
           ) : (
             <StudentLayout user={user} isGuest={isGuest} />
@@ -149,7 +188,7 @@ function StudentLayout({ user, isGuest }) {
     )
 
     const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
-    
+
     const unsubMeta = onSnapshot(metaRef, async (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data()
@@ -164,9 +203,9 @@ function StudentLayout({ user, isGuest }) {
           setDailyUsage(data.usage)
         }
       } else {
-        await setDoc(metaRef, { 
-          isPremium: false, 
-          usage: getEmptyUsage() 
+        await setDoc(metaRef, {
+          isPremium: false,
+          usage: getEmptyUsage(),
         })
       }
     })
@@ -179,17 +218,17 @@ function StudentLayout({ user, isGuest }) {
   }, [user, isGuest])
 
   const trackUsage = async (metricKey) => {
-    if (isPremium) return 
+    if (isPremium) return
 
-    setDailyUsage(prev => ({ ...prev, [metricKey]: (prev[metricKey] || 0) + 1 }))
+    setDailyUsage((prev) => ({ ...prev, [metricKey]: (prev[metricKey] || 0) + 1 }))
 
     try {
       const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
       await updateDoc(metaRef, {
-        [`usage.${metricKey}`]: increment(1)
+        [`usage.${metricKey}`]: increment(1),
       })
     } catch (err) {
-      console.error("Usage tracking failed:", err)
+      console.error('Usage tracking failed:', err)
     }
   }
 
@@ -197,32 +236,27 @@ function StudentLayout({ user, isGuest }) {
     try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          email: user.email,
-        }),
-      });
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid, email: user.email }),
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (data.url) {
-        window.location.href = data.url; 
+        window.location.href = data.url
       } else {
-        console.error("Stripe Error:", data);
-        alert("Failed to start checkout. Please try again.");
+        console.error('Stripe Error:', data)
+        alert('Failed to start checkout. Please try again.')
       }
     } catch (error) {
-      console.error("Checkout error:", error);
-      alert("Something went wrong with the payment server. Please try again.");
+      console.error('Checkout error:', error)
+      alert('Something went wrong with the payment server. Please try again.')
     }
   }
 
   return (
     <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-blue-500/30">
-      {/* UPDATED MOBILE HEADER */}
+      {/* MOBILE HEADER */}
       <header className="fixed top-0 left-0 right-0 h-20 px-6 flex items-center justify-between z-30 md:hidden bg-[#02040a]/80 backdrop-blur-md border-b border-white/5">
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-400 hover:text-white">
           <Menu size={28} />
@@ -238,46 +272,58 @@ function StudentLayout({ user, isGuest }) {
       <main className="pt-24 md:pt-10 md:pl-72 p-6 min-h-screen max-w-7xl mx-auto">
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Routes>
-            <Route path="/" element={
-              <Dashboard 
-                user={user} 
-                words={words} 
-                events={events}
-                isPremium={isPremium}
-                dailyUsage={dailyUsage}
-                trackUsage={trackUsage}
-                onUpgrade={handleUpgrade}
-              />
-            } />
-            <Route path="/words" element={
-              <WordBank 
-                user={user} 
-                words={words} 
-                isPremium={isPremium}
-                dailyUsage={dailyUsage}
-                trackUsage={trackUsage}
-                onUpgrade={handleUpgrade}
-              />
-            } />
+            <Route
+              path="/"
+              element={
+                <Dashboard
+                  user={user}
+                  words={words}
+                  events={events}
+                  isPremium={isPremium}
+                  dailyUsage={dailyUsage}
+                  trackUsage={trackUsage}
+                  onUpgrade={handleUpgrade}
+                />
+              }
+            />
+            <Route
+              path="/words"
+              element={
+                <WordBank
+                  user={user}
+                  words={words}
+                  isPremium={isPremium}
+                  dailyUsage={dailyUsage}
+                  trackUsage={trackUsage}
+                  onUpgrade={handleUpgrade}
+                />
+              }
+            />
             <Route path="/calendar" element={<CalendarView user={user} events={events} setEvents={setEvents} />} />
-            <Route path="/study" element={
-              <Study 
-                words={words} 
-                isPremium={isPremium}
-                dailyUsage={dailyUsage}
-                trackUsage={trackUsage}
-                onUpgrade={handleUpgrade}
-              />
-            } />
-            <Route path="/tools" element={
-              <Tools 
-                user={user} 
-                isPremium={isPremium}
-                dailyUsage={dailyUsage}
-                trackUsage={trackUsage}
-                onUpgrade={handleUpgrade}
-              />
-            } />
+            <Route
+              path="/study"
+              element={
+                <Study
+                  words={words}
+                  isPremium={isPremium}
+                  dailyUsage={dailyUsage}
+                  trackUsage={trackUsage}
+                  onUpgrade={handleUpgrade}
+                />
+              }
+            />
+            <Route
+              path="/tools"
+              element={
+                <Tools
+                  user={user}
+                  isPremium={isPremium}
+                  dailyUsage={dailyUsage}
+                  trackUsage={trackUsage}
+                  onUpgrade={handleUpgrade}
+                />
+              }
+            />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>
@@ -291,9 +337,7 @@ function LoadingScreen() {
     <div className="h-screen w-full flex items-center justify-center bg-[#02040a] text-slate-400">
       <div className="flex flex-col items-center gap-4">
         <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-        <div className="animate-pulse text-sm font-medium tracking-widest uppercase">
-          Cargando Olé Learning
-        </div>
+        <div className="animate-pulse text-sm font-medium tracking-widest uppercase">Cargando Olé Learning</div>
       </div>
     </div>
   )
