@@ -44,8 +44,8 @@ const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}_${studentUid}`
 
 // Normalize a user doc so uid is ALWAYS present
 const normalizeUser = (d) => {
-  const data = d.data ? d.data() : d
-  const id = d.id || data?.id
+  const data = d?.data ? d.data() : d
+  const id = d?.id || data?.id
   return {
     id: id || data?.uid,
     ...data,
@@ -101,7 +101,7 @@ export default function TeacherDashboard({ user, logout }) {
       setLoading(true)
       try {
         if (isAdmin) {
-          // IMPORTANT: avoid composite index by NOT using orderBy here
+          // Avoid composite index by not using orderBy here; sort locally
           const qStudents = query(collection(db, 'users'), where('role', '==', 'student'))
           const snap = await getDocs(qStudents)
 
@@ -165,7 +165,6 @@ export default function TeacherDashboard({ user, logout }) {
 
     const loadAdminData = async () => {
       try {
-        // Load all users (no where/orderBy combo; sort locally)
         const userSnap = await getDocs(collection(db, 'users'))
         const usersData = userSnap.docs
           .map(normalizeUser)
@@ -178,7 +177,6 @@ export default function TeacherDashboard({ user, logout }) {
 
         setAllUsers(usersData)
 
-        // Load all assignments
         const aSnap = await getDocs(collection(db, 'assignments'))
         const aData = aSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
         setAssignments(aData)
@@ -206,7 +204,6 @@ export default function TeacherDashboard({ user, logout }) {
   const tutors = useMemo(() => allUsers.filter((u) => u.role === 'tutor' || u.role === 'admin'), [allUsers])
   const studentsForAssign = useMemo(() => allUsers.filter((u) => u.role === 'student'), [allUsers])
 
-  // ADMIN ACTIONS
   const setUserRole = async (targetUid, newRole) => {
     if (!targetUid) return alert('Target UID missing (user doc likely missing uid field).')
     if (!window.confirm(`Set role for ${targetUid} to "${newRole}"?`)) return
@@ -343,6 +340,7 @@ export default function TeacherDashboard({ user, logout }) {
                   </div>
                 </div>
               </div>
+
               <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
                 <div className="p-3 bg-green-500/10 rounded-xl text-green-400">
                   <TrendingUp size={24} />
@@ -352,6 +350,7 @@ export default function TeacherDashboard({ user, logout }) {
                   <div className="text-xs text-slate-400 uppercase font-bold">Recent Logins</div>
                 </div>
               </div>
+
               <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
                 <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400">
                   <Crown size={24} />
@@ -434,23 +433,25 @@ export default function TeacherDashboard({ user, logout }) {
 
         {/* VIEW: ADMIN */}
         {currentView === 'admin' && isAdmin && (
-          <AdminPanel
-            adminUid={user.uid}
-            users={filteredAdminUsers}
-            allUsers={allUsers}
-            assignments={assignments}
-            tutors={tutors}
-            students={studentsForAssign}
-            adminSearch={adminSearch}
-            setAdminSearch={setAdminSearch}
-            setUserRole={setUserRole}
-            assignTutorUid={assignTutorUid}
-            setAssignTutorUid={setAssignTutorUid}
-            assignStudentUid={assignStudentUid}
-            setAssignStudentUid={setAssignStudentUid}
-            assignStudentToTutor={assignStudentToTutor}
-            unassign={unassign}
-          />
+          <ErrorBoundary title="Admin page crashed">
+            <AdminPanel
+              adminUid={user.uid}
+              users={filteredAdminUsers}
+              allUsers={allUsers}
+              assignments={assignments}
+              tutors={tutors}
+              students={studentsForAssign}
+              adminSearch={adminSearch}
+              setAdminSearch={setAdminSearch}
+              setUserRole={setUserRole}
+              assignTutorUid={assignTutorUid}
+              setAssignTutorUid={setAssignTutorUid}
+              assignStudentUid={assignStudentUid}
+              setAssignStudentUid={setAssignStudentUid}
+              assignStudentToTutor={assignStudentToTutor}
+              unassign={unassign}
+            />
+          </ErrorBoundary>
         )}
       </div>
     </div>
@@ -543,7 +544,7 @@ function StudentRow({ student, onManage }) {
   )
 }
 
-// --- STUDENT MANAGER (your existing logic; unchanged) ---
+// --- STUDENT MANAGER ---
 function StudentManager({ student, onBack }) {
   const [words, setWords] = useState([])
   const [newWord, setNewWord] = useState({ term: '', translation: '', category: 'Teacher Added' })
@@ -663,7 +664,7 @@ function StudentManager({ student, onBack }) {
   )
 }
 
-// --- ADMIN PANEL (your logic; hardened keys + uid safety) ---
+// --- ADMIN PANEL ---
 function AdminPanel({
   adminUid,
   users = [],
@@ -691,6 +692,7 @@ function AdminPanel({
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Promote Tutors */}
       <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
         <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
@@ -765,6 +767,7 @@ function AdminPanel({
         </div>
       </div>
 
+      {/* Assign Students to Tutors */}
       <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
         <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
@@ -893,12 +896,39 @@ function TeacherCalendar({ user }) {
         </div>
         <span className="text-blue-200 font-medium text-sm">Master View: Showing personal events + scheduled lessons.</span>
       </div>
-      <CalendarView
-        user={user}
-        events={[...localEvents, ...googleEvents]}
-        setEvents={setLocalEvents}
-        setTab={() => {}}
-      />
+      <CalendarView user={user} events={[...localEvents, ...googleEvents]} setEvents={setLocalEvents} setTab={() => {}} />
     </div>
   )
+}
+
+// ---- ErrorBoundary (to stop grey screens and show the real error)
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error, info) {
+    console.error('ErrorBoundary caught:', error, info)
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children
+
+    return (
+      <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
+        <div className="text-red-200 font-bold text-lg">{this.props.title || 'Something crashed'}</div>
+        <div className="text-red-100/80 text-sm mt-2">
+          {String(this.state.error?.message || this.state.error || 'Unknown error')}
+        </div>
+        <div className="text-slate-300 text-xs mt-4">
+          Open DevTools console to see the full stack trace.
+        </div>
+      </div>
+    )
+  }
 }
