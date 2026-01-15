@@ -97,6 +97,103 @@ export default function SharedWordBank({
 
   const targetUid = studentUid || user?.uid
 
+  // Handle Create Folder
+  const handleCreateFolder = (e) => {
+    e.preventDefault()
+    if (!folderForm.name) return
+    setWordForm({ ...wordForm, category: folderForm.name })
+    setModalMode('add_word')
+  }
+
+  // Handle Save Word
+  const handleSaveWord = async (e) => {
+    e.preventDefault()
+    if (!wordForm.term || !wordForm.category) return
+
+    setIsSubmitting(true)
+    try {
+      const selectedColor =
+        folders.find((f) => f.name === wordForm.category)?.color || folderForm.color.hex
+
+      if (modalMode === 'edit_word' && editTarget) {
+        // UPDATE EXISTING
+        const docRef = doc(
+          db,
+          'artifacts',
+          'language-hub-v2',
+          'users',
+          targetUid,
+          'wordbank',
+          editTarget.id
+        )
+        await updateDoc(docRef, {
+          term: wordForm.term,
+          definition: wordForm.definition || wordForm.translation,
+          translation: wordForm.translation,
+          category: wordForm.category,
+          folderColor: selectedColor,
+        })
+      } else {
+        // CREATE NEW
+        await addDoc(
+          collection(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'wordbank'),
+          {
+            term: wordForm.term.trim(),
+            definition: wordForm.definition || wordForm.translation,
+            translation: wordForm.translation,
+            category: wordForm.category,
+            folderColor: selectedColor,
+            createdAt: serverTimestamp(),
+            mastery: 0,
+            createdBy: isTeacherView ? 'tutor' : 'student',
+          }
+        )
+      }
+      closeModal()
+    } catch (error) {
+      console.error('Error saving:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteWord = async (id) => {
+    if (!window.confirm("Delete this word?")) return
+    try {
+      await deleteDoc(
+        doc(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'wordbank', id)
+      )
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const openEditModal = (word) => {
+    setEditTarget(word)
+    setWordForm({
+      term: word.term,
+      definition: word.definition,
+      translation: word.translation,
+      category: word.category,
+    })
+    setModalMode('edit_word')
+    setActiveMenu(null)
+  }
+
+  const closeModal = () => {
+    setModalMode(null)
+    setEditTarget(null)
+    setWordForm({ term: '', definition: '', translation: '', category: '' })
+    setFolderForm({ name: '', color: FOLDER_COLORS[0] })
+  }
+
+  // Filter Logic
+  const visibleWords = words.filter((w) => {
+    const matchesSearch = w.term.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesFolder = currentFolder ? w.category === currentFolder.name : true
+    return searchTerm ? matchesSearch : matchesFolder
+  })
+
   return (
     <div className="max-w-6xl mx-auto min-h-[80vh] flex flex-col animate-in fade-in duration-500 pb-12">
       {/* HEADER */}
