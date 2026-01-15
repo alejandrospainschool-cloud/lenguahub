@@ -20,9 +20,6 @@ import {
   ShieldCheck,
   Search,
   Calendar as CalendarIcon,
-  ArrowLeft,
-  Plus,
-  Trash2,
   ChevronRight,
   Crown,
   Mail,
@@ -33,6 +30,7 @@ import {
 } from 'lucide-react'
 import CalendarView from '../calendar/Calendar'
 import AdminPanel from './AdminDashboard'
+import SharedWordBank from '../words/SharedWordBank'
 
 /**
  * Assignment doc id format:
@@ -423,7 +421,12 @@ export default function TeacherDashboard({ user, logout }) {
 
         {/* VIEW: STUDENT DETAIL */}
         {currentView === 'student-detail' && selectedStudent && (
-          <StudentManager student={selectedStudent} onBack={() => setCurrentView('roster')} />
+          <SharedWordBank
+            user={user}
+            studentUid={selectedStudent.uid}
+            isTeacherView={true}
+            onBack={() => setCurrentView('roster')}
+          />
         )}
 
         {/* VIEW: CALENDAR */}
@@ -539,126 +542,6 @@ function StudentRow({ student, onManage }) {
         </button>
       </td>
     </tr>
-  )
-}
-
-// --- STUDENT MANAGER ---
-function StudentManager({ student, onBack }) {
-  const [words, setWords] = useState([])
-  const [newWord, setNewWord] = useState({ term: '', translation: '', category: 'Teacher Added' })
-
-  useEffect(() => {
-    if (!student?.uid) return
-    const q = query(collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'))
-    const unsub = onSnapshot(q, (snapshot) => {
-      setWords(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
-    })
-    return () => unsub()
-  }, [student?.uid])
-
-  const handleAdd = async (e) => {
-    e.preventDefault()
-    if (!newWord.term?.trim()) return
-    await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'), {
-      ...newWord,
-      term: newWord.term.trim(),
-      translation: newWord.translation.trim(),
-      createdAt: serverTimestamp(),
-      mastery: 0,
-      createdBy: 'tutor',
-    })
-    setNewWord({ term: '', translation: '', category: 'Teacher Added' })
-  }
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this word from student's bank?")) return
-    await deleteDoc(doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank', id))
-  }
-
-  return (
-    <div className="animate-in slide-in-from-right-8 duration-300">
-      <div className="flex items-center justify-between mb-8">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-slate-400 hover:text-white font-bold text-sm bg-[#0f172a] px-4 py-2 rounded-xl border border-white/5 transition-colors"
-        >
-          <ArrowLeft size={16} /> Back to Roster
-        </button>
-        <div className="text-right">
-          <h2 className="text-2xl font-bold text-white">{student.displayName}</h2>
-          <p className="text-slate-400 text-sm">Managing Word Bank</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
-          <div className="bg-[#0f172a] border border-white/10 rounded-3xl p-6 sticky top-24">
-            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
-              <Plus size={18} className="text-green-400" /> Add New Word
-            </h3>
-            <form onSubmit={handleAdd} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase ml-1">Spanish Term</label>
-                <input
-                  className="w-full bg-[#02040a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-colors"
-                  placeholder="e.g. Biblioteca"
-                  value={newWord.term}
-                  onChange={(e) => setNewWord({ ...newWord, term: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase ml-1">English Translation</label>
-                <input
-                  className="w-full bg-[#02040a] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500 transition-colors"
-                  placeholder="e.g. Library"
-                  value={newWord.translation}
-                  onChange={(e) => setNewWord({ ...newWord, translation: e.target.value })}
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-cyan-900/20"
-              >
-                Add to Student Bank
-              </button>
-            </form>
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 space-y-4">
-          <h3 className="font-bold text-slate-400 uppercase text-xs tracking-wider mb-2">
-            Current Collection ({words.length})
-          </h3>
-          {words.length === 0 && (
-            <div className="p-8 border border-dashed border-white/10 rounded-2xl text-center text-slate-500">
-              Student has no words yet.
-            </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {words.map((w) => (
-              <div
-                key={w.id}
-                className="bg-[#0f172a] border border-white/5 p-4 rounded-xl flex justify-between items-start group hover:border-cyan-500/30 transition-all"
-              >
-                <div>
-                  <div className="font-bold text-white text-lg">{w.term}</div>
-                  <div className="text-sm text-slate-400">{w.translation}</div>
-                  <div className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 uppercase">
-                    {w.category || 'Uncategorized'}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDelete(w.id)}
-                  className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
   )
 }
 
