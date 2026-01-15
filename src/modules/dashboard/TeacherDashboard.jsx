@@ -861,7 +861,7 @@ function AdminPanel({
       </div>
 
       <div className="text-xs text-slate-500">
-        Note: If a user doesn’t appear here, they likely haven’t logged into the app since you added the `users/{uid}` sync.
+        Note: If a user doesn't appear here, they likely haven't logged into the app since you added the 'users/{"{uid}"}' sync.
       </div>
     </div>
   )
