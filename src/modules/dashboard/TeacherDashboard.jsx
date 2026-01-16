@@ -249,17 +249,17 @@ export default function TeacherDashboard({ user, logout }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-cyan-500/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 font-sans selection:bg-blue-500/30">
       {/* HEADER */}
-      <header className="bg-[#0f172a] border-b border-white/5 px-6 md:px-10 py-6 sticky top-0 z-30">
+      <header className="relative backdrop-blur-xl bg-gradient-to-b from-slate-900/50 to-slate-900/20 border-b border-white/10 px-6 md:px-10 py-6 sticky top-0 z-30 shadow-glass">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center border border-cyan-500/20">
-              <ShieldCheck className="text-cyan-400" size={24} />
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500/30 to-cyan-500/20 rounded-2xl flex items-center justify-center border border-blue-400/30 shadow-glass">
+              <ShieldCheck className="text-blue-400" size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">
-                {isAdmin ? 'Admin Command' : 'Tutor Command'}
+              <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 tracking-tight">
+                {isAdmin ? 'Admin Control' : 'Tutor Hub'}
               </h1>
               <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -269,7 +269,7 @@ export default function TeacherDashboard({ user, logout }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex bg-[#02040a] p-1 rounded-xl border border-white/10">
+            <div className="flex bg-white/5 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 shadow-glass">
               <button
                 onClick={() => {
                   setCurrentView('roster')
