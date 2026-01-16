@@ -118,12 +118,12 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-amber-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 text-slate-100 font-sans selection:bg-blue-500/30 overflow-x-hidden">
       
       {/* --- NAVBAR --- */}
-      <nav className="absolute top-0 left-0 right-0 z-50 py-6 px-6 md:px-12 flex justify-between items-center max-w-7xl mx-auto">
+      <nav className="absolute top-0 left-0 right-0 z-50 py-6 px-6 md:px-12 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <img src={logo} alt="Olé Learning" className="w-10 h-10 rounded-xl shadow-lg shadow-amber-500/20" />
+          <img src={logo} alt="Olé Learning" className="w-10 h-10 rounded-lg shadow-lg" />
           <span className="font-bold text-xl tracking-tight hidden md:block">Olé Learning</span>
         </div>
         <div className="flex items-center gap-6 text-sm font-medium text-slate-400">
@@ -135,18 +135,18 @@ export default function Login() {
       {/* --- HERO SECTION --- */}
       <section className="relative pt-32 pb-20 px-6 md:px-12 min-h-[90vh] flex items-center">
         {/* Background Glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-amber-600/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/5 blur-[100px] rounded-full pointer-events-none" />
         
         <div className="max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-16 items-center relative z-10">
           
           {/* Left Column: Copywriting */}
           <div className="space-y-8 text-center lg:text-left animate-in slide-in-from-bottom-8 duration-700">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 text-amber-400 font-bold text-sm border border-amber-500/20 mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 text-blue-400 font-bold text-sm border border-blue-500/20 mb-4">
               <Globe size={16} /> Your language journey starts here
             </div>
             <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight">
               Learn Spanish, <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
                 your way.
               </span>
             </h1>
@@ -155,49 +155,45 @@ export default function Login() {
               <strong className="text-slate-200"> Olé Learning</strong> is the friendly companion that helps you organize your learning and track your progress.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start text-sm font-medium text-slate-400">
-               <div className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-500" /> Start for free</div>
-               <div className="flex items-center gap-2"><CheckCircle2 size={18} className="text-amber-500" /> Learn at your own pace</div>
+               <div className="flex items-center gap-2"><CheckCircle2 size={18} className="text-blue-500" /> Start for free</div>
+               <div className="flex items-center gap-2"><CheckCircle2 size={18} className="text-blue-500" /> Learn at your own pace</div>
             </div>
           </div>
 
           {/* Right Column: Login Card */}
           <div className="flex justify-center lg:justify-end animate-in fade-in duration-1000 delay-300">
             <div 
-              className="flex flex-col items-center text-center p-8 pb-10 shadow-2xl relative group"
+              className="flex flex-col items-center text-center p-8 pb-10 relative group"
               style={{ 
                 width: '420px',
                 maxWidth: '100%',
-                backgroundColor: 'rgba(2, 6, 23, 0.8)', 
-                backdropFilter: 'blur(24px)',
-                WebkitBackdropFilter: 'blur(24px)',
-                borderRadius: '36px', 
+                backgroundColor: 'rgba(15, 23, 42, 0.5)', 
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                borderRadius: '24px', 
                 border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
               }}
             >
-               {/* Animated Border Gradient */}
-               <div className="absolute inset-0 rounded-[36px] p-[1px] bg-gradient-to-b from-white/20 to-transparent -z-10 pointer-events-none" />
-
               {/* LOGO */}
-              <div className="mx-auto w-28 h-28 mb-6 relative">
-                <div className="absolute inset-0 bg-amber-500/30 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500" />
-                <img src={logo} alt="Olé Learning" className="relative w-full h-full object-cover rounded-3xl shadow-2xl ring-2 ring-white/10 z-10" />
+              <div className="mx-auto w-24 h-24 mb-6 relative">
+                <div className="absolute inset-0 bg-blue-500/10 rounded-2xl blur-xl" />
+                <img src={logo} alt="Olé Learning" className="relative w-full h-full object-cover rounded-2xl shadow-lg border border-white/10 z-10" />
               </div>
 
-              <h2 className="text-2xl font-bold text-white mb-3">Welcome Back!</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Welcome Back!</h2>
               <p className="text-slate-400 text-sm mb-6 leading-relaxed px-4">
                 Ready to learn some new words today? Sign in to continue.
               </p>
 
               {/* ERROR MESSAGE */}
               {error && (
-                <div className="w-full mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                <div className="w-full mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
                   {error}
                 </div>
               )}
 
               {/* AUTH MODE TABS */}
-              <div className="flex gap-2 mb-6 w-full bg-slate-900/50 p-1 rounded-lg">
+              <div className="flex gap-2 mb-6 w-full bg-slate-800/30 p-1 rounded-lg border border-white/10">
                 <button
                   onClick={() => { setAuthMode('google'); setError(''); }}
                   className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-all ${
