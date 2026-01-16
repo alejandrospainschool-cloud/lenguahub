@@ -163,42 +163,48 @@ export default function Login() {
           {/* Right Column: Login Card */}
           <div className="flex justify-center lg:justify-end animate-in fade-in duration-1000 delay-300">
             <div 
-              className="flex flex-col items-center text-center p-8 pb-10 relative group"
+              className="flex flex-col items-center text-center p-8 pb-10 relative group overflow-hidden"
               style={{ 
                 width: '420px',
                 maxWidth: '100%',
-                backgroundColor: 'rgba(15, 23, 42, 0.5)', 
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                borderRadius: '24px', 
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(25, 35, 65, 0.5) 100%)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderRadius: '28px', 
+                border: '1.5px solid rgba(59, 130, 246, 0.3)',
+                boxShadow: '0 12px 48px rgba(59, 130, 246, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.1)',
               }}
             >
-              {/* LOGO */}
-              <div className="mx-auto w-24 h-24 mb-6 relative">
-                <div className="absolute inset-0 bg-blue-500/10 rounded-2xl blur-xl" />
-                <img src={logo} alt="Olé Learning" className="relative w-full h-full object-cover rounded-2xl shadow-lg border border-white/10 z-10" />
+              {/* Premium shimmer on hover */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
               </div>
 
-              <h2 className="text-2xl font-bold text-white mb-2">Welcome Back!</h2>
-              <p className="text-slate-400 text-sm mb-6 leading-relaxed px-4">
+              {/* LOGO */}
+              <div className="mx-auto w-24 h-24 mb-6 relative z-10">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-cyan-500/10 rounded-2xl blur-xl" />
+                <img src={logo} alt="Olé Learning" className="relative w-full h-full object-cover rounded-2xl shadow-lg border border-blue-400/30 z-10" />
+              </div>
+
+              <h2 className="text-3xl font-bold text-white mb-2 z-10 relative">Welcome Back!</h2>
+              <p className="text-slate-400 text-sm mb-6 leading-relaxed px-4 z-10 relative">
                 Ready to learn some new words today? Sign in to continue.
               </p>
 
               {/* ERROR MESSAGE */}
               {error && (
-                <div className="w-full mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                <div className="w-full mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm z-10 relative">
                   {error}
                 </div>
               )}
 
               {/* AUTH MODE TABS */}
-              <div className="flex gap-2 mb-6 w-full bg-slate-800/30 p-1 rounded-lg border border-white/10">
+              <div className="flex gap-2 mb-6 w-full bg-gradient-to-r from-slate-800/50 to-slate-900/30 p-1.5 rounded-lg border border-slate-700/40 z-10 relative">
                 <button
                   onClick={() => { setAuthMode('google'); setError(''); }}
-                  className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-all ${
+                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all duration-300 ${
                     authMode === 'google' 
-                      ? 'bg-amber-600 text-white' 
+                      ? 'bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-lg shadow-amber-500/30' 
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -206,9 +212,9 @@ export default function Login() {
                 </button>
                 <button
                   onClick={() => { setAuthMode('login'); setError(''); }}
-                  className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-all ${
+                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all duration-300 ${
                     authMode === 'login' 
-                      ? 'bg-amber-600 text-white' 
+                      ? 'bg-gradient-to-r from-blue-600 to-cyan-700 text-white shadow-lg shadow-blue-500/30' 
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -218,19 +224,20 @@ export default function Login() {
 
               {/* GOOGLE AUTH */}
               {authMode === 'google' && (
-                <div className="w-full space-y-3">
+                <div className="w-full space-y-3 z-10 relative">
                   <button
                     onClick={signInWithGoogle}
                     disabled={loading}
-                    className="relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl shadow-lg transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] hover:shadow-amber-500/25 group bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600 disabled:opacity-50"
+                    className="relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl shadow-lg transition-all duration-300 ease-out hover:scale-[1.03] active:scale-[0.97] hover:shadow-amber-500/40 group bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600 disabled:opacity-50 border border-amber-500/30 hover:border-amber-400/50 overflow-hidden"
                   >
                     {loading ? (
                       <span className="text-sm font-bold">Connecting...</span>
                     ) : (
                       <>
-                        <div className="bg-white p-1.5 rounded-full"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-5 h-5" /></div>
-                        <span className="text-sm font-bold tracking-wide">Continue with Google</span>
-                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="bg-white p-1.5 rounded-full relative z-10"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-5 h-5" /></div>
+                        <span className="text-sm font-bold tracking-wide relative z-10">Continue with Google</span>
+                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform relative z-10" />
                       </>
                     )}
                   </button>
@@ -238,15 +245,16 @@ export default function Login() {
                   <button
                     onClick={handleGuestSignIn}
                     disabled={loading}
-                    className="relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl shadow-lg transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border border-slate-600 hover:border-slate-400 bg-transparent hover:bg-slate-900/30 group disabled:opacity-50"
+                    className="relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl shadow-lg transition-all duration-300 ease-out hover:scale-[1.03] active:scale-[0.97] border border-cyan-500/30 hover:border-cyan-400/50 bg-gradient-to-r from-cyan-900/30 to-blue-900/20 hover:from-cyan-900/50 hover:to-blue-900/40 group disabled:opacity-50 overflow-hidden"
                   >
                     {loading ? (
                       <span className="text-sm font-bold">Connecting...</span>
                     ) : (
                       <>
-                        <Zap2 size={18} className="text-amber-400 group-hover:scale-110 transition-transform" />
-                        <span className="text-sm font-bold tracking-wide">Continue as Guest</span>
-                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <Zap2 size={18} className="text-cyan-400 group-hover:scale-125 transition-transform relative z-10" />
+                        <span className="text-sm font-bold tracking-wide relative z-10">Continue as Guest</span>
+                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform relative z-10" />
                       </>
                     )}
                   </button>
@@ -255,33 +263,33 @@ export default function Login() {
 
               {/* EMAIL LOGIN */}
               {authMode === 'login' && (
-                <form onSubmit={handleEmailSignIn} className="w-full space-y-4">
+                <form onSubmit={handleEmailSignIn} className="w-full space-y-4 z-10 relative">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">Email</label>
                     <div className="relative">
-                      <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400/60" />
                       <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
                         disabled={loading}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors disabled:opacity-50"
+                        className="w-full pl-10 pr-4 py-3.5 bg-gradient-to-br from-slate-800/50 to-slate-900/30 border border-blue-500/20 hover:border-blue-500/30 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/40 focus:ring-2 focus:ring-blue-400/30 transition-all duration-300 disabled:opacity-50 shadow-sm shadow-blue-500/10"
                       />
                     </div>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">Password</label>
                     <div className="relative">
-                      <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400/60" />
                       <input
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
                         disabled={loading}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors disabled:opacity-50"
+                        className="w-full pl-10 pr-4 py-3.5 bg-gradient-to-br from-slate-800/50 to-slate-900/30 border border-blue-500/20 hover:border-blue-500/30 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/40 focus:ring-2 focus:ring-blue-400/30 transition-all duration-300 disabled:opacity-50 shadow-sm shadow-blue-500/10"
                       />
                     </div>
                   </div>
@@ -289,7 +297,7 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 mt-6 bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600 text-white font-bold rounded-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3.5 mt-6 bg-gradient-to-r from-blue-600 to-cyan-700 hover:from-blue-500 hover:to-cyan-600 text-white font-bold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed border border-cyan-400/20 shadow-lg shadow-blue-500/20 hover:shadow-cyan-500/30"
                   >
                     {loading ? 'Signing in...' : 'Sign In'}
                   </button>

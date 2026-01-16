@@ -1,40 +1,43 @@
 export default function Button({ children, onClick, className = '', variant = 'default', size = 'md', ...props }) {
   const baseStyles = `
-    relative font-medium transition-all duration-200 ease-out
+    relative font-semibold transition-all duration-300 ease-out
     focus-visible:outline-2 focus-visible:outline-offset-2
     active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-    backdrop-blur-sm border rounded-lg
-    flex items-center justify-center whitespace-nowrap
+    backdrop-blur-md border rounded-xl
+    flex items-center justify-center whitespace-nowrap gap-2
+    overflow-hidden group
   `;
 
   const variants = {
     default: `
-      bg-blue-600/20 border-blue-400/30 hover:border-blue-400/50
-      text-blue-400 hover:text-blue-300
-      hover:bg-blue-600/30
+      bg-gradient-to-r from-blue-600/25 to-cyan-500/15 border-blue-400/40 hover:border-cyan-400/60
+      text-blue-300 hover:text-cyan-200
+      hover:from-blue-600/35 hover:to-cyan-500/25
+      shadow-lg shadow-blue-500/10 hover:shadow-blue-500/25
+      hover:shadow-2xl
     `,
     secondary: `
-      bg-white/10 border-white/20
+      bg-gradient-to-r from-white/12 to-white/6 border-white/25 hover:border-white/40
       text-slate-100 hover:text-white
-      hover:bg-white/15 hover:border-white/30
+      hover:from-white/18 hover:to-white/12 shadow-lg shadow-white/5 hover:shadow-white/15
     `,
     ghost: `
-      bg-transparent border-white/10
+      bg-transparent border-white/15 hover:border-white/30
       text-slate-300 hover:text-white
-      hover:bg-white/5 hover:border-white/20
+      hover:bg-white/8 shadow-none hover:shadow-lg hover:shadow-white/10
     `,
     destructive: `
-      bg-red-500/20 border-red-400/30 hover:border-red-400/50
-      text-red-400 hover:text-red-300
-      hover:bg-red-500/30
+      bg-gradient-to-r from-red-600/25 to-pink-500/15 border-red-400/40 hover:border-pink-400/60
+      text-red-300 hover:text-pink-200
+      hover:from-red-600/35 hover:to-pink-500/25 shadow-lg shadow-red-500/10 hover:shadow-red-500/25
     `,
   };
 
   const sizes = {
     sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
-    xl: 'px-8 py-4 text-xl',
+    md: 'px-5 py-2.5 text-base',
+    lg: 'px-7 py-3.5 text-lg',
+    xl: 'px-9 py-4.5 text-xl',
   };
 
   return (
@@ -43,7 +46,8 @@ export default function Button({ children, onClick, className = '', variant = 'd
       {...props}
       className={`${baseStyles} ${variants[variant] || variants.default} ${sizes[size] || sizes.md} ${className}`}
     >
-      {children}
+      <span className="relative z-10 flex items-center gap-2">{children}</span>
+      <span className="absolute inset-0 -z-0 bg-gradient-to-r from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-pulse transition-opacity duration-300"></span>
     </button>
   );
 }

@@ -323,49 +323,49 @@ export default function TeacherDashboard({ user, logout }) {
       <div className="max-w-7xl mx-auto p-6 md:p-10">
         {/* VIEW: ROSTER */}
         {currentView === 'roster' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-slate-800/30 backdrop-blur-md border border-white/10 p-5 rounded-2xl flex items-center gap-4 hover:bg-slate-800/40 transition-all">
-                <div className="p-3 bg-blue-500/20 rounded-xl text-blue-400">
-                  <Users size={24} />
+          <div className="space-y-6 animate-slide-in">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 backdrop-blur-2xl border border-blue-400/30 p-6 rounded-2xl flex items-center gap-4 hover:from-blue-900/60 hover:to-blue-800/40 hover:border-blue-300/50 transition-all duration-300 shadow-lg shadow-blue-500/15 hover:shadow-blue-500/30 group cursor-pointer">
+                <div className="p-4 bg-gradient-to-br from-blue-500/30 to-blue-600/20 rounded-xl text-blue-300 group-hover:from-blue-500/50 group-hover:to-blue-600/40 transition-all duration-300 shadow-lg shadow-blue-500/20">
+                  <Users size={28} />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-white">{students.length}</div>
-                  <div className="text-xs text-slate-400 uppercase font-bold">
+                  <div className="text-3xl font-bold text-white">{students.length}</div>
+                  <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">
                     {isAdmin ? 'Total Students' : 'Assigned Students'}
                   </div>
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-md border border-white/10 p-5 rounded-2xl flex items-center gap-4 hover:bg-slate-800/40 transition-all">
-                <div className="p-3 bg-green-500/20 rounded-xl text-green-400">
-                  <TrendingUp size={24} />
+              <div className="bg-gradient-to-br from-emerald-900/40 to-emerald-800/20 backdrop-blur-2xl border border-emerald-400/30 p-6 rounded-2xl flex items-center gap-4 hover:from-emerald-900/60 hover:to-emerald-800/40 hover:border-emerald-300/50 transition-all duration-300 shadow-lg shadow-emerald-500/15 hover:shadow-emerald-500/30 group cursor-pointer">
+                <div className="p-4 bg-gradient-to-br from-emerald-500/30 to-emerald-600/20 rounded-xl text-emerald-300 group-hover:from-emerald-500/50 group-hover:to-emerald-600/40 transition-all duration-300 shadow-lg shadow-emerald-500/20">
+                  <TrendingUp size={28} />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-white">Active</div>
-                  <div className="text-xs text-slate-400 uppercase font-bold">Recent Logins</div>
+                  <div className="text-3xl font-bold text-white">Active</div>
+                  <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">Recent Logins</div>
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-md border border-white/10 p-5 rounded-2xl flex items-center gap-4 hover:bg-slate-800/40 transition-all">
-                <div className="p-3 bg-amber-500/20 rounded-xl text-amber-400">
-                  <Crown size={24} />
+              <div className="bg-gradient-to-br from-purple-900/40 to-purple-800/20 backdrop-blur-2xl border border-purple-400/30 p-6 rounded-2xl flex items-center gap-4 hover:from-purple-900/60 hover:to-purple-800/40 hover:border-purple-300/50 transition-all duration-300 shadow-lg shadow-purple-500/15 hover:shadow-purple-500/30 group cursor-pointer">
+                <div className="p-4 bg-gradient-to-br from-purple-500/30 to-purple-600/20 rounded-xl text-purple-300 group-hover:from-purple-500/50 group-hover:to-purple-600/40 transition-all duration-300 shadow-lg shadow-purple-500/20">
+                  <Crown size={28} />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-white">{isAdmin ? 'Admin' : 'Tutor'}</div>
-                  <div className="text-xs text-slate-400 uppercase font-bold">Controls</div>
+                  <div className="text-3xl font-bold text-white">{isAdmin ? 'Admin' : 'Tutor'}</div>
+                  <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">Controls</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-800/30 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden">
-              <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-                <h2 className="text-xl font-bold text-white">Student Roster</h2>
-                <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 rounded-lg flex items-center px-4 py-2.5 text-sm text-slate-400 w-full md:w-auto">
-                  <Search size={16} className="mr-2" />
+            <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 backdrop-blur-2xl border border-slate-700/40 rounded-3xl overflow-hidden shadow-lg shadow-black/30">
+              <div className="p-7 border-b border-slate-700/40 flex flex-col md:flex-row justify-between items-center gap-4 bg-gradient-to-r from-slate-900/40 to-transparent">
+                <h2 className="text-2xl font-bold text-white">Student Roster</h2>
+                <div className="bg-gradient-to-r from-slate-800/50 to-slate-900/30 backdrop-blur-lg border border-blue-500/20 rounded-xl flex items-center px-5 py-3 text-sm text-slate-400 w-full md:w-auto hover:border-blue-400/30 transition-all">
+                  <Search size={18} className="mr-3 text-blue-400/60" />
                   <input
                     placeholder="Search students..."
-                    className="bg-transparent outline-none placeholder-slate-500 w-full text-slate-100"
+                    className="bg-transparent outline-none placeholder-slate-500 w-full text-slate-100 text-sm"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -374,7 +374,7 @@ export default function TeacherDashboard({ user, logout }) {
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-slate-900/40 text-slate-300 text-xs uppercase font-bold tracking-wider border-b border-white/5">
+                  <thead className="bg-gradient-to-r from-slate-900/60 to-slate-800/40 text-slate-300 text-xs uppercase font-bold tracking-widest border-b border-slate-700/40">
                     <tr>
                       <th className="p-6">Student</th>
                       <th className="p-6">Status</th>
