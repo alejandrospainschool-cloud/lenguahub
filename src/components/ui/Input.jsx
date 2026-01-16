@@ -6,12 +6,17 @@ export default function Input({ className = '', ...props }) {
     <input
       {...props}
       className={`
-        w-full p-3 rounded-xl 
-        bg-slate-950/50 border border-slate-800 
-        text-slate-100 placeholder-slate-500
-        focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500
+        w-full px-4 py-3 rounded-2xl
+        bg-gradient-to-br from-slate-900/40 to-slate-800/30
+        backdrop-blur-md border border-white/10
+        text-slate-100 placeholder-slate-400
+        transition-all duration-300 ease-out
+        focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-blue-500/50 focus:from-slate-900/50 focus:to-slate-800/40 focus:backdrop-blur-lg
         disabled:opacity-50 disabled:cursor-not-allowed
-        transition-all duration-200
+        hover:border-white/15
+        shadow-glass
+        autofill:!bg-slate-900/40 autofill:!text-slate-100
+        autofill:focus:!bg-slate-900/50
         ${className}
       `}
     />
