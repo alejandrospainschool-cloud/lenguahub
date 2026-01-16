@@ -13,6 +13,7 @@ import CalendarView from './modules/calendar/Calendar'
 import Study from './modules/study/Study'
 import Tools from './modules/ai/Tools'
 import Login from './modules/auth/Login'
+import ForgotPassword from './modules/auth/ForgotPassword'
 import TeacherDashboard from './modules/dashboard/TeacherDashboard'
 
 // Legal Pages
@@ -150,6 +151,7 @@ function MainContent() {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+      <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/" />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsOfService />} />
 

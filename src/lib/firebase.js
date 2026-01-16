@@ -1,8 +1,15 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signOut, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signOut, 
+  onAuthStateChanged, 
+  signInAnonymously,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-
-// ✅ ADD THESE:
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const firebaseConfig = {
@@ -19,8 +26,6 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-
-// ✅ ADD THIS:
 export const functions = getFunctions(app);
 
 // SETUP PROVIDER WITH SCOPES
@@ -34,6 +39,37 @@ export const onUserStateChange = (callback) => {
   return onAuthStateChanged(auth, (user) => {
     callback(user);
   });
+};
+
+// Email/Password Authentication
+export const signUpWithEmail = async (email, password) => {
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    return result.user;
+  } catch (err) {
+    console.error('Sign-up failed:', err);
+    throw err;
+  }
+};
+
+export const signInWithEmail = async (email, password) => {
+  try {
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    return result.user;
+  } catch (err) {
+    console.error('Sign-in failed:', err);
+    throw err;
+  }
+};
+
+export const resetPassword = async (email) => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true };
+  } catch (err) {
+    console.error('Password reset failed:', err);
+    throw err;
+  }
 };
 
 // Guest sign-in function

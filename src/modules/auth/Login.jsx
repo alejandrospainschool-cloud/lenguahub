@@ -2,18 +2,24 @@
 import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useNavigate, Link } from 'react-router-dom';
-import { auth, provider, signInAsGuest } from '../../lib/firebase';
+import { auth, provider, signInAsGuest, signInWithEmail, signUpWithEmail } from '../../lib/firebase';
 import { 
-  Brain, Globe, Timer, Sparkles, BookOpen, Zap, CheckCircle2, ArrowRight, Crown, Zap as Zap2
+  Brain, Globe, Timer, Sparkles, BookOpen, Zap, CheckCircle2, ArrowRight, Crown, Zap as Zap2, Mail, Lock
 } from 'lucide-react';
 import logo from '../../logo.png'; 
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
+  const [authMode, setAuthMode] = useState('google'); // 'google', 'login', 'signup'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const signInWithGoogle = async () => {
     setLoading(true);
+    setError('');
     try {
       provider.setCustomParameters({ prompt: 'select_account' });
       const result = await signInWithPopup(auth, provider);
@@ -22,25 +28,92 @@ export default function Login() {
         sessionStorage.setItem("google_access_token", credential.accessToken);
         navigate('/'); 
       } else {
-        alert("Login successful, but Google didn't return a token. Please try again.");
+        setError("Login successful, but Google didn't return a token. Please try again.");
         setLoading(false);
       }
     } catch (err) {
       console.error("Login Failed:", err);
       setLoading(false);
-      alert("Login Error: " + err.message);
+      setError("Login Error: " + err.message);
     }
   };
 
   const handleGuestSignIn = async () => {
     setLoading(true);
+    setError('');
     try {
       await signInAsGuest();
       navigate('/');
     } catch (err) {
       console.error("Guest sign-in failed:", err);
       setLoading(false);
-      alert("Guest sign-in failed: " + err.message);
+      setError("Guest sign-in failed: " + err.message);
+    }
+  };
+
+  const handleEmailSignIn = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both email and password');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await signInWithEmail(email, password);
+      navigate('/');
+    } catch (err) {
+      console.error("Email sign-in failed:", err);
+      setLoading(false);
+      if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email');
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Incorrect password');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Invalid email address');
+      } else {
+        setError(err.message);
+      }
+    }
+  };
+
+  const handleEmailSignUp = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await signUpWithEmail(email, password);
+      navigate('/');
+    } catch (err) {
+      console.error("Email sign-up failed:", err);
+      setLoading(false);
+      if (err.code === 'auth/email-already-in-use') {
+        setError('Email already in use');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password is too weak');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Invalid email address');
+      } else {
+        setError(err.message);
+      }
     }
   };
 
@@ -92,7 +165,8 @@ export default function Login() {
             <div 
               className="flex flex-col items-center text-center p-8 pb-10 shadow-2xl relative group"
               style={{ 
-                width: '380px',
+                width: '420px',
+                maxWidth: '100%',
                 backgroundColor: 'rgba(2, 6, 23, 0.8)', 
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
@@ -105,49 +179,210 @@ export default function Login() {
                <div className="absolute inset-0 rounded-[36px] p-[1px] bg-gradient-to-b from-white/20 to-transparent -z-10 pointer-events-none" />
 
               {/* LOGO */}
-              <div className="mx-auto w-28 h-28 mb-8 relative">
+              <div className="mx-auto w-28 h-28 mb-6 relative">
                 <div className="absolute inset-0 bg-amber-500/30 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500" />
                 <img src={logo} alt="Olé Learning" className="relative w-full h-full object-cover rounded-3xl shadow-2xl ring-2 ring-white/10 z-10" />
               </div>
 
               <h2 className="text-2xl font-bold text-white mb-3">Welcome Back!</h2>
-              <p className="text-slate-400 text-sm mb-8 leading-relaxed px-4">
+              <p className="text-slate-400 text-sm mb-6 leading-relaxed px-4">
                 Ready to learn some new words today? Sign in to continue.
               </p>
 
-              {/* LOGIN BUTTON */}
-              <button
-                onClick={signInWithGoogle}
-                disabled={loading}
-                className="relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl shadow-lg transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] hover:shadow-amber-500/25 group bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600"
-              >
-                {loading ? (
-                  <span className="text-sm font-bold">Connecting...</span>
-                ) : (
-                  <>
-                    <div className="bg-white p-1.5 rounded-full"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-5 h-5" /></div>
-                    <span className="text-sm font-bold tracking-wide">Continue with Google</span>
-                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
+              {/* ERROR MESSAGE */}
+              {error && (
+                <div className="w-full mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
 
-              {/* GUEST BUTTON */}
-              <button
-                onClick={handleGuestSignIn}
-                disabled={loading}
-                className="relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl shadow-lg transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border border-slate-600 hover:border-slate-400 bg-transparent hover:bg-slate-900/30 group mt-3"
-              >
-                {loading ? (
-                  <span className="text-sm font-bold">Connecting...</span>
-                ) : (
-                  <>
-                    <Zap2 size={18} className="text-amber-400 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-bold tracking-wide">Continue as Guest</span>
-                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
+              {/* AUTH MODE TABS */}
+              <div className="flex gap-2 mb-6 w-full bg-slate-900/50 p-1 rounded-lg">
+                <button
+                  onClick={() => { setAuthMode('google'); setError(''); }}
+                  className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-all ${
+                    authMode === 'google' 
+                      ? 'bg-amber-600 text-white' 
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Google
+                </button>
+                <button
+                  onClick={() => { setAuthMode('login'); setError(''); }}
+                  className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-all ${
+                    authMode === 'login' 
+                      ? 'bg-amber-600 text-white' 
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Email
+                </button>
+              </div>
+
+              {/* GOOGLE AUTH */}
+              {authMode === 'google' && (
+                <div className="w-full space-y-3">
+                  <button
+                    onClick={signInWithGoogle}
+                    disabled={loading}
+                    className="relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl shadow-lg transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] hover:shadow-amber-500/25 group bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <span className="text-sm font-bold">Connecting...</span>
+                    ) : (
+                      <>
+                        <div className="bg-white p-1.5 rounded-full"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-5 h-5" /></div>
+                        <span className="text-sm font-bold tracking-wide">Continue with Google</span>
+                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleGuestSignIn}
+                    disabled={loading}
+                    className="relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl shadow-lg transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border border-slate-600 hover:border-slate-400 bg-transparent hover:bg-slate-900/30 group disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <span className="text-sm font-bold">Connecting...</span>
+                    ) : (
+                      <>
+                        <Zap2 size={18} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                        <span className="text-sm font-bold tracking-wide">Continue as Guest</span>
+                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* EMAIL LOGIN */}
+              {authMode === 'login' && (
+                <form onSubmit={handleEmailSignIn} className="w-full space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
+                    <div className="relative">
+                      <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        disabled={loading}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                    <div className="relative">
+                      <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        disabled={loading}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 mt-6 bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600 text-white font-bold rounded-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Signing in...' : 'Sign In'}
+                  </button>
+
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <div className="flex-1 h-px bg-slate-700" />
+                    <span>or</span>
+                    <div className="flex-1 h-px bg-slate-700" />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode('signup')}
+                    className="w-full py-3 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-bold rounded-lg transition-all"
+                  >
+                    Create New Account
+                  </button>
+
+                  <Link to="/forgot-password" className="block text-center text-xs text-amber-400 hover:text-amber-300 font-medium mt-2">
+                    Forgot your password?
+                  </Link>
+                </form>
+              )}
+
+              {/* EMAIL SIGNUP */}
+              {authMode === 'signup' && (
+                <form onSubmit={handleEmailSignUp} className="w-full space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
+                    <div className="relative">
+                      <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        disabled={loading}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                    <div className="relative">
+                      <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="At least 6 characters"
+                        disabled={loading}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Confirm Password</label>
+                    <div className="relative">
+                      <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        disabled={loading}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 mt-6 bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600 text-white font-bold rounded-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Creating account...' : 'Create Account'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode('login')}
+                    className="w-full py-3 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-bold rounded-lg transition-all"
+                  >
+                    Already have an account?
+                  </button>
+                </form>
+              )}
 
               <p className="text-xs text-slate-500 mt-6 text-center px-4">
                 <span className="block mb-2">By continuing, you agree to our <Link to="/terms" className="underline hover:text-slate-300">Terms</Link> and <Link to="/privacy" className="underline hover:text-slate-300">Privacy Policy</Link>.</span>
