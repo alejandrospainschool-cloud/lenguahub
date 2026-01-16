@@ -323,49 +323,58 @@ export default function TeacherDashboard({ user, logout }) {
       <div className="max-w-7xl mx-auto p-6 md:p-10">
         {/* VIEW: ROSTER */}
         {currentView === 'roster' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
-                <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
-                  <Users size={24} />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-white">{students.length}</div>
-                  <div className="text-xs text-slate-400 uppercase font-bold">
-                    {isAdmin ? 'Total Students' : 'Assigned Students'}
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="group relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-800/20 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-glass hover:shadow-glass-lg transition-all duration-500 hover:border-blue-400/30">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent group-hover:from-blue-500/20 transition-all duration-500 pointer-events-none" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="p-4 bg-gradient-to-br from-blue-500/30 to-cyan-500/20 rounded-2xl text-blue-400 shadow-glass">
+                    <Users size={28} />
+                  </div>
+                  <div>
+                    <div className="text-3xl font-bold text-white">{students.length}</div>
+                    <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">
+                      {isAdmin ? 'Total Students' : 'Assigned Students'}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
-                <div className="p-3 bg-green-500/10 rounded-xl text-green-400">
-                  <TrendingUp size={24} />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-white">Active</div>
-                  <div className="text-xs text-slate-400 uppercase font-bold">Recent Logins</div>
+              <div className="group relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-800/20 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-glass hover:shadow-glass-lg transition-all duration-500 hover:border-green-400/30">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-transparent group-hover:from-green-500/20 transition-all duration-500 pointer-events-none" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="p-4 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-2xl text-green-400 shadow-glass">
+                    <TrendingUp size={28} />
+                  </div>
+                  <div>
+                    <div className="text-3xl font-bold text-white">Active</div>
+                    <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">Recent Logins</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl flex items-center gap-4">
-                <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400">
-                  <Crown size={24} />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-white">{isAdmin ? 'Admin' : 'Tutor'}</div>
-                  <div className="text-xs text-slate-400 uppercase font-bold">Controls</div>
+              <div className="group relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-800/20 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-glass hover:shadow-glass-lg transition-all duration-500 hover:border-amber-400/30">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent group-hover:from-amber-500/20 transition-all duration-500 pointer-events-none" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="p-4 bg-gradient-to-br from-amber-500/30 to-yellow-500/20 rounded-2xl text-amber-400 shadow-glass">
+                    <Crown size={28} />
+                  </div>
+                  <div>
+                    <div className="text-3xl font-bold text-white">{isAdmin ? 'Admin' : 'Tutor'}</div>
+                    <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">Controls</div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#0f172a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
-              <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-                <h2 className="text-xl font-bold text-white">Roster</h2>
-                <div className="bg-[#02040a] border border-white/10 rounded-xl flex items-center px-4 py-2.5 text-sm text-slate-400 w-full md:w-auto">
-                  <Search size={16} className="mr-2" />
+            <div className="bg-gradient-to-br from-slate-900/40 to-slate-800/20 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-glass">
+              <div className="p-8 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+                <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Student Roster</h2>
+                <div className="bg-gradient-to-br from-slate-900/40 to-slate-800/20 backdrop-blur-md border border-white/15 rounded-2xl flex items-center px-5 py-3 text-sm text-slate-400 w-full md:w-auto shadow-glass hover:border-white/25 transition-all">
+                  <Search size={16} className="mr-3" />
                   <input
-                    placeholder="Search student..."
-                    className="bg-transparent outline-none placeholder-slate-600 w-full"
+                    placeholder="Search students..."
+                    className="bg-transparent outline-none placeholder-slate-500 w-full text-slate-100"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -374,7 +383,7 @@ export default function TeacherDashboard({ user, logout }) {
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-[#02040a] text-slate-400 text-xs uppercase font-bold tracking-wider">
+                  <thead className="bg-gradient-to-r from-slate-900/60 to-slate-800/40 text-slate-300 text-xs uppercase font-bold tracking-widest border-b border-white/5">
                     <tr>
                       <th className="p-6">Student</th>
                       <th className="p-6">Status</th>
@@ -494,20 +503,20 @@ function StudentRow({ student, onManage }) {
   }
 
   return (
-    <tr className="hover:bg-white/[0.02] transition-colors group">
+    <tr className="hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-cyan-500/5 transition-colors duration-300 group border-b border-white/5">
       <td className="p-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center border border-white/10 overflow-hidden shadow-glass group-hover:shadow-glass-lg transition-all">
             {student.photoURL ? (
               <img src={student.photoURL} className="w-full h-full rounded-full" alt="" />
             ) : (
-              <span className="font-bold text-slate-400">{student.displayName?.[0] || '?'}</span>
+              <span className="font-bold text-slate-300">{student.displayName?.[0] || '?'}</span>
             )}
           </div>
           <div>
-            <div className="font-bold text-white">{student.displayName || 'Unknown'}</div>
-            <div className="text-xs text-slate-500 flex items-center gap-1">
-              <Mail size={10} /> {student.email || 'No email'}
+            <div className="font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:to-cyan-400 transition-all">{student.displayName || 'Unknown'}</div>
+            <div className="text-xs text-slate-500 flex items-center gap-2">
+              <Mail size={12} /> {student.email || 'No email'}
             </div>
           </div>
         </div>
@@ -516,10 +525,10 @@ function StudentRow({ student, onManage }) {
       <td className="p-6">
         <button
           onClick={togglePremium}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold border transition-all duration-300 ${
             isPremium
-              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-              : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white'
+              ? 'bg-gradient-to-r from-amber-500/20 to-yellow-500/10 text-amber-300 border-amber-500/30 hover:from-amber-500/30 hover:to-yellow-500/20 hover:border-amber-500/50 shadow-glass'
+              : 'bg-gradient-to-r from-slate-800/50 to-slate-700/30 text-slate-400 border-slate-600/30 hover:from-slate-800 hover:to-slate-700 hover:text-white hover:border-slate-500/50 shadow-glass'
           }`}
         >
           {loading ? '...' : isPremium ? <><Crown size={12} fill="currentColor" /> Premium</> : 'Student'}
@@ -536,7 +545,7 @@ function StudentRow({ student, onManage }) {
       <td className="p-6 text-right">
         <button
           onClick={onManage}
-          className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg text-xs font-bold transition-all border border-blue-500/20 hover:border-blue-500 flex items-center gap-2 ml-auto"
+          className="px-6 py-2 bg-gradient-to-r from-blue-500/30 to-cyan-500/20 hover:from-blue-500/50 hover:to-cyan-500/30 text-blue-300 hover:text-blue-100 rounded-xl text-xs font-bold transition-all duration-300 border border-blue-500/30 hover:border-blue-500/60 flex items-center gap-2 ml-auto shadow-glass hover:shadow-glass-lg"
         >
           Manage Words <ChevronRight size={14} />
         </button>
