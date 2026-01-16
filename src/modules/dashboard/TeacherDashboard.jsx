@@ -275,10 +275,10 @@ export default function TeacherDashboard({ user, logout }) {
                   setCurrentView('roster')
                   setSelectedStudent(null)
                 }}
-                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
+                className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all duration-300 ${
                   currentView === 'roster' || currentView === 'student-detail'
-                    ? 'bg-slate-800 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-gradient-to-r from-blue-500/40 to-cyan-500/30 text-white border border-blue-400/30 shadow-glass'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <Users size={16} /> Students
@@ -286,8 +286,8 @@ export default function TeacherDashboard({ user, logout }) {
 
               <button
                 onClick={() => setCurrentView('calendar')}
-                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
-                  currentView === 'calendar' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all duration-300 ${
+                  currentView === 'calendar' ? 'bg-gradient-to-r from-blue-500/40 to-cyan-500/30 text-white border border-blue-400/30 shadow-glass' : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <CalendarIcon size={16} /> Calendar
@@ -296,8 +296,8 @@ export default function TeacherDashboard({ user, logout }) {
               {isAdmin && (
                 <button
                   onClick={() => setCurrentView('admin')}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
-                    currentView === 'admin' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all duration-300 ${
+                    currentView === 'admin' ? 'bg-gradient-to-r from-blue-500/40 to-cyan-500/30 text-white border border-blue-400/30 shadow-glass' : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   <UserCog size={16} /> Admin
@@ -311,7 +311,7 @@ export default function TeacherDashboard({ user, logout }) {
                 logout()
                 window.location.reload()
               }}
-              className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-colors"
+              className="p-3 bg-gradient-to-br from-red-500/20 to-rose-500/10 hover:from-red-500/30 hover:to-rose-500/20 text-red-400 rounded-xl border border-red-500/30 transition-all shadow-glass"
               title="Logout"
             >
               <LogOut size={18} />
