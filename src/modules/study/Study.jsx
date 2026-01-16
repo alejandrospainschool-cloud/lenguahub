@@ -6,7 +6,6 @@ import {
   Loader2, CheckCircle2, XCircle, Timer, MoveRight
 } from 'lucide-react';
 import { hasReachedLimit, FREEMIUM_LIMITS } from '../../lib/freemium';
-import AdBanner from '../../components/ui/AdBanner';
 
 // --- HELPERS ---
 const getWordContent = (word) => word?.translation || word?.definition || 'No Content';
@@ -115,8 +114,6 @@ export default function Study({
           </div>
         </div>
       </div>
-
-      <div className="mb-8 px-4"><AdBanner isPremium={isPremium} /></div>
 
       {/* --- MENU MODE --- */}
       {mode === 'menu' && (

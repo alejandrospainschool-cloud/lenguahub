@@ -8,7 +8,6 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { generateContent } from '../../lib/ai'
 import { hasReachedLimit, FREEMIUM_LIMITS } from '../../lib/freemium' // Import helpers
-import AdBanner from '../../components/ui/AdBanner'
 
 // --- HELPERS ---
 function extractJson(text) {
@@ -162,9 +161,6 @@ export default function Tools({
   return (
     <div className="w-full max-w-5xl mx-auto px-4 md:px-8 space-y-8 animate-in fade-in duration-500 pb-12">
       
-      {/* AD BANNER */}
-      <AdBanner isPremium={isPremium} />
-
       {/* HEADER */}
       <div className="pt-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">

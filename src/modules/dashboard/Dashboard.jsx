@@ -12,7 +12,6 @@ import { generateContent } from '../../lib/ai'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { hasReachedLimit } from '../../lib/freemium' 
-import AdBanner from '../../components/ui/AdBanner' 
 
 const FOLDER_COLORS = ['#3b82f6', '#a855f7', '#22c55e', '#f97316', '#ec4899', '#ef4444']
 
@@ -114,10 +113,7 @@ export default function Dashboard({
   return (
     <div className="w-full max-w-5xl mx-auto px-4 md:px-8 space-y-10 animate-in fade-in duration-500 pb-12">
       
-      {/* 1. AD BANNER (Uses your ID: 5285433846) */}
-      <AdBanner isPremium={isPremium} dataAdSlot="5285433846" />
-
-      {/* 2. TRANSLATOR */}
+      {/* TRANSLATOR */}
       <section className="border border-amber-500/20 rounded-3xl p-5 md:p-6 relative overflow-hidden shadow-xl"
         style={{
           background: `radial-gradient(circle at top right, rgba(245, 158, 11, 0.12), transparent 45%), linear-gradient(to bottom right, rgba(124, 58, 237, 0.06), rgba(168, 85, 247, 0.03))`
