@@ -10,7 +10,7 @@ import {
 import { calculateStats } from '../../lib/gamification'
 import { generateContent } from '../../lib/ai'
 import { db } from '../../lib/firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore'
 import { hasReachedLimit } from '../../lib/freemium' 
 
 const FOLDER_COLORS = ['#3b82f6', '#a855f7', '#22c55e', '#f97316', '#ec4899', '#ef4444']
@@ -105,7 +105,20 @@ export default function Dashboard({
     }
   }
 
-  const firstName = user?.displayName?.split(' ')[0] || 'Student'
+  // Fetch user's firstName from Firestore if available
+  const [userProfile, setUserProfile] = React.useState(null)
+  React.useEffect(() => {
+    if (!user?.uid) return
+    const userRef = doc(db, 'users', user.uid)
+    const unsub = onSnapshot(userRef, (snap) => {
+      if (snap.exists()) {
+        setUserProfile(snap.data())
+      }
+    })
+    return () => unsub()
+  }, [user?.uid])
+
+  const firstName = userProfile?.firstName || user?.displayName?.split(' ')[0] || 'Student'
   const progressPct = stats.xpForNextLevel > 0 
     ? Math.min(100, Math.max(0, (stats.currentLevelXP / stats.xpForNextLevel) * 100)) 
     : 0

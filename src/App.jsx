@@ -14,6 +14,7 @@ import Study from './modules/study/Study'
 import Tools from './modules/ai/Tools'
 import Login from './modules/auth/Login'
 import ForgotPassword from './modules/auth/ForgotPassword'
+import Onboarding from './modules/auth/Onboarding'
 import TeacherDashboard from './modules/dashboard/TeacherDashboard'
 
 // Legal Pages
@@ -56,6 +57,8 @@ function MainContent() {
   const [role, setRole] = useState(null) // "student" | "tutor" | "admin"
   const [loading, setLoading] = useState(true)
   const [isGuest, setIsGuest] = useState(false)
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false)
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true)
 
   useEffect(() => {
     let unsubRole = null
@@ -71,6 +74,8 @@ function MainContent() {
         setUser(null)
         setRole(null)
         setIsGuest(false)
+        setOnboardingCompleted(false)
+        setCheckingOnboarding(false)
         setLoading(false)
         return
       }
@@ -84,6 +89,8 @@ function MainContent() {
       // Guests: no DB sync, force student
       if (guestMode) {
         setRole('student')
+        setOnboardingCompleted(true) // Skip onboarding for guests
+        setCheckingOnboarding(false)
         setLoading(false)
         return
       }
@@ -100,10 +107,15 @@ function MainContent() {
             displayName: u.displayName || '',
             photoURL: u.photoURL || '',
             role: 'student',
+            onboardingCompleted: false,
             createdAt: serverTimestamp(),
             lastLogin: serverTimestamp(),
           })
+          setOnboardingCompleted(false)
         } else {
+          const data = snap.data()
+          setOnboardingCompleted(!!data.onboardingCompleted)
+          
           await setDoc(
             userRef,
             {
@@ -116,6 +128,7 @@ function MainContent() {
             { merge: true }
           )
         }
+        setCheckingOnboarding(false)
 
         // Subscribe to role changes in real-time
         unsubRole = onSnapshot(
@@ -134,6 +147,7 @@ function MainContent() {
       } catch (err) {
         console.error('User Sync/Role Error:', err)
         setRole('student')
+        setCheckingOnboarding(false)
         setLoading(false)
       }
     })
@@ -145,7 +159,17 @@ function MainContent() {
   }, [])
 
   // Block rendering until role is known for non-guests
-  if (loading || (user && !isGuest && role === null)) return <LoadingScreen />
+  if (loading || (user && !isGuest && role === null) || checkingOnboarding) return <LoadingScreen />
+
+  // Show onboarding if user is logged in, not a guest, and hasn't completed onboarding
+  if (user && !isGuest && !onboardingCompleted) {
+    return (
+      <Onboarding
+        user={user}
+        onComplete={() => setOnboardingCompleted(true)}
+      />
+    )
+  }
 
   return (
     <Routes>
