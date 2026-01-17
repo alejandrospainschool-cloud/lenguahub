@@ -36,68 +36,23 @@ function clampItems(items, max = 10) {
 }
 
 export default function Tools({ 
-    // Ensure all used variables and functions are defined
-    const vocabItems = useMemo(() => clampItems(results?.items || []), [results]);
-    const savedCount = useMemo(() => vocabItems.filter((i) => savedIDs.includes(i.id)).length, [vocabItems, savedIDs]);
-    const inputWords = useMemo(() => inputText.trim().split(/\s+/).filter(Boolean).length, [inputText]);
-    const inputChars = useMemo(() => inputText.length, [inputText]);
-    const canGenerate = useMemo(() => !!inputText && !isProcessing && (!hasReachedLimit(dailyUsage, 'aiRequests', isPremium)), [inputText, isProcessing, dailyUsage, isPremium]);
-
-    const showToast = (msg) => {
-      setToast(msg);
-      setTimeout(() => setToast(''), 2000);
-    user, 
-    words = [],
-    isPremium, 
-    dailyUsage, 
-    trackUsage, 
-    onUpgrade 
-    }) {
-      const [activeTab, setActiveTab] = useState('vocab');
-      const [inputText, setInputText] = useState('');
-      const [isProcessing, setIsProcessing] = useState(false);
-      const [results, setResults] = useState(null);
-      const [savedIDs, setSavedIDs] = useState([]);
-      const [toast, setToast] = useState('');
-      const [showPaywall, setShowPaywall] = useState(false);
-      const [showFolderModal, setShowFolderModal] = useState(false);
-      const [pendingItem, setPendingItem] = useState(null);
-
-      const vocabItems = useMemo(() => clampItems(results?.items || []), [results]);
-      const savedCount = useMemo(() => vocabItems.filter((i) => savedIDs.includes(i.id)).length, [vocabItems, savedIDs]);
-      const inputWords = useMemo(() => inputText.trim().split(/\s+/).filter(Boolean).length, [inputText]);
-      const inputChars = useMemo(() => inputText.length, [inputText]);
-      const canGenerate = useMemo(() => !!inputText && !isProcessing && (!hasReachedLimit(dailyUsage, 'aiRequests', isPremium)), [inputText, isProcessing, dailyUsage, isPremium]);
-
-      const showToast = (msg) => {
-        setToast(msg);
-        setTimeout(() => setToast(''), 2000);
-      };
-
-      const copyToClipboard = async (text) => {
-        try {
-          await navigator.clipboard.writeText(text);
-          showToast('Copied!');
-        } catch {
-          showToast('Failed to copy');
-        }
-      };
-
-      const resetAll = () => {
-        setInputText('');
-        setResults(null);
-        setSavedIDs([]);
-        setToast('');
-      };
-
-      const processAI = async () => {
-        if (!canGenerate) return;
-        setIsProcessing(true);
-        setResults(null);
-        try {
-          const aiResult = await generateContent(inputText, activeTab);
-          setResults(aiResult);
-          trackUsage && trackUsage('aiRequests');
+user, 
+words = [],
+isPremium, 
+dailyUsage, 
+trackUsage, 
+onUpgrade 
+}) {
+  const [activeTab, setActiveTab] = useState('vocab');
+  const [inputText, setInputText] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [results, setResults] = useState(null);
+  const [savedIDs, setSavedIDs] = useState([]);
+  const [toast, setToast] = useState('');
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [pendingItem, setPendingItem] = useState(null);
+  // ...existing code...
         } catch (err) {
           showToast('AI error');
         } finally {
