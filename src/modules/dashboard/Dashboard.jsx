@@ -1,5 +1,5 @@
 // src/modules/dashboard/Dashboard.jsx
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Calendar as CalendarIcon, Book, Sparkles, Brain, ArrowRight,
@@ -37,6 +37,10 @@ export default function Dashboard({
   const [showStreakAnimation, setShowStreakAnimation] = useState(false)
   const [newLevelReached, setNewLevelReached] = useState(null)
   const [previousStats, setPreviousStats] = useState(null)
+  
+  // Use refs to track if we've already shown animations this session
+  const levelUpShownRef = useRef(false)
+  const streakShownRef = useRef(false)
 
   // --- Track level ups and streaks ---
   useEffect(() => {
@@ -45,20 +49,22 @@ export default function Dashboard({
     const prev = getPreviousStats(user)
     setPreviousStats(prev)
 
-    // Check if level up occurred (only if previous stats exist - prevents showing on first load)
-    if (prev && checkLevelUp(prev, stats) && !showLevelUpAnimation) {
+    // Check if level up occurred (only show once per session)
+    if (prev && checkLevelUp(prev, stats) && !levelUpShownRef.current) {
       setNewLevelReached(stats.level)
       setShowLevelUpAnimation(true)
+      levelUpShownRef.current = true
     }
 
-    // Check if streak milestone reached (only if previous stats exist)
-    if (prev && stats.streak > prev.streak && isStreakMilestone(stats.streak) && !showStreakAnimation) {
+    // Check if streak milestone reached (only show once per session)
+    if (prev && stats.streak > prev.streak && isStreakMilestone(stats.streak) && !streakShownRef.current) {
       setShowStreakAnimation(true)
+      streakShownRef.current = true
     }
 
     // Save current stats for next comparison
     saveCurrentStats(user, stats)
-  }, [stats, user, showLevelUpAnimation, showStreakAnimation])
+  }, [stats, user])
 
   // --- STATE ---
   const [inputText, setInputText] = useState('')
