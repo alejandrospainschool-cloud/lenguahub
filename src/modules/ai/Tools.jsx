@@ -36,6 +36,49 @@ function clampItems(items, max = 10) {
 }
 
 export default function Tools({ 
+    // Ensure all used variables and functions are defined
+    const vocabItems = useMemo(() => clampItems(results?.items || []), [results]);
+    const savedCount = useMemo(() => vocabItems.filter((i) => savedIDs.includes(i.id)).length, [vocabItems, savedIDs]);
+    const inputWords = useMemo(() => inputText.trim().split(/\s+/).filter(Boolean).length, [inputText]);
+    const inputChars = useMemo(() => inputText.length, [inputText]);
+    const canGenerate = useMemo(() => !!inputText && !isProcessing && (!hasReachedLimit(dailyUsage, 'aiRequests', isPremium)), [inputText, isProcessing, dailyUsage, isPremium]);
+
+    const showToast = (msg) => {
+      setToast(msg);
+      setTimeout(() => setToast(''), 2000);
+    };
+
+    const copyToClipboard = async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Copied!');
+      } catch {
+        showToast('Failed to copy');
+      }
+    };
+
+    const resetAll = () => {
+      setInputText('');
+      setResults(null);
+      setSavedIDs([]);
+      setToast('');
+    };
+
+    const processAI = async () => {
+      if (!canGenerate) return;
+      setIsProcessing(true);
+      setResults(null);
+      try {
+        // Simulate AI processing (replace with actual API call)
+        const aiResult = await generateContent(inputText, activeTab);
+        setResults(aiResult);
+        trackUsage && trackUsage('aiRequests');
+      } catch (err) {
+        showToast('AI error');
+      } finally {
+        setIsProcessing(false);
+      }
+    };
   user, 
   words = [],
   isPremium, 
