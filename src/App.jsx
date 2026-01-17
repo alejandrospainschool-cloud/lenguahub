@@ -423,6 +423,7 @@ function StudentLayout({ user, isGuest }) {
               element={
                 <Tools
                   user={user}
+                  words={words}
                   isPremium={isPremium}
                   dailyUsage={dailyUsage}
                   trackUsage={trackUsage}
