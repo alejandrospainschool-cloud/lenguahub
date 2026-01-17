@@ -54,10 +54,15 @@ export default function Dashboard({
       return
     }
 
+    // Only process if stats have actually changed
+    if (stats.level === prev.level && stats.streak === prev.streak) {
+      return
+    }
+
     setPreviousStats(prev)
 
-    // Check if level up occurred (only show once per session)
-    if (checkLevelUp(prev, stats) && !levelUpShownRef.current) {
+    // Check if level up occurred - only if current level is ACTUALLY greater
+    if (stats.level > prev.level && !levelUpShownRef.current) {
       setNewLevelReached(stats.level)
       setShowLevelUpAnimation(true)
       levelUpShownRef.current = true
@@ -71,7 +76,7 @@ export default function Dashboard({
 
     // Save current stats for next comparison
     saveCurrentStats(user, stats)
-  }, [stats, user])
+  }, [stats, user?.uid])
 
   // --- STATE ---
   const [inputText, setInputText] = useState('')
