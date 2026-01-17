@@ -45,20 +45,20 @@ export default function Dashboard({
     const prev = getPreviousStats(user)
     setPreviousStats(prev)
 
-    // Check if level up occurred
-    if (prev && checkLevelUp(prev, stats)) {
+    // Check if level up occurred (only if previous stats exist - prevents showing on first load)
+    if (prev && checkLevelUp(prev, stats) && !showLevelUpAnimation) {
       setNewLevelReached(stats.level)
       setShowLevelUpAnimation(true)
     }
 
-    // Check if streak milestone reached
-    if (prev && stats.streak > prev.streak && isStreakMilestone(stats.streak)) {
+    // Check if streak milestone reached (only if previous stats exist)
+    if (prev && stats.streak > prev.streak && isStreakMilestone(stats.streak) && !showStreakAnimation) {
       setShowStreakAnimation(true)
     }
 
     // Save current stats for next comparison
     saveCurrentStats(user, stats)
-  }, [stats, user])
+  }, [stats, user, showLevelUpAnimation, showStreakAnimation])
 
   // --- STATE ---
   const [inputText, setInputText] = useState('')
