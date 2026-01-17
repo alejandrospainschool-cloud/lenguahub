@@ -47,17 +47,24 @@ export default function Dashboard({
     if (!user?.uid) return
 
     const prev = getPreviousStats(user)
+    
+    // If no previous stats, initialize and return (first time loading this session)
+    if (!prev) {
+      saveCurrentStats(user, stats)
+      return
+    }
+
     setPreviousStats(prev)
 
     // Check if level up occurred (only show once per session)
-    if (prev && checkLevelUp(prev, stats) && !levelUpShownRef.current) {
+    if (checkLevelUp(prev, stats) && !levelUpShownRef.current) {
       setNewLevelReached(stats.level)
       setShowLevelUpAnimation(true)
       levelUpShownRef.current = true
     }
 
     // Check if streak milestone reached (only show once per session)
-    if (prev && stats.streak > prev.streak && isStreakMilestone(stats.streak) && !streakShownRef.current) {
+    if (stats.streak > prev.streak && isStreakMilestone(stats.streak) && !streakShownRef.current) {
       setShowStreakAnimation(true)
       streakShownRef.current = true
     }
