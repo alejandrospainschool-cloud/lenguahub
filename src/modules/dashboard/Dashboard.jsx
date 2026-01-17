@@ -1,5 +1,5 @@
 // src/modules/dashboard/Dashboard.jsx
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Calendar as CalendarIcon, Book, Sparkles, Brain, ArrowRight,
@@ -11,7 +11,16 @@ import { calculateStats } from '../../lib/gamification'
 import { generateContent } from '../../lib/ai'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore'
-import { hasReachedLimit } from '../../lib/freemium' 
+import { hasReachedLimit } from '../../lib/freemium'
+import LevelUpAnimation from '../../components/animations/LevelUpAnimation'
+import StreakAnimation from '../../components/animations/StreakAnimation'
+import { 
+  checkLevelUp, 
+  getPreviousStats, 
+  saveCurrentStats,
+  isStreakMilestone,
+  getCelebrationMessages
+} from '../../lib/animationHelpers' 
 
 const FOLDER_COLORS = ['#3b82f6', '#a855f7', '#22c55e', '#f97316', '#ec4899', '#ef4444']
 
@@ -22,6 +31,34 @@ export default function Dashboard({
   const navigate = useNavigate()
   const upcomingCount = events.length || 0
   const stats = useMemo(() => calculateStats(words), [words])
+
+  // --- ANIMATION STATE ---
+  const [showLevelUpAnimation, setShowLevelUpAnimation] = useState(false)
+  const [showStreakAnimation, setShowStreakAnimation] = useState(false)
+  const [newLevelReached, setNewLevelReached] = useState(null)
+  const [previousStats, setPreviousStats] = useState(null)
+
+  // --- Track level ups and streaks ---
+  useEffect(() => {
+    if (!user?.uid) return
+
+    const prev = getPreviousStats(user)
+    setPreviousStats(prev)
+
+    // Check if level up occurred
+    if (prev && checkLevelUp(prev, stats)) {
+      setNewLevelReached(stats.level)
+      setShowLevelUpAnimation(true)
+    }
+
+    // Check if streak milestone reached
+    if (prev && stats.streak > prev.streak && isStreakMilestone(stats.streak)) {
+      setShowStreakAnimation(true)
+    }
+
+    // Save current stats for next comparison
+    saveCurrentStats(user, stats)
+  }, [stats, user])
 
   // --- STATE ---
   const [inputText, setInputText] = useState('')
@@ -125,6 +162,17 @@ export default function Dashboard({
 
   return (
     <div className="w-full max-w-5xl mx-auto px-4 md:px-8 space-y-10 animate-slide-in pb-12">
+      {/* ANIMATION OVERLAYS */}
+      <LevelUpAnimation 
+        level={newLevelReached}
+        isVisible={showLevelUpAnimation}
+        onComplete={() => setShowLevelUpAnimation(false)}
+      />
+      <StreakAnimation
+        streak={stats.streak}
+        isVisible={showStreakAnimation}
+        onComplete={() => setShowStreakAnimation(false)}
+      />
       
       {/* TRANSLATOR */}
       <section className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 backdrop-blur-2xl border border-blue-400/25 rounded-3xl p-7 relative overflow-hidden group shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all duration-300"

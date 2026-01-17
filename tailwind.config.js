@@ -110,9 +110,43 @@ export default {
           'from': { transform: 'translateY(20px)', opacity: '0' },
           'to': { transform: 'translateY(0)', opacity: '1' },
         },
+        "slide-in-from-bottom-8": {
+          'from': { transform: 'translateY(32px)', opacity: '0' },
+          'to': { transform: 'translateY(0)', opacity: '1' },
+        },
+        "slide-in-from-bottom-4": {
+          'from': { transform: 'translateY(16px)', opacity: '0' },
+          'to': { transform: 'translateY(0)', opacity: '1' },
+        },
         "fade-in": {
           'from': { opacity: '0' },
           'to': { opacity: '1' },
+        },
+        "zoom-in-50": {
+          'from': { opacity: '0', transform: 'scale(0.5)' },
+          'to': { opacity: '1', transform: 'scale(1)' },
+        },
+        "spin-in": {
+          'from': { opacity: '0', transform: 'rotate(-180deg) scale(0)' },
+          'to': { opacity: '1', transform: 'rotate(0) scale(1)' },
+        },
+        "bounce-in": {
+          '0%': { opacity: '0', transform: 'scale(0.3)' },
+          '50%': { opacity: '1', transform: 'scale(1.05)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        "shake": {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
+          '20%, 40%, 60%, 80%': { transform: 'translateX(4px)' },
+        },
+        "flip": {
+          'from': { transform: 'perspective(400px) rotateY(0)' },
+          'to': { transform: 'perspective(400px) rotateY(360deg)' },
+        },
+        "scale-in-center": {
+          'from': { opacity: '0', transform: 'scale(0)' },
+          'to': { opacity: '1', transform: 'scale(1)' },
         },
       },
       animation: {
@@ -123,7 +157,15 @@ export default {
         "shimmer": "shimmer 3s infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "slide-in": "slide-in 0.5s ease-out",
+        "slide-in-from-bottom-8": "slide-in-from-bottom-8 0.5s ease-out",
+        "slide-in-from-bottom-4": "slide-in-from-bottom-4 0.4s ease-out",
         "fade-in": "fade-in 0.5s ease-out",
+        "zoom-in-50": "zoom-in-50 0.5s ease-out",
+        "spin-in": "spin-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "bounce-in": "bounce-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "shake": "shake 0.5s ease-in-out",
+        "flip": "flip 0.8s ease-in-out",
+        "scale-in-center": "scale-in-center 0.4s ease-out",
       },
     },
   },

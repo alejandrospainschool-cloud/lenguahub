@@ -16,6 +16,7 @@ import Login from './modules/auth/Login'
 import ForgotPassword from './modules/auth/ForgotPassword'
 import Onboarding from './modules/auth/Onboarding'
 import TeacherDashboard from './modules/dashboard/TeacherDashboard'
+import DailyWelcomeScreen from './components/animations/DailyWelcomeScreen'
 
 // Legal Pages
 import PrivacyPolicy from './modules/legal/PrivacyPolicy'
@@ -39,6 +40,12 @@ import {
 // Freemium Helper
 import { getEmptyUsage } from './lib/freemium'
 
+// Animation Helpers
+import { 
+  hasSeenDailyWelcomeToday, 
+  markDailyWelcomeAsSeen
+} from './lib/animationHelpers'
+
 // Logo Import
 import logo from './logo.png'
 
@@ -59,6 +66,9 @@ function MainContent() {
   const [isGuest, setIsGuest] = useState(false)
   const [onboardingCompleted, setOnboardingCompleted] = useState(false)
   const [checkingOnboarding, setCheckingOnboarding] = useState(true)
+  const [showDailyWelcome, setShowDailyWelcome] = useState(false)
+  const [userStats, setUserStats] = useState(null)
+  const [words, setWords] = useState([])
 
   useEffect(() => {
     let unsubRole = null
@@ -200,13 +210,65 @@ function StudentLayout({ user, isGuest }) {
   const [words, setWords] = useState([])
   const [events, setEvents] = useState([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [showDailyWelcome, setShowDailyWelcome] = useState(false)
+  const [streakCount, setStreakCount] = useState(0)
   const location = useLocation()
 
   // FREEMIUM STATE
   const [isPremium, setIsPremium] = useState(false)
   const [dailyUsage, setDailyUsage] = useState(getEmptyUsage())
 
-  useEffect(() => setIsSidebarOpen(false), [location])
+  // Check if should show daily welcome
+  useEffect(() => {
+    if (!user || isGuest || hasSeenDailyWelcomeToday(user)) {
+      return
+    }
+
+    // Show on dashboard route
+    if (location.pathname === '/') {
+      setShowDailyWelcome(true)
+      markDailyWelcomeAsSeen(user)
+    }
+  }, [user, isGuest, location.pathname])
+
+  // Calculate streak from words
+  useEffect(() => {
+    if (words.length === 0) {
+      setStreakCount(0)
+      return
+    }
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    let streak = 0
+    let checkDate = new Date(today)
+
+    const activeDates = new Set(
+      words
+        .map((w) => {
+          if (!w.createdAt) return null
+          const d = w.createdAt.toDate?.() || new Date(w.createdAt)
+          return d.toDateString()
+        })
+        .filter(Boolean)
+    )
+
+    if (!activeDates.has(today.toDateString())) {
+      checkDate.setDate(checkDate.getDate() - 1)
+      if (!activeDates.has(checkDate.toDateString())) {
+        setStreakCount(0)
+        return
+      }
+    }
+
+    while (activeDates.has(checkDate.toDateString())) {
+      streak++
+      checkDate.setDate(checkDate.getDate() - 1)
+    }
+
+    setStreakCount(streak)
+  }, [words])
 
   useEffect(() => {
     if (!user || isGuest) return
@@ -292,6 +354,14 @@ function StudentLayout({ user, isGuest }) {
 
   return (
     <div className="min-h-screen bg-[#02040a] text-slate-100 font-sans selection:bg-blue-500/30">
+      {/* DAILY WELCOME SCREEN */}
+      <DailyWelcomeScreen
+        userName={user?.displayName?.split(' ')[0] || 'Student'}
+        streak={streakCount}
+        isVisible={showDailyWelcome}
+        onDismiss={() => setShowDailyWelcome(false)}
+      />
+
       {/* MOBILE HEADER */}
       <header className="fixed top-0 left-0 right-0 h-20 px-6 flex items-center justify-between z-30 md:hidden bg-[#02040a]/80 backdrop-blur-md border-b border-white/5">
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-400 hover:text-white">
