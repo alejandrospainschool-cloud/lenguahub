@@ -484,7 +484,7 @@ SENTENCE: ${inputText}`
         </div>
       )}
     </div>
-  )
+    );
 }
   const handleSaveToBank = async (item) => {
     if (!user?.uid) return showToast('Sign in to save.')
@@ -684,4 +684,3 @@ SENTENCE: ${inputText}`
       )}
     </div>
   )
-}
