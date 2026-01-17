@@ -486,25 +486,6 @@ SENTENCE: ${inputText}`
     </div>
   )
 }
-        const parsed = extractJson(out)
-        const items = clampItems(parsed?.items, 10)
-        
-        if (!items.length) setResults({ type: 'summary', content: 'Could not parse vocab JSON.\n' + out })
-        else setResults({ type: 'vocab', items })
-      }
-
-      // 2. TRACK USAGE ON SUCCESS
-      trackUsage('aiRequests')
-
-    } catch (err) {
-      console.error(err)
-      setResults({ type: 'summary', content: `Error: ${err?.message || 'AI request failed'}` })
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  // --- SAVE LOGIC ---
   const handleSaveToBank = async (item) => {
     if (!user?.uid) return showToast('Sign in to save.')
     if (savedIDs.includes(item.id)) return
