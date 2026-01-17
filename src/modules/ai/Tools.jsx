@@ -46,55 +46,64 @@ export default function Tools({
     const showToast = (msg) => {
       setToast(msg);
       setTimeout(() => setToast(''), 2000);
-    };
+    user, 
+    words = [],
+    isPremium, 
+    dailyUsage, 
+    trackUsage, 
+    onUpgrade 
+    }) {
+      const [activeTab, setActiveTab] = useState('vocab');
+      const [inputText, setInputText] = useState('');
+      const [isProcessing, setIsProcessing] = useState(false);
+      const [results, setResults] = useState(null);
+      const [savedIDs, setSavedIDs] = useState([]);
+      const [toast, setToast] = useState('');
+      const [showPaywall, setShowPaywall] = useState(false);
+      const [showFolderModal, setShowFolderModal] = useState(false);
+      const [pendingItem, setPendingItem] = useState(null);
 
-    const copyToClipboard = async (text) => {
-      try {
-        await navigator.clipboard.writeText(text);
-        showToast('Copied!');
-      } catch {
-        showToast('Failed to copy');
-      }
-    };
+      const vocabItems = useMemo(() => clampItems(results?.items || []), [results]);
+      const savedCount = useMemo(() => vocabItems.filter((i) => savedIDs.includes(i.id)).length, [vocabItems, savedIDs]);
+      const inputWords = useMemo(() => inputText.trim().split(/\s+/).filter(Boolean).length, [inputText]);
+      const inputChars = useMemo(() => inputText.length, [inputText]);
+      const canGenerate = useMemo(() => !!inputText && !isProcessing && (!hasReachedLimit(dailyUsage, 'aiRequests', isPremium)), [inputText, isProcessing, dailyUsage, isPremium]);
 
-    const resetAll = () => {
-      setInputText('');
-      setResults(null);
-      setSavedIDs([]);
-      setToast('');
-    };
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(''), 2000);
+      };
 
-    const processAI = async () => {
-      if (!canGenerate) return;
-      setIsProcessing(true);
-      setResults(null);
-      try {
-        // Simulate AI processing (replace with actual API call)
-        const aiResult = await generateContent(inputText, activeTab);
-        setResults(aiResult);
-        trackUsage && trackUsage('aiRequests');
-      } catch (err) {
-        showToast('AI error');
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-  user, 
-  words = [],
-  isPremium, 
-  dailyUsage, 
-  trackUsage, 
-  onUpgrade 
-  }) {
-    const [activeTab, setActiveTab] = useState('vocab');
-    const [inputText, setInputText] = useState('');
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [results, setResults] = useState(null);
-    const [savedIDs, setSavedIDs] = useState([]);
-    const [toast, setToast] = useState('');
-    const [showPaywall, setShowPaywall] = useState(false);
-    const [showFolderModal, setShowFolderModal] = useState(false);
-    const [pendingItem, setPendingItem] = useState(null);
+      const copyToClipboard = async (text) => {
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast('Copied!');
+        } catch {
+          showToast('Failed to copy');
+        }
+      };
+
+      const resetAll = () => {
+        setInputText('');
+        setResults(null);
+        setSavedIDs([]);
+        setToast('');
+      };
+
+      const processAI = async () => {
+        if (!canGenerate) return;
+        setIsProcessing(true);
+        setResults(null);
+        try {
+          const aiResult = await generateContent(inputText, activeTab);
+          setResults(aiResult);
+          trackUsage && trackUsage('aiRequests');
+        } catch (err) {
+          showToast('AI error');
+        } finally {
+          setIsProcessing(false);
+        }
+      };
 
     const categories = useMemo(() => {
       const cats = new Set(words.map(w => w.category || 'Uncategorized'));
