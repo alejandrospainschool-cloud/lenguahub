@@ -85,21 +85,63 @@ export default function Tools({
   dailyUsage, 
   trackUsage, 
   onUpgrade 
-}) {
-  const [activeTab, setActiveTab] = useState('vocab')
-  const [inputText, setInputText] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [results, setResults] = useState(null) 
-  const [savedIDs, setSavedIDs] = useState([])
-  const [toast, setToast] = useState('')
-  const [showPaywall, setShowPaywall] = useState(false)
-  const [showFolderModal, setShowFolderModal] = useState(false)
-  const [pendingItem, setPendingItem] = useState(null)
+  }) {
+    const [activeTab, setActiveTab] = useState('vocab');
+    const [inputText, setInputText] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [results, setResults] = useState(null);
+    const [savedIDs, setSavedIDs] = useState([]);
+    const [toast, setToast] = useState('');
+    const [showPaywall, setShowPaywall] = useState(false);
+    const [showFolderModal, setShowFolderModal] = useState(false);
+    const [pendingItem, setPendingItem] = useState(null);
 
-  const categories = useMemo(() => {
-    const cats = new Set(words.map(w => w.category || 'Uncategorized'));
-    return ['Uncategorized', ...Array.from(cats).filter(c => c !== 'Uncategorized')].sort();
-  }, [words]);
+    const categories = useMemo(() => {
+      const cats = new Set(words.map(w => w.category || 'Uncategorized'));
+      return ['Uncategorized', ...Array.from(cats).filter(c => c !== 'Uncategorized')].sort();
+    }, [words]);
+
+    const vocabItems = useMemo(() => clampItems(results?.items || []), [results]);
+    const savedCount = useMemo(() => vocabItems.filter((i) => savedIDs.includes(i.id)).length, [vocabItems, savedIDs]);
+    const inputWords = useMemo(() => inputText.trim().split(/\s+/).filter(Boolean).length, [inputText]);
+    const inputChars = useMemo(() => inputText.length, [inputText]);
+    const canGenerate = useMemo(() => !!inputText && !isProcessing && (!hasReachedLimit(dailyUsage, 'aiRequests', isPremium)), [inputText, isProcessing, dailyUsage, isPremium]);
+
+    const showToast = (msg) => {
+      setToast(msg);
+      setTimeout(() => setToast(''), 2000);
+    };
+
+    const copyToClipboard = async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Copied!');
+      } catch {
+        showToast('Failed to copy');
+      }
+    };
+
+    const resetAll = () => {
+      setInputText('');
+      setResults(null);
+      setSavedIDs([]);
+      setToast('');
+    };
+
+    const processAI = async () => {
+      if (!canGenerate) return;
+      setIsProcessing(true);
+      setResults(null);
+      try {
+        const aiResult = await generateContent(inputText, activeTab);
+        setResults(aiResult);
+        trackUsage && trackUsage('aiRequests');
+      } catch (err) {
+        showToast('AI error');
+      } finally {
+        setIsProcessing(false);
+      }
+    };
 
   const inputChars = inputText.length
   const inputWords = useMemo(() => {
@@ -529,31 +571,7 @@ SENTENCE: ${inputText}`
     </div>
     );
 }
-  const handleSaveToBank = async (item) => {
-    if (!user?.uid) return showToast('Sign in to save.')
-    if (savedIDs.includes(item.id)) return
 
-    try {
-      await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'), {
-        term: item.term,
-        definition: item.translation || item.definition || '',
-        category: 'AI Generated',
-        createdAt: serverTimestamp(),
-        mastery: 0,
-      })
-      setSavedIDs((prev) => [...prev, item.id])
-      showToast(`Saved “${item.term}”`)
-    } catch (error) {
-      console.error('Error saving:', error)
-      showToast('Could not save')
-    }
-  }
-
-  const handleSaveAll = async () => {
-    const toSave = vocabItems.filter((i) => !savedIDs.includes(i.id))
-    if (!toSave.length) return showToast('All saved already.')
-    for (const item of toSave) await handleSaveToBank(item)
-  }
 
   const placeholder = activeTab === 'vocab' ? 'Paste Spanish text here… I’ll extract useful vocabulary.' : 'Paste a long text here… I’ll summarize it.'
 
