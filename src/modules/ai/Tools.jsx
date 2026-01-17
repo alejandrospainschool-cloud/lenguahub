@@ -527,9 +527,34 @@ SENTENCE: ${inputText}`
     )
   }
 
+  const handleSaveToBank = async (item) => {
+    if (!user?.uid) return showToast('Sign in to save.')
+    if (savedIDs.includes(item.id)) return
+
+    try {
+      await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'wordbank'), {
+        term: item.term,
+        definition: item.translation || item.definition || '',
+        category: 'AI Generated',
+        createdAt: serverTimestamp(),
+        mastery: 0,
+      })
+      setSavedIDs((prev) => [...prev, item.id])
+      showToast(`Saved “${item.term}”`)
+    } catch (error) {
+      console.error('Error saving:', error)
+      showToast('Could not save')
+    }
+  }
+
+  const handleSaveAll = async () => {
+    const toSave = vocabItems.filter((i) => !savedIDs.includes(i.id))
+    if (!toSave.length) return showToast('All saved already.')
+    for (const item of toSave) await handleSaveToBank(item)
+  }
+
   return (
     <div className="w-full max-w-5xl mx-auto px-4 md:px-8 space-y-8 animate-in fade-in duration-500 pb-12">
-      
       {/* HEADER */}
       <div className="pt-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -542,7 +567,6 @@ SENTENCE: ${inputText}`
           </div>
           {toast && <div className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 text-sm">{toast}</div>}
         </div>
-
         {/* MODE SWITCH */}
         <div className="mt-6 flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="bg-[#0f172a] p-1.5 rounded-2xl border border-white/10 flex relative w-full md:w-auto min-w-[300px]">
