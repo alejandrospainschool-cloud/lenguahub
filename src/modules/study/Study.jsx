@@ -37,6 +37,7 @@ export default function Study({
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('normal');
   const [wordSource, setWordSource] = useState('category'); // 'category' or 'recent'
+  const [questionCount, setQuestionCount] = useState(5);
   const [sessionXP, setSessionXP] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
 
@@ -144,6 +145,8 @@ export default function Study({
           setWordSource={setWordSource}
           selectedDifficulty={selectedDifficulty}
           setSelectedDifficulty={setSelectedDifficulty}
+          questionCount={questionCount}
+          setQuestionCount={setQuestionCount}
           activeWords={activeWords}
           dailyUsage={dailyUsage}
           isPremium={isPremium}
@@ -171,6 +174,7 @@ export default function Study({
         <QuizSession 
           words={activeWords} 
           difficulty={selectedDifficulty}
+          questionCount={questionCount}
           addXP={(v) => setSessionXP(p => p + v)}
           onComplete={() => handleSessionComplete('quiz')}
           onExit={() => setMode('menu')}
@@ -223,7 +227,7 @@ export default function Study({
 // SUB-COMPONENTS
 // ----------------------------------------------------------------------
 
-function StudyMenu({ categories, selectedCategory, setSelectedCategory, wordSource, setWordSource, selectedDifficulty, setSelectedDifficulty, activeWords, dailyUsage, isPremium, onSelectMode }) {
+function StudyMenu({ categories, selectedCategory, setSelectedCategory, wordSource, setWordSource, selectedDifficulty, setSelectedDifficulty, questionCount, setQuestionCount, activeWords, dailyUsage, isPremium, onSelectMode }) {
   const getProgress = (current, max) => Math.min(100, (current / max) * 100);
 
   const UsageBar = ({ current, max, colorClass }) => {
@@ -244,9 +248,9 @@ function StudyMenu({ categories, selectedCategory, setSelectedCategory, wordSour
 
   const difficulties = [
     { id: 'easy', label: 'Easy', color: 'from-green-500 to-emerald-600', desc: 'No pressure, relaxed learning' },
-    { id: 'normal', label: 'Normal', color: 'from-blue-500 to-indigo-600', desc: '2x XP multiplier' },
-    { id: 'hard', label: 'Hard', color: 'from-orange-500 to-red-600', desc: 'Timed mode, 3x XP' },
-    { id: 'insane', label: 'Insane', color: 'from-purple-600 to-pink-600', desc: '⚡ Ultimate challenge, 5x XP' }
+    { id: 'normal', label: 'Normal', color: 'from-blue-500 to-indigo-600', desc: '2x XP, 10s/question' },
+    { id: 'hard', label: 'Hard', color: 'from-orange-500 to-red-600', desc: 'Timed: 7s/q, 3x XP' },
+    { id: 'insane', label: 'Insane', color: 'from-purple-600 to-pink-600', desc: '⚡ 4s/q, 5x XP' }
   ];
 
   return (
@@ -328,6 +332,30 @@ function StudyMenu({ categories, selectedCategory, setSelectedCategory, wordSour
           })}
         </div>
       </div>
+
+      {/* Question Count Selection - Premium Only */}
+      {isPremium && (
+        <div className="mb-8 p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl">
+          <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Crown size={16} /> Premium: Question Count
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            {[5, 10, 15].map(count => (
+              <button
+                key={count}
+                onClick={() => setQuestionCount(count)}
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${
+                  questionCount === count
+                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                }`}
+              >
+                {count}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Study Modes */}
       <div className="mb-4">
@@ -485,7 +513,7 @@ function FlashcardSession({ words, difficulty = 'normal', addXP, onUsage, checkL
 }
 
 // ------------------- QUIZ SESSION -------------------
-function QuizSession({ words, difficulty = 'normal', addXP, onComplete, onExit }) {
+function QuizSession({ words, difficulty = 'normal', questionCount = 5, addXP, onComplete, onExit }) {
   const [questions, setQuestions] = useState([]);
   const [idx, setIdx] = useState(0);
   const [score, setScore] = useState(0);
@@ -494,13 +522,13 @@ function QuizSession({ words, difficulty = 'normal', addXP, onComplete, onExit }
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [answered, setAnswered] = useState(false);
 
-  // Difficulty settings
+  // Difficulty settings with updated timers
   const difficultyConfig = {
-    'easy': { timePerQuestion: null, xpMultiplier: 1, questionsCount: 5 },
-    'normal': { timePerQuestion: 30, xpMultiplier: 2, questionsCount: 5 },
-    'hard': { timePerQuestion: 20, xpMultiplier: 3, questionsCount: 8 },
-    'insane': { timePerQuestion: 15, xpMultiplier: 5, questionsCount: 10 }
-  }[difficulty] || { timePerQuestion: 30, xpMultiplier: 2, questionsCount: 5 };
+    'easy': { timePerQuestion: null, xpMultiplier: 1 },
+    'normal': { timePerQuestion: 10, xpMultiplier: 2 },
+    'hard': { timePerQuestion: 7, xpMultiplier: 3 },
+    'insane': { timePerQuestion: 4, xpMultiplier: 5 }
+  }[difficulty] || { timePerQuestion: 10, xpMultiplier: 2 };
 
   const baseXP = 10;
   const xpPerCorrect = baseXP * difficultyConfig.xpMultiplier;
@@ -509,7 +537,7 @@ function QuizSession({ words, difficulty = 'normal', addXP, onComplete, onExit }
   useEffect(() => {
     if (!words || words.length < 2) return;
     const shuffled = shuffleArray([...words]);
-    const count = Math.min(difficultyConfig.questionsCount, words.length);
+    const count = Math.min(questionCount, words.length);
     const q = shuffled.slice(0, count).map(target => {
        const others = words.filter(w => w.id !== target.id);
        const distractors = shuffleArray(others).slice(0, 3);
@@ -523,7 +551,7 @@ function QuizSession({ words, difficulty = 'normal', addXP, onComplete, onExit }
     if (difficultyConfig.timePerQuestion) {
       setTimeRemaining(difficultyConfig.timePerQuestion);
     }
-  }, [words]);
+  }, [words, questionCount]);
 
   // Timer effect
   useEffect(() => {
