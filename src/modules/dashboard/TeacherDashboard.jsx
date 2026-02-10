@@ -32,11 +32,11 @@ import CalendarView from '../calendar/Calendar'
 import AdminPanel from './AdminDashboard'
 import SharedWordBank from '../words/SharedWordBank'
 
-/**
- * Assignment doc id format:
- *   `${tutorUid}_${studentUid}`
+/*
+  Assignment doc id format:
+    ${tutorUid}${studentUid}
  */
-const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}_${studentUid}`
+const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}${studentUid}`
 
 // Normalize a user doc so uid is ALWAYS present
 const normalizeUser = (d) => {
@@ -46,6 +46,255 @@ const normalizeUser = (d) => {
     id: id || data?.uid,
     ...data,
     uid: data?.uid || id, // critical
+  }
+}
+
+// --- STUDENT DETAIL VIEW ---
+function StudentDetailView({ student, user, onBack }) {
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState(null)
+  const [studentMeta, setStudentMeta] = useState(null)
+
+  useEffect(() => {
+    if (!student?.uid) return
+    // Load notes and metadata (example: from Firestore, can be expanded)
+    const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (snap.exists()) {
+          setNotes(snap.data().teacherNotes || '')
+          setStudentMeta(snap.data())
+        }
+      },
+      (err) => setLoadError(err.message || 'Error loading student metadata')
+    )
+    return () => unsub()
+  }, [student?.uid])
+
+  const handleSaveNotes = async () => {
+    setSaving(true)
+    try {
+      const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
+      await setDoc(ref, { teacherNotes: notes }, { merge: true })
+    } catch (e) {
+      alert('Failed to save notes')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-slate-900/80 border border-slate-700/40 rounded-3xl p-8 max-w-3xl mx-auto animate-in fade-in">
+      <button
+        onClick={onBack}
+        className="mb-6 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg text-xs font-bold border border-blue-500/20 hover:border-blue-500/40 flex items-center gap-2"
+      >
+        <ChevronRight size={14} className="rotate-180" /> Back to Roster
+      </button>
+
+      <div className="flex flex-col md:flex-row gap-8 items-start">
+        <div className="flex flex-col items-center gap-3 min-w-[120px]">
+          <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden">
+            {student.photoURL ? (
+              <img src={student.photoURL} className="w-full h-full rounded-full" alt="" />
+            ) : (
+              <span className="font-bold text-slate-400 text-3xl">{student.displayName?.[0] || '?'}</span>
+            )}
+          </div>
+          <div className="font-bold text-white text-lg">{student.displayName || 'Unknown'}</div>
+          <div className="text-xs text-slate-500 flex items-center gap-1">
+            <Mail size={12} /> {student.email || 'No email'}
+          </div>
+          <div className="text-xs text-slate-400 mt-2">
+            Last Login:{' '}
+            {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleString() : 'Never'}
+          </div>
+          <div className="text-xs text-slate-400">
+            Status: {studentMeta?.isPremium ? 'Premium' : 'Student'}
+          </div>
+        </div>
+
+        <div className="flex-1 w-full">
+          <h2 className="text-xl font-bold text-white mb-4">Teacher Notes</h2>
+          <textarea
+            className="w-full min-h-[120px] bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-100 mb-2"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Add notes about this student..."
+            disabled={saving}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveNotes}
+              className="px-4 py-2 bg-blue-600/80 hover:bg-blue-700 text-white rounded-lg text-sm font-bold disabled:opacity-60"
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Save Notes'}
+            </button>
+          </div>
+          {loadError && <div className="text-red-400 text-xs mt-2">{loadError}</div>}
+
+          <div className="mt-8">
+            <h3 className="text-lg font-bold text-white mb-2">Word Bank</h3>
+            <SharedWordBank user={user} studentUid={student.uid} isTeacherView={true} onBack={onBack} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- STUDENT ROW ---
+function StudentRow({ student, onManage }) {
+  const [isPremium, setIsPremium] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!student?.uid) return
+    const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (snap.exists()) setIsPremium(!!snap.data().isPremium)
+        setLoading(false)
+      },
+      (err) => {
+        console.error('Premium snapshot error:', err)
+        setLoading(false)
+      }
+    )
+    return () => unsub()
+  }, [student?.uid])
+
+  const togglePremium = async () => {
+    if (!student?.uid) return alert('Student UID missing.')
+    if (!window.confirm(`Change ${student.displayName || 'student'} to ${!isPremium ? 'Premium' : 'Free'}?`)) return
+    try {
+      const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
+      await setDoc(ref, { isPremium: !isPremium }, { merge: true })
+    } catch (err) {
+      console.error(err)
+      alert('Error updating status')
+    }
+  }
+
+  return (
+    <tr className="hover:bg-white/5 transition-colors group border-b border-white/5">
+      <td className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden">
+            {student.photoURL ? (
+              <img src={student.photoURL} className="w-full h-full rounded-full" alt="" />
+            ) : (
+              <span className="font-bold text-slate-400">{student.displayName?.[0] || '?'}</span>
+            )}
+          </div>
+          <div>
+            <div className="font-bold text-white">{student.displayName || 'Unknown'}</div>
+            <div className="text-xs text-slate-500 flex items-center gap-1">
+              <Mail size={10} /> {student.email || 'No email'}
+            </div>
+          </div>
+        </div>
+      </td>
+
+      <td className="p-6">
+        <button
+          onClick={togglePremium}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+            isPremium
+              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
+              : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white'
+          }`}
+        >
+          {loading ? '...' : isPremium ? <><Crown size={12} fill="currentColor" /> Premium</> : 'Student'}
+        </button>
+      </td>
+
+      <td className="p-6 text-slate-400 text-sm">
+        <div className="flex items-center gap-2">
+          <Clock size={14} />
+          {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleDateString() : 'Never'}
+        </div>
+      </td>
+
+      <td className="p-6 text-right">
+        <button
+          onClick={onManage}
+          className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 rounded-lg text-xs font-bold transition-all border border-blue-500/20 hover:border-blue-500/40 flex items-center gap-2 ml-auto"
+        >
+          Manage Words <ChevronRight size={14} />
+        </button>
+      </td>
+    </tr>
+  )
+}
+
+// --- CALENDAR ---
+function TeacherCalendar({ user }) {
+  const [googleEvents, setGoogleEvents] = useState([])
+  const [localEvents, setLocalEvents] = useState([])
+
+  useEffect(() => {
+    const loadGoogleEvents = async () => {
+      if (!user?.token) return
+      const gEvents = await fetchGoogleCalendarEvents(user.token)
+      const formattedEvents = gEvents.map((e) => ({
+        id: e.id,
+        title: e.summary || 'Busy',
+        date: e.start.dateTime?.split('T')[0] || e.start.date,
+        time: e.start.dateTime?.split('T')[1]?.substring(0, 5) || 'All Day',
+        type: 'Google Calendar',
+      }))
+      setGoogleEvents(formattedEvents)
+    }
+    loadGoogleEvents()
+  }, [user?.token])
+
+  return (
+    <div className="animate-in fade-in bg-[#0f172a] border border-white/10 rounded-3xl p-6 shadow-2xl">
+      <div className="bg-blue-900/10 border border-blue-500/20 p-4 rounded-2xl mb-6 flex items-center gap-3">
+        <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
+          <CalendarIcon size={20} />
+        </div>
+        <span className="text-blue-200 font-medium text-sm">Master View: Showing personal events + scheduled lessons.</span>
+      </div>
+      <CalendarView user={user} events={[...localEvents, ...googleEvents]} setEvents={setLocalEvents} setTab={() => {}} />
+    </div>
+  )
+}
+
+// ---- ErrorBoundary (to stop grey screens and show the real error)
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error, info) {
+    console.error('ErrorBoundary caught:', error, info)
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children
+
+    return (
+      <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
+        <div className="text-red-200 font-bold text-lg">{this.props.title || 'Something crashed'}</div>
+        <div className="text-red-100/80 text-sm mt-2">
+          {String(this.state.error?.message || this.state.error || 'Unknown error')}
+        </div>
+        <div className="text-slate-300 text-xs mt-4">
+          Open DevTools console to see the full stack trace.
+        </div>
+      </div>
+    )
   }
 }
 
@@ -307,7 +556,7 @@ export default function TeacherDashboard({ user, logout }) {
 
             <button
               onClick={() => {
-                sessionStorage.removeItem('google_access_token')
+                sessionStorage.removeItem('googleaccesstoken')
                 logout()
                 window.location.reload()
               }}
@@ -427,102 +676,6 @@ export default function TeacherDashboard({ user, logout }) {
             onBack={() => setCurrentView('roster')}
           />
         )}
-// --- STUDENT DETAIL VIEW ---
-function StudentDetailView({ student, user, onBack }) {
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [loadError, setLoadError] = useState(null)
-  const [studentMeta, setStudentMeta] = useState(null)
-
-  useEffect(() => {
-    if (!student?.uid) return
-    // Load notes and metadata (example: from Firestore, can be expanded)
-    const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        if (snap.exists()) {
-          setNotes(snap.data().teacherNotes || '')
-          setStudentMeta(snap.data())
-        }
-      },
-      (err) => setLoadError(err.message || 'Error loading student metadata')
-    )
-    return () => unsub()
-  }, [student?.uid])
-
-  const handleSaveNotes = async () => {
-    setSaving(true)
-    try {
-      const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
-      await setDoc(ref, { teacherNotes: notes }, { merge: true })
-    } catch (e) {
-      alert('Failed to save notes')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="bg-slate-900/80 border border-slate-700/40 rounded-3xl p-8 max-w-3xl mx-auto animate-in fade-in">
-      <button
-        onClick={onBack}
-        className="mb-6 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg text-xs font-bold border border-blue-500/20 hover:border-blue-500/40 flex items-center gap-2"
-      >
-        <ChevronRight size={14} className="rotate-180" /> Back to Roster
-      </button>
-
-      <div className="flex flex-col md:flex-row gap-8 items-start">
-        <div className="flex flex-col items-center gap-3 min-w-[120px]">
-          <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden">
-            {student.photoURL ? (
-              <img src={student.photoURL} className="w-full h-full rounded-full" alt="" />
-            ) : (
-              <span className="font-bold text-slate-400 text-3xl">{student.displayName?.[0] || '?'}</span>
-            )}
-          </div>
-          <div className="font-bold text-white text-lg">{student.displayName || 'Unknown'}</div>
-          <div className="text-xs text-slate-500 flex items-center gap-1">
-            <Mail size={12} /> {student.email || 'No email'}
-          </div>
-          <div className="text-xs text-slate-400 mt-2">
-            Last Login:{' '}
-            {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleString() : 'Never'}
-          </div>
-          <div className="text-xs text-slate-400">
-            Status: {studentMeta?.isPremium ? 'Premium' : 'Student'}
-          </div>
-        </div>
-
-        <div className="flex-1 w-full">
-          <h2 className="text-xl font-bold text-white mb-4">Teacher Notes</h2>
-          <textarea
-            className="w-full min-h-[120px] bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-100 mb-2"
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="Add notes about this student..."
-            disabled={saving}
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleSaveNotes}
-              className="px-4 py-2 bg-blue-600/80 hover:bg-blue-700 text-white rounded-lg text-sm font-bold disabled:opacity-60"
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Save Notes'}
-            </button>
-          </div>
-          {loadError && <div className="text-red-400 text-xs mt-2">{loadError}</div>}
-
-          <div className="mt-8">
-            <h3 className="text-lg font-bold text-white mb-2">Word Bank</h3>
-            <SharedWordBank user={user} studentUid={student.uid} isTeacherView={true} onBack={onBack} />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
         {/* VIEW: CALENDAR */}
         {currentView === 'calendar' && <TeacherCalendar user={user} />}
@@ -552,156 +705,4 @@ function StudentDetailView({ student, user, onBack }) {
       </div>
     </div>
   )
-}
-
-// --- STUDENT ROW ---
-function StudentRow({ student, onManage }) {
-  const [isPremium, setIsPremium] = useState(false)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!student?.uid) return
-    const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        if (snap.exists()) setIsPremium(!!snap.data().isPremium)
-        setLoading(false)
-      },
-      (err) => {
-        console.error('Premium snapshot error:', err)
-        setLoading(false)
-      }
-    )
-    return () => unsub()
-  }, [student?.uid])
-
-  const togglePremium = async () => {
-    if (!student?.uid) return alert('Student UID missing.')
-    if (!window.confirm(`Change ${student.displayName || 'student'} to ${!isPremium ? 'Premium' : 'Free'}?`)) return
-    try {
-      const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
-      await setDoc(ref, { isPremium: !isPremium }, { merge: true })
-    } catch (err) {
-      console.error(err)
-      alert('Error updating status')
-    }
-  }
-
-  return (
-    <tr className="hover:bg-white/5 transition-colors group border-b border-white/5">
-      <td className="p-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden">
-            {student.photoURL ? (
-              <img src={student.photoURL} className="w-full h-full rounded-full" alt="" />
-            ) : (
-              <span className="font-bold text-slate-400">{student.displayName?.[0] || '?'}</span>
-            )}
-          </div>
-          <div>
-            <div className="font-bold text-white">{student.displayName || 'Unknown'}</div>
-            <div className="text-xs text-slate-500 flex items-center gap-1">
-              <Mail size={10} /> {student.email || 'No email'}
-            </div>
-          </div>
-        </div>
-      </td>
-
-      <td className="p-6">
-        <button
-          onClick={togglePremium}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-            isPremium
-              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-              : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white'
-          }`}
-        >
-          {loading ? '...' : isPremium ? <><Crown size={12} fill="currentColor" /> Premium</> : 'Student'}
-        </button>
-      </td>
-
-      <td className="p-6 text-slate-400 text-sm">
-        <div className="flex items-center gap-2">
-          <Clock size={14} />
-          {student.lastLogin?.toDate ? student.lastLogin.toDate().toLocaleDateString() : 'Never'}
-        </div>
-      </td>
-
-      <td className="p-6 text-right">
-        <button
-          onClick={onManage}
-          className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 rounded-lg text-xs font-bold transition-all border border-blue-500/20 hover:border-blue-500/40 flex items-center gap-2 ml-auto"
-        >
-          Manage Words <ChevronRight size={14} />
-        </button>
-      </td>
-    </tr>
-  )
-}
-
-// --- CALENDAR ---
-function TeacherCalendar({ user }) {
-  const [googleEvents, setGoogleEvents] = useState([])
-  const [localEvents, setLocalEvents] = useState([])
-
-  useEffect(() => {
-    const loadGoogleEvents = async () => {
-      if (!user?.token) return
-      const gEvents = await fetchGoogleCalendarEvents(user.token)
-      const formattedEvents = gEvents.map((e) => ({
-        id: e.id,
-        title: e.summary || 'Busy',
-        date: e.start.dateTime?.split('T')[0] || e.start.date,
-        time: e.start.dateTime?.split('T')[1]?.substring(0, 5) || 'All Day',
-        type: 'Google Calendar',
-      }))
-      setGoogleEvents(formattedEvents)
-    }
-    loadGoogleEvents()
-  }, [user?.token])
-
-  return (
-    <div className="animate-in fade-in bg-[#0f172a] border border-white/10 rounded-3xl p-6 shadow-2xl">
-      <div className="bg-blue-900/10 border border-blue-500/20 p-4 rounded-2xl mb-6 flex items-center gap-3">
-        <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
-          <CalendarIcon size={20} />
-        </div>
-        <span className="text-blue-200 font-medium text-sm">Master View: Showing personal events + scheduled lessons.</span>
-      </div>
-      <CalendarView user={user} events={[...localEvents, ...googleEvents]} setEvents={setLocalEvents} setTab={() => {}} />
-    </div>
-  )
-}
-
-// ---- ErrorBoundary (to stop grey screens and show the real error)
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props)
-    this.state = { hasError: false, error: null }
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error }
-  }
-
-  componentDidCatch(error, info) {
-    console.error('ErrorBoundary caught:', error, info)
-  }
-
-  render() {
-    if (!this.state.hasError) return this.props.children
-
-    return (
-      <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
-        <div className="text-red-200 font-bold text-lg">{this.props.title || 'Something crashed'}</div>
-        <div className="text-red-100/80 text-sm mt-2">
-          {String(this.state.error?.message || this.state.error || 'Unknown error')}
-        </div>
-        <div className="text-slate-300 text-xs mt-4">
-          Open DevTools console to see the full stack trace.
-        </div>
-      </div>
-    )
-  }
 }
