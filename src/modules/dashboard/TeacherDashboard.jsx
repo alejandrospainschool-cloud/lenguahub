@@ -35,7 +35,7 @@ import SharedWordBank from '../words/SharedWordBank'
 // UTILITY FUNCTIONS
 // ============================================================================
 
-// FIXED: Match AdminDashboard format with underscore
+// MUST match AdminDashboard format exactly
 const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}_${studentUid}`
 
 const normalizeUser = (d) => {
@@ -396,7 +396,9 @@ export default function TeacherDashboard({ user, logout }) {
       ref,
       (snap) => {
         const data = snap.data()
-        setRole(data?.role || 'student')
+        const userRole = data?.role || 'student'
+        console.log('👤 User role loaded:', userRole)
+        setRole(userRole)
       },
       (err) => {
         console.error('Role snapshot error:', err)
@@ -408,7 +410,7 @@ export default function TeacherDashboard({ user, logout }) {
   }, [user?.uid])
 
   // ============================================================================
-  // LOAD ROSTER
+  // LOAD ROSTER (IMPROVED WITH DEBUGGING)
   // ============================================================================
   
   useEffect(() => {
@@ -416,8 +418,11 @@ export default function TeacherDashboard({ user, logout }) {
 
     const loadRoster = async () => {
       setLoading(true)
+      console.log('📚 Loading roster for role:', role)
+      
       try {
         if (isAdmin) {
+          // Admin sees ALL students
           const qStudents = query(
             collection(db, 'users'), 
             where('role', '==', 'student')
@@ -433,37 +438,78 @@ export default function TeacherDashboard({ user, logout }) {
               return bd - ad
             })
 
+          console.log('👑 Admin loaded', data.length, 'students')
           setStudents(data)
+          
         } else if (isTutor) {
+          // Tutor sees ONLY assigned students
+          console.log('🔍 Querying assignments for tutor:', user.uid)
+          
           const qAssign = query(
             collection(db, 'assignments'), 
             where('tutorUid', '==', user.uid)
           )
           const assignSnap = await getDocs(qAssign)
+          
+          console.log('📋 Found', assignSnap.docs.length, 'assignments')
+          
+          // Log all assignments for debugging
+          assignSnap.docs.forEach(doc => {
+            console.log('Assignment:', doc.id, doc.data())
+          })
+          
           const studentUids = assignSnap.docs
             .map((d) => d.data().studentUid)
             .filter(Boolean)
+          
+          console.log('👥 Student UIDs from assignments:', studentUids)
+
+          if (studentUids.length === 0) {
+            console.log('⚠️ No student UIDs found in assignments')
+            setStudents([])
+            setLoading(false)
+            return
+          }
 
           const studentDocs = await Promise.all(
             studentUids.map((studentUid) => getDoc(doc(db, 'users', studentUid)))
           )
 
           const data = studentDocs
-            .filter((s) => s.exists())
+            .filter((s) => {
+              if (!s.exists()) {
+                console.warn('⚠️ Student doc does not exist')
+                return false
+              }
+              return true
+            })
             .map((s) => normalizeUser({ id: s.id, data: () => s.data() }))
-            .filter((s) => s.uid && s.uid !== user.uid)
+            .filter((s) => {
+              if (!s.uid) {
+                console.warn('⚠️ Student missing UID:', s)
+                return false
+              }
+              if (s.uid === user.uid) {
+                console.log('⚠️ Filtering out self:', s.uid)
+                return false
+              }
+              return true
+            })
             .sort((a, b) => {
               const ad = a.lastLogin?.toDate ? a.lastLogin.toDate().getTime() : 0
               const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0
               return bd - ad
             })
 
+          console.log('✅ Tutor loaded', data.length, 'assigned students:', data)
           setStudents(data)
+          
         } else {
+          console.log('❌ Role is student, no roster to load')
           setStudents([])
         }
       } catch (e) {
-        console.error('Roster load error:', e)
+        console.error('❌ Roster load error:', e)
         setStudents([])
       } finally {
         setLoading(false)
@@ -496,6 +542,7 @@ export default function TeacherDashboard({ user, logout }) {
     if (!isAdmin) return
 
     const loadAdminData = async () => {
+      console.log('👑 Loading admin data...')
       try {
         const userSnap = await getDocs(collection(db, 'users'))
         const usersData = userSnap.docs
@@ -507,13 +554,16 @@ export default function TeacherDashboard({ user, logout }) {
             return bd - ad
           })
 
+        console.log('👥 Loaded', usersData.length, 'users')
         setAllUsers(usersData)
 
         const aSnap = await getDocs(collection(db, 'assignments'))
         const aData = aSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        
+        console.log('📋 Loaded', aData.length, 'assignments:', aData)
         setAssignments(aData)
       } catch (e) {
-        console.error('Admin load error:', e)
+        console.error('❌ Admin load error:', e)
         setAllUsers([])
         setAssignments([])
       }
@@ -567,8 +617,9 @@ export default function TeacherDashboard({ user, logout }) {
       setAllUsers((prev) => 
         prev.map((u) => (u.uid === targetUid ? { ...u, role: newRole } : u))
       )
+      console.log('✅ Role updated:', targetUid, '→', newRole)
     } catch (e) {
-      console.error('Role update error:', e)
+      console.error('❌ Role update error:', e)
       alert('Failed to update role. Check Firestore rules.')
     }
   }
@@ -580,6 +631,7 @@ export default function TeacherDashboard({ user, logout }) {
     }
     
     const id = assignmentDocId(assignTutorUid, assignStudentUid)
+    console.log('🔗 Creating assignment with ID:', id)
 
     try {
       await setDoc(doc(db, 'assignments', id), {
@@ -587,6 +639,12 @@ export default function TeacherDashboard({ user, logout }) {
         studentUid: assignStudentUid,
         createdAt: serverTimestamp(),
         createdBy: user.uid,
+      })
+
+      console.log('✅ Assignment created:', {
+        id,
+        tutorUid: assignTutorUid,
+        studentUid: assignStudentUid
       })
 
       setAssignments((prev) => [
@@ -601,7 +659,7 @@ export default function TeacherDashboard({ user, logout }) {
 
       setAssignStudentUid('')
     } catch (e) {
-      console.error('Assign error:', e)
+      console.error('❌ Assign error:', e)
       alert('Failed to assign. Check Firestore rules.')
     }
   }
@@ -616,8 +674,9 @@ export default function TeacherDashboard({ user, logout }) {
     try {
       await deleteDoc(doc(db, 'assignments', id))
       setAssignments((prev) => prev.filter((a) => a.id !== id))
+      console.log('✅ Assignment removed:', id)
     } catch (e) {
-      console.error('Unassign error:', e)
+      console.error('❌ Unassign error:', e)
       alert('Failed to unassign. Check Firestore rules.')
     }
   }
@@ -775,7 +834,7 @@ export default function TeacherDashboard({ user, logout }) {
                     {loading && (
                       <tr>
                         <td className="p-6 text-slate-400" colSpan={4}>
-                          Loading...
+                          Loading students...
                         </td>
                       </tr>
                     )}
