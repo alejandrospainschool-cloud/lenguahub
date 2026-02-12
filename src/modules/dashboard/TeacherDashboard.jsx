@@ -5,7 +5,6 @@ import {
   getDocs,
   getDoc,
   query,
-  addDoc,
   deleteDoc,
   doc,
   onSnapshot,
@@ -36,7 +35,8 @@ import SharedWordBank from '../words/SharedWordBank'
 // UTILITY FUNCTIONS
 // ============================================================================
 
-const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}${studentUid}`
+// FIXED: Match AdminDashboard format with underscore
+const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}_${studentUid}`
 
 const normalizeUser = (d) => {
   const data = d?.data ? d.data() : d
