@@ -1,35 +1,12 @@
 // src/modules/dashboard/TeacherDashboard.jsx
-import React, { useEffect, useMemo, useState } from 'react'
-import {
-  collection,
-  getDocs,
-  getDoc,
-  query,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  serverTimestamp,
-  setDoc,
-  where,
-} from 'firebase/firestore'
-import { db } from '../../lib/firebase'
-import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar'
-import {
-  Users,
-  ShieldCheck,
-  Search,
-  Calendar as CalendarIcon,
-  ChevronRight,
-  Crown,
-  Mail,
-  Clock,
-  LogOut,
-  TrendingUp,
-  UserCog,
-} from 'lucide-react'
-import CalendarView from '../calendar/Calendar'
-import AdminPanel from './AdminDashboard'
-import SharedWordBank from '../words/SharedWordBank'
+import React, { useEffect, useMemo, useState } from 'react';
+import { collection, getDocs, getDoc, query, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar';
+import { Users, ShieldCheck, Search, Calendar as CalendarIcon, ChevronRight, Crown, Mail, Clock, LogOut, TrendingUp, UserCog } from 'lucide-react';
+import CalendarView from '../calendar/Calendar';
+import AdminPanel from './AdminDashboard';
+import SharedWordBank from '../words/SharedWordBank';
 
 import {
   collection,
@@ -50,16 +27,7 @@ import AdminPanel from './AdminDashboard';
 import SharedWordBank from '../words/SharedWordBank';
 
 // Utility functions
-const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}_${studentUid}`;
-const normalizeUser = (d) => {
-  const data = d?.data ? d.data() : d;
-  const id = d?.id || data?.id;
-  return {
-    id: id || data?.uid,
-    ...data,
-    uid: data?.uid || id,
-  };
-};
+// assignmentDocId and normalizeUser are already defined below, do not redeclare here
 
 // ErrorBoundary (unchanged)
 class ErrorBoundary extends React.Component {
@@ -290,17 +258,7 @@ export default function TeacherDashboard({ user, logout }) {
 // ============================================================================
 
 // MUST match AdminDashboard format exactly
-const assignmentDocId = (tutorUid, studentUid) => `${tutorUid}_${studentUid}`
-
-const normalizeUser = (d) => {
-  const data = d?.data ? d.data() : d
-  const id = d?.id || data?.id
-  return {
-    id: id || data?.uid,
-    ...data,
-    uid: data?.uid || id,
-  }
-}
+// assignmentDocId and normalizeUser are already defined, do not redeclare here
 
 // ============================================================================
 // ERROR BOUNDARY COMPONENT
