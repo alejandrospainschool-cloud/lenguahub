@@ -9,16 +9,7 @@ import AdminPanel from './AdminDashboard';
 import SharedWordBank from '../words/SharedWordBank';
 
 import {
-  collection,
-  getDocs,
-  getDoc,
-  query,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  serverTimestamp,
-  setDoc,
-  where,
+// (imports removed, already imported below)
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Users, ShieldCheck, Search, Calendar as CalendarIcon, ChevronRight, Crown, Mail, Clock, LogOut, TrendingUp, UserCog } from 'lucide-react';
