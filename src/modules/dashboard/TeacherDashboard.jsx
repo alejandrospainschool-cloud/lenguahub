@@ -414,110 +414,104 @@ export default function TeacherDashboard({ user, logout }) {
   // ============================================================================
   
   useEffect(() => {
-    if (!role || !user?.uid) return
-
-    const loadRoster = async () => {
-      setLoading(true)
-      console.log('📚 Loading roster for role:', role)
-      
-      try {
-        if (isAdmin) {
-          // Admin sees ALL students
+    if (!role || !user?.uid) return;
+    let unsub = null;
+    setLoading(true);
+    console.log('📚 Loading roster for role:', role);
+    if (isAdmin) {
+      // Admin sees ALL students
+      (async () => {
+        try {
           const qStudents = query(
-            collection(db, 'users'), 
+            collection(db, 'users'),
             where('role', '==', 'student')
-          )
-          const snap = await getDocs(qStudents)
-
+          );
+          const snap = await getDocs(qStudents);
           const data = snap.docs
             .map(normalizeUser)
             .filter((s) => s.uid && s.uid !== user.uid)
             .sort((a, b) => {
-              const ad = a.lastLogin?.toDate ? a.lastLogin.toDate().getTime() : 0
-              const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0
-              return bd - ad
-            })
-
-          console.log('👑 Admin loaded', data.length, 'students')
-          setStudents(data)
-          
-        } else if (isTutor) {
-          // Tutor sees ONLY assigned students
-          console.log('🔍 Querying assignments for tutor:', user.uid)
-          
-          const qAssign = query(
-            collection(db, 'assignments'), 
-            where('tutorUid', '==', user.uid)
-          )
-          const assignSnap = await getDocs(qAssign)
-          
-          console.log('📋 Found', assignSnap.docs.length, 'assignments')
-          
-          // Log all assignments for debugging
-          assignSnap.docs.forEach(doc => {
-            console.log('Assignment:', doc.id, doc.data())
-          })
-          
-          const studentUids = assignSnap.docs
-            .map((d) => d.data().studentUid)
-            .filter(Boolean)
-          
-          console.log('👥 Student UIDs from assignments:', studentUids)
-
-          if (studentUids.length === 0) {
-            console.log('⚠️ No student UIDs found in assignments')
-            setStudents([])
-            setLoading(false)
-            return
-          }
-
+              const ad = a.lastLogin?.toDate ? a.lastLogin.toDate().getTime() : 0;
+              const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0;
+              return bd - ad;
+            });
+          console.log('👑 Admin loaded', data.length, 'students');
+          setStudents(data);
+        } catch (e) {
+          console.error('❌ Roster load error:', e);
+          setStudents([]);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    } else if (isTutor) {
+      // Tutor sees ONLY assigned students (real-time)
+      const qAssign = query(
+        collection(db, 'assignments'),
+        where('tutorUid', '==', user.uid)
+      );
+      unsub = onSnapshot(qAssign, async (assignSnap) => {
+        console.log('📋 Found', assignSnap.docs.length, 'assignments');
+        assignSnap.docs.forEach(doc => {
+          console.log('Assignment:', doc.id, doc.data());
+        });
+        const studentUids = assignSnap.docs
+          .map((d) => d.data().studentUid)
+          .filter(Boolean);
+        console.log('👥 Student UIDs from assignments:', studentUids);
+        if (studentUids.length === 0) {
+          console.log('⚠️ No student UIDs found in assignments');
+          setStudents([]);
+          setLoading(false);
+          return;
+        }
+        try {
           const studentDocs = await Promise.all(
             studentUids.map((studentUid) => getDoc(doc(db, 'users', studentUid)))
-          )
-
+          );
           const data = studentDocs
             .filter((s) => {
               if (!s.exists()) {
-                console.warn('⚠️ Student doc does not exist')
-                return false
+                console.warn('⚠️ Student doc does not exist');
+                return false;
               }
-              return true
+              return true;
             })
             .map((s) => normalizeUser({ id: s.id, data: () => s.data() }))
             .filter((s) => {
               if (!s.uid) {
-                console.warn('⚠️ Student missing UID:', s)
-                return false
+                console.warn('⚠️ Student missing UID:', s);
+                return false;
               }
               if (s.uid === user.uid) {
-                console.log('⚠️ Filtering out self:', s.uid)
-                return false
+                console.log('⚠️ Filtering out self:', s.uid);
+                return false;
               }
-              return true
+              return true;
             })
             .sort((a, b) => {
-              const ad = a.lastLogin?.toDate ? a.lastLogin.toDate().getTime() : 0
-              const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0
-              return bd - ad
-            })
-
-          console.log('✅ Tutor loaded', data.length, 'assigned students:', data)
-          setStudents(data)
-          
-        } else {
-          console.log('❌ Role is student, no roster to load')
-          setStudents([])
+              const ad = a.lastLogin?.toDate ? a.lastLogin.toDate().getTime() : 0;
+              const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0;
+              return bd - ad;
+            });
+          console.log('✅ Tutor loaded', data.length, 'assigned students:', data);
+          setStudents(data);
+        } catch (e) {
+          console.error('❌ Roster load error:', e);
+          setStudents([]);
+        } finally {
+          setLoading(false);
         }
-      } catch (e) {
-        console.error('❌ Roster load error:', e)
-        setStudents([])
-      } finally {
-        setLoading(false)
-      }
+      });
+    } else {
+      console.log('❌ Role is student, no roster to load');
+      setStudents([]);
+      setLoading(false);
     }
-
-    loadRoster()
-  }, [role, isAdmin, isTutor, user?.uid])
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [role, isAdmin, isTutor, user?.uid]);
 
   // ============================================================================
   // FILTERED STUDENTS
