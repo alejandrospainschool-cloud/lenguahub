@@ -1,5 +1,8 @@
 // src/modules/words/SharedWordBank.jsx
 import React, { useState, useMemo, useEffect } from 'react'
+// For enrichment, we'll use a placeholder util for now
+// Later, integrate a real Spanish linguistic/conjugation library
+// import { getWordInfo } from '../../lib/spanishLinguistics';
 import {
   Plus,
   Search,
@@ -58,10 +61,14 @@ export default function SharedWordBank({
 
   const words = loadedWords
 
+
   // Navigation & UI State
   const [currentFolder, setCurrentFolder] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [activeMenu, setActiveMenu] = useState(null)
+
+  // Word Details Modal
+  const [detailsModalWord, setDetailsModalWord] = useState(null)
 
   // Modals
   const [modalMode, setModalMode] = useState(null) // 'add_word', 'add_folder', 'edit_word'
@@ -194,6 +201,43 @@ export default function SharedWordBank({
     return searchTerm ? matchesSearch : matchesFolder
   })
 
+  // --- WORD ENRICHMENT LOGIC (placeholder) ---
+  // This will be replaced with a real linguistic library/API
+  function getWordEnrichment(word) {
+    // Simple heuristics for Spanish
+    const term = word.term?.trim().toLowerCase();
+    // Verb detection: ends with -ar, -er, -ir
+    if (/^(\w+)(ar|er|ir)$/.test(term)) {
+      return {
+        type: 'verb',
+        // Placeholder: real conjugations will be fetched later
+        regularity: 'unknown',
+        conjugations: null,
+      };
+    }
+    // Noun detection: ends with -o/-a/-ción/-dad etc. (very rough)
+    if (/([oa]|ción|dad|tad|umbre|ie|ez|eza|sis|itis)$/.test(term)) {
+      // Gender guess
+      let gender = 'unknown';
+      if (term.endsWith('a')) gender = 'feminine';
+      if (term.endsWith('o')) gender = 'masculine';
+      return {
+        type: 'noun',
+        gender,
+      };
+    }
+    // Adjective detection: ends with -o/-a/-e/-os/-as
+    if (/([oa]s?|e)$/.test(term)) {
+      return {
+        type: 'adjective',
+      };
+    }
+    // Default: phrase/other
+    return {
+      type: 'other',
+    };
+  }
+
   return (
     <div className="max-w-6xl mx-auto min-h-[80vh] flex flex-col animate-in fade-in duration-500 pb-12">
       {/* HEADER */}
@@ -300,7 +344,8 @@ export default function SharedWordBank({
           {visibleWords.map((word) => (
             <div
               key={word.id}
-              className="group relative flex items-center justify-between p-4 bg-slate-900/40 border border-white/5 rounded-2xl hover:border-white/10 transition-all"
+              className="group relative flex items-center justify-between p-4 bg-slate-900/40 border border-white/5 rounded-2xl hover:border-white/10 transition-all cursor-pointer"
+              onClick={() => setDetailsModalWord(word)}
             >
               <div className="flex items-center gap-4">
                 <div
@@ -315,7 +360,7 @@ export default function SharedWordBank({
                 </div>
               </div>
 
-              <div className="relative">
+              <div className="relative" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={() => setActiveMenu(activeMenu === word.id ? null : word.id)}
                   className="p-2 text-slate-600 hover:text-white transition-colors"
@@ -346,6 +391,57 @@ export default function SharedWordBank({
           {activeMenu && (
             <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
           )}
+        </div>
+      )}
+
+      {/* --- MODAL: WORD DETAILS --- */}
+      {detailsModalWord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0f172a] border border-white/10 w-full max-w-lg rounded-3xl p-8 shadow-2xl relative">
+            <button
+              onClick={() => setDetailsModalWord(null)}
+              className="absolute top-4 right-4 text-slate-500 hover:text-white"
+            >
+              <X size={22} />
+            </button>
+            <h2 className="text-2xl font-bold text-white mb-2">{detailsModalWord.term}</h2>
+            <p className="text-slate-400 mb-4 text-lg">{detailsModalWord.definition || detailsModalWord.translation}</p>
+            {/* Enrichment Section */}
+            {(() => {
+              const info = getWordEnrichment(detailsModalWord);
+              if (info.type === 'verb') {
+                return (
+                  <div className="mb-2">
+                    <div className="font-semibold text-blue-400 mb-1">Verb</div>
+                    <div className="text-slate-300 text-sm mb-1">Conjugations: <span className="italic">(coming soon)</span></div>
+                    <div className="text-slate-300 text-sm">Regularity: <span className="italic">{info.regularity}</span></div>
+                  </div>
+                );
+              }
+              if (info.type === 'noun') {
+                return (
+                  <div className="mb-2">
+                    <div className="font-semibold text-pink-400 mb-1">Noun</div>
+                    <div className="text-slate-300 text-sm">Gender: <span className="italic">{info.gender}</span></div>
+                  </div>
+                );
+              }
+              if (info.type === 'adjective') {
+                return (
+                  <div className="mb-2">
+                    <div className="font-semibold text-green-400 mb-1">Adjective</div>
+                    <div className="text-slate-300 text-sm">(More info coming soon)</div>
+                  </div>
+                );
+              }
+              return (
+                <div className="mb-2">
+                  <div className="font-semibold text-slate-400 mb-1">Phrase/Other</div>
+                  <div className="text-slate-300 text-sm">(No extra info)</div>
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
 
