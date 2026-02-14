@@ -2,7 +2,7 @@
 // Server-side endpoint for fetching word information from Lingua Robot API
 // This avoids CORS issues and keeps the API key secure
 
-const API_KEY = process.env.LINGUA_ROBOT_API_KEY || 'b0cb62497emshb7e9ff7dd84d939p1acf82jsnac2aa7ce67ad';
+const API_KEY = 'b0cb62497emshb7e9ff7dd84d939p1acf82jsnac2aa7ce67ad';
 const BASE_URL = 'https://lingua-robot.p.rapidapi.com/language/v1/entries/es';
 
 /**

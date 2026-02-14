@@ -37,4 +37,3 @@ export async function fetchWordInfo(word) {
     throw error;
   }
 }
-}
