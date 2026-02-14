@@ -24,7 +24,9 @@ export async function fetchWordInfo(word) {
     try {
       const err = await res.json();
       if (err && err.message) msg = err.message;
-    } catch {}
+    } catch {
+      // Continue with default error message if JSON parsing fails
+    }
     throw new Error(msg);
   }
   return res.json();

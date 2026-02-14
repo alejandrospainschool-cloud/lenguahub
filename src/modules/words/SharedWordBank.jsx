@@ -218,7 +218,7 @@ export default function WordBank({
         setEnrichedWordInfo(data);
         setEnrichmentLoading(false);
       })
-      .catch(err => {
+      .catch(() => {
         setEnrichmentError('No info found');
         setEnrichmentLoading(false);
       });
