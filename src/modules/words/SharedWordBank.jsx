@@ -213,13 +213,17 @@ export default function WordBank({
     }
     setEnrichmentLoading(true);
     setEnrichmentError(null);
+    console.log('Fetching enrichment for word:', detailsModalWord.term);
+    
     fetchWordInfo(detailsModalWord.term)
       .then(data => {
+        console.log('Enrichment data received:', data);
         setEnrichedWordInfo(data);
         setEnrichmentLoading(false);
       })
-      .catch(() => {
-        setEnrichmentError('No info found');
+      .catch((err) => {
+        console.error('Enrichment fetch error:', err.message);
+        setEnrichmentError(`Error: ${err.message}`);
         setEnrichmentLoading(false);
       });
   }, [detailsModalWord]);
@@ -393,47 +397,68 @@ export default function WordBank({
             <h2 className="text-2xl font-bold text-white mb-2">{detailsModalWord.term}</h2>
             <p className="text-slate-400 mb-4 text-lg">{detailsModalWord.definition || detailsModalWord.translation}</p>
             {/* Enrichment Section */}
-            {enrichmentLoading && <div className="text-slate-400 italic">Loading info...</div>}
-            {enrichmentError && <div className="text-red-400 italic">{enrichmentError}</div>}
-            {enrichedWordInfo && (
-              <div className="mt-2">
+            {enrichmentLoading && <div className="text-slate-400 italic">⏳ Loading word info...</div>}
+            {!enrichmentLoading && enrichmentError && <div className="text-amber-400 italic">⚠️ {enrichmentError}</div>}
+            {!enrichmentLoading && enrichedWordInfo && (
+              <div className="mt-4 pt-4 border-t border-slate-700">
+                {enrichedWordInfo.fallback && (
+                  <div className="text-slate-400 text-xs mb-2 italic">Using basic enrichment (API unavailable)</div>
+                )}
                 {enrichedWordInfo.entries && enrichedWordInfo.entries.length > 0 ? (
                   enrichedWordInfo.entries.map((entry, idx) => (
-                    <div key={idx} className="mb-4">
-                      <div className="font-semibold text-blue-400 mb-1 capitalize">{entry.partOfSpeech || 'Word'}</div>
-                      {entry.inflections && entry.inflections.length > 0 && (
-                        <div className="text-slate-300 text-sm mb-1">Inflections: {entry.inflections.map(i => i.value).join(', ')}</div>
-                      )}
-                      {entry.genders && entry.genders.length > 0 && (
-                        <div className="text-slate-300 text-sm mb-1">Gender: {entry.genders.join(', ')}</div>
+                    <div key={idx} className="space-y-3">
+                      {entry.partOfSpeech && (
+                        <div className="text-blue-400 font-semibold capitalize text-sm">{entry.partOfSpeech}</div>
                       )}
                       {entry.definitions && entry.definitions.length > 0 && (
-                        <div className="text-slate-300 text-sm mb-1">Definition: {entry.definitions[0].text}</div>
-                      )}
-                      {entry.conjugations && (
-                        <div className="overflow-x-auto mt-2">
-                          <table className="min-w-full text-xs text-slate-200 border border-slate-700 rounded-xl">
-                            <thead>
-                              <tr>
-                                <th className="px-2 py-1 border-b border-slate-700">Tense</th>
-                                <th className="px-2 py-1 border-b border-slate-700">Form</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {Object.entries(entry.conjugations).map(([tense, forms]) => (
-                                <tr key={tense}>
-                                  <td className="px-2 py-1 border-b border-slate-800 font-semibold">{tense}</td>
-                                  <td className="px-2 py-1 border-b border-slate-800">{Array.isArray(forms) ? forms.join(', ') : forms}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        <div>
+                          <div className="text-slate-300 text-sm">
+                            {entry.definitions.map((def, i) => (
+                              <div key={i}>• {def.text || def}</div>
+                            ))}
+                          </div>
                         </div>
+                      )}
+                      {entry.inflections && entry.inflections.length > 0 && (
+                        <div className="text-slate-300 text-xs">
+                          <span className="font-semibold">Inflections:</span> {Array.isArray(entry.inflections) ? entry.inflections.map(i => i.value || i).join(', ') : entry.inflections}
+                        </div>
+                      )}
+                      {entry.genders && entry.genders.length > 0 && (
+                        <div className="text-slate-300 text-xs">
+                          <span className="font-semibold">Gender:</span> {entry.genders.join(', ')}
+                        </div>
+                      )}
+                      {entry.conjugations && Object.keys(entry.conjugations).length > 0 && !entry.conjugations.note && (
+                        <div className="mt-3">
+                          <div className="text-slate-300 text-xs font-semibold mb-2">Conjugations:</div>
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full text-xs text-slate-200 bg-slate-900/50 rounded border border-slate-700">
+                              <thead className="border-b border-slate-700">
+                                <tr>
+                                  <th className="px-2 py-1 text-left">Tense</th>
+                                  <th className="px-2 py-1 text-left">Form</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Object.entries(entry.conjugations).map(([tense, forms]) => (
+                                  <tr key={tense} className="border-b border-slate-800">
+                                    <td className="px-2 py-1 font-semibold capitalize">{tense}</td>
+                                    <td className="px-2 py-1">{Array.isArray(forms) ? forms.join(', ') : String(forms)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                      {entry.conjugations && entry.conjugations.note && (
+                        <div className="text-slate-400 text-xs italic">{entry.conjugations.note}</div>
                       )}
                     </div>
                   ))
                 ) : (
-                  <div className="text-slate-400 italic">No enrichment info found.</div>
+                  <div className="text-slate-400 italic text-sm">No specific enrichment found. Add your own definition above.</div>
                 )}
               </div>
             )}
