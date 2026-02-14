@@ -86,6 +86,21 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { word } = req.query;
+
+  // Debug: list available models
+  if (word === '__list_models__') {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const data = await resp.json();
+      const resp2 = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
+      const data2 = await resp2.json();
+      return res.status(200).json({ v1beta: data, v1: data2 });
+    } catch (e) {
+      return res.status(200).json({ error: e.message });
+    }
+  }
+
   if (!word || !word.trim()) {
     return res.status(400).json({ error: 'Word parameter required' });
   }
