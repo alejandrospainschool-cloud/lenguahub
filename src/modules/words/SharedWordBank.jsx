@@ -136,46 +136,69 @@ function WordDetailModal({ word, onClose, onEnrich }) {
     if (word.enrichment) setLocalEnrichment(word.enrichment)
   }, [word.enrichment])
 
-  const entry = localEnrichment?.entries?.[0]
-  const hasConj = entry?.conjugations && Object.keys(entry.conjugations).length > 0
-  const hasExamples = entry?.tenseExamples?.length > 0 || entry?.definitions?.some(d => d.examples?.length > 0)
+  const entry = localEnrichment?.entries?.[0] || null
+  const hasConj = entry?.conjugations && typeof entry.conjugations === 'object' &&
+    Object.keys(entry.conjugations).length > 0 &&
+    Object.values(entry.conjugations).some(v => Array.isArray(v) && v.length > 0)
+  const hasExamples = (entry?.tenseExamples?.length > 0) ||
+    entry?.definitions?.some(d => Array.isArray(d.examples) && d.examples.length > 0)
 
-  // Auto-fetch enrichment if missing (runs once per modal open)
+  // Fetch with timeout helper
+  const doLookup = useCallback(async () => {
+    if (!word.term) return
+    setEnriching(true)
+    setEnrichError(null)
+    try {
+      // Race between fetch and 12s timeout
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 12000)
+
+      const res = await fetch(`/api/wordinfo?word=${encodeURIComponent(word.term.trim().toLowerCase())}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      const data = await res.json()
+
+      if (data?.entries?.length > 0) {
+        setLocalEnrichment(data)
+        // Fire-and-forget persist to Firestore
+        try { onEnrich(word.id, data) } catch (e) { console.error('Persist enrichment:', e) }
+      } else {
+        setEnrichError('No data returned for this word')
+      }
+    } catch (err) {
+      const msg = err.name === 'AbortError' ? 'Request timed out' : (err.message || 'Lookup failed')
+      console.error('Word lookup failed:', msg)
+      setEnrichError(msg)
+    } finally {
+      setEnriching(false)
+    }
+  }, [word.id, word.term, onEnrich])
+
+  // Auto-fetch enrichment on open (once)
   useEffect(() => {
     if (localEnrichment || enrichAttempted.current) return
-    if (!word.term) return
     enrichAttempted.current = true
-    let cancelled = false
+    doLookup()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const doEnrich = async () => {
-      setEnriching(true)
-      setEnrichError(null)
-      try {
-        const data = await fetchWordInfo(word.term)
-        if (cancelled) return
-        if (data?.entries) {
-          setLocalEnrichment(data)
-          onEnrich(word.id, data)
-        } else {
-          setEnrichError('No data returned')
-        }
-      } catch (err) {
-        console.error('Auto-enrich failed:', err)
-        if (!cancelled) setEnrichError(err.message || 'Lookup failed')
-      } finally {
-        if (!cancelled) setEnriching(false)
-      }
-    }
-
-    doEnrich()
-    return () => { cancelled = true }
-  }, [word.id, word.term]) // eslint-disable-line react-hooks/exhaustive-deps
+  const handleRetry = () => {
+    enrichAttempted.current = true
+    setLocalEnrichment(null)
+    setEnrichError(null)
+    doLookup()
+  }
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <BookOpen size={14} /> },
     ...(hasConj ? [{ id: 'conjugations', label: 'Conjugations', icon: <Languages size={14} /> }] : []),
     ...(hasExamples ? [{ id: 'examples', label: 'Examples', icon: <MessageSquareText size={14} /> }] : []),
   ]
+
+  // Basic info from the saved word (always available even without enrichment)
+  const savedDefinition = word.primaryDefinition || word.definition || word.translation || ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
@@ -198,6 +221,10 @@ function WordDetailModal({ word, onClose, onEnrich }) {
             </div>
             <div className="min-w-0">
               <h2 className="text-2xl font-black text-white tracking-tight leading-tight">{word.term}</h2>
+              {/* Always show saved definition under title */}
+              {savedDefinition && !entry && (
+                <p className="text-slate-400 text-sm mt-1">{savedDefinition}</p>
+              )}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {entry && <PosBadge pos={entry.partOfSpeech} />}
                 {entry?.gender && (
@@ -222,34 +249,37 @@ function WordDetailModal({ word, onClose, onEnrich }) {
 
         {/* Body */}
         <div className="p-6 overflow-y-auto flex-1 min-h-0">
-          {/* Loading state */}
+          {/* Loading indicator (compact, doesn't block content) */}
           {enriching && (
-            <div className="flex flex-col items-center gap-3 text-slate-400 py-12">
-              <Loader2 size={24} className="animate-spin text-blue-400" />
-              <span className="text-sm">Looking up word information...</span>
+            <div className="flex items-center gap-3 text-slate-400 py-3 px-4 mb-4 bg-slate-900/40 rounded-2xl border border-white/5">
+              <Loader2 size={14} className="animate-spin text-blue-400 shrink-0" />
+              <span className="text-xs">Looking up detailed info...</span>
             </div>
           )}
 
-          {/* No data fallback */}
-          {!enriching && !entry && (
-            <div className="text-center py-12">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
-                <BookOpen size={24} className="text-slate-600" />
-              </div>
-              {enrichError && <p className="text-amber-400 text-sm mb-2">Could not look up this word: {enrichError}</p>}
-              <p className="text-slate-400 text-sm mb-1">{word.primaryDefinition || word.definition || word.translation || ''}</p>
-              <p className="text-slate-600 text-xs">Detailed information unavailable</p>
+          {/* Error state */}
+          {!enriching && enrichError && (
+            <div className="flex items-center justify-between gap-3 py-3 px-4 mb-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
+              <span className="text-amber-300 text-xs">{enrichError}</span>
               <button
-                onClick={() => { enrichAttempted.current = false; setLocalEnrichment(null); setEnrichError(null) }}
-                className="mt-3 text-blue-400 hover:text-blue-300 text-xs font-bold transition-colors"
+                onClick={handleRetry}
+                className="text-blue-400 hover:text-blue-300 text-xs font-bold transition-colors shrink-0"
               >
-                Retry Lookup
+                Retry
               </button>
             </div>
           )}
 
+          {/* Show saved definition when no enrichment data yet */}
+          {!entry && savedDefinition && (
+            <div className="mb-4">
+              <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Saved Definition</h3>
+              <p className="text-slate-200 text-sm">{savedDefinition}</p>
+            </div>
+          )}
+
           {/* OVERVIEW TAB */}
-          {!enriching && entry && tab === 'overview' && (
+          {entry && tab === 'overview' && (
             <div className="space-y-6">
               {/* Definitions */}
               {entry.definitions?.length > 0 && (
@@ -313,12 +343,12 @@ function WordDetailModal({ word, onClose, onEnrich }) {
           )}
 
           {/* CONJUGATIONS TAB */}
-          {!enriching && entry && tab === 'conjugations' && hasConj && (
+          {entry && tab === 'conjugations' && hasConj && (
             <ConjugationTable conjugations={entry.conjugations} />
           )}
 
           {/* EXAMPLES TAB */}
-          {!enriching && entry && tab === 'examples' && (
+          {entry && tab === 'examples' && (
             <div className="space-y-4">
               {/* Tense examples */}
               {entry.tenseExamples?.length > 0 && (
