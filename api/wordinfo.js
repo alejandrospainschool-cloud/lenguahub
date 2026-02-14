@@ -1,84 +1,186 @@
 // api/wordinfo.js
-// Serverless endpoint for Spanish word lookup using Google Generative AI SDK
+// Spanish word lookup using Wiktionary (definitions) + spanish-verbs (conjugations)
+// No API key needed — fully free & reliable
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import spanishVerbs from 'spanish-verbs';
 
-// Each entry: [modelName, apiVersion]
-const MODEL_CONFIGS = [
-  ['gemini-2.0-flash', 'v1beta'],
-  ['gemini-2.0-flash', 'v1'],
-  ['gemini-1.5-flash', 'v1beta'],
-  ['gemini-1.5-flash', 'v1'],
-  ['gemini-1.5-flash-latest', 'v1beta'],
-  ['gemini-1.5-flash-latest', 'v1'],
-  ['gemini-pro', 'v1beta'],
-  ['gemini-pro', 'v1'],
-  ['gemini-1.0-pro', 'v1beta'],
-  ['gemini-1.0-pro', 'v1'],
+const { getConjugation } = spanishVerbs;
+
+// ─── Conjugation helpers ───────────────────────────────────────────────
+
+const PERSON_LABELS = [
+  'yo', 'tú', 'él/ella/usted', 'nosotros', 'vosotros', 'ellos/ellas/ustedes',
 ];
 
-function buildPrompt(word) {
-  return `You are a precise Spanish-English dictionary API. Given the Spanish word "${word}", return a single JSON object with comprehensive linguistic information.
+const TENSE_MAP = {
+  'Presente':              'INDICATIVE_PRESENT',
+  'Pretérito Indefinido':  'INDICATIVE_PRETERITE',
+  'Pretérito Imperfecto':  'INDICATIVE_IMPERFECT',
+  'Futuro Simple':         'INDICATIVE_FUTURE',
+  'Condicional':           'CONDITIONAL_PRESENT',
+  'Subjuntivo Presente':   'SUBJUNCTIVE_PRESENT',
+};
 
-Return this EXACT JSON structure (no markdown, no backticks, just raw JSON):
-{
-  "word": "${word}",
-  "partOfSpeech": "verb|noun|adjective|adverb|pronoun|preposition|conjunction|interjection|phrase",
-  "gender": "masculine|feminine|null",
-  "article": "el|la|los|las|null",
-  "isIrregular": true or false (only for verbs),
-  "definitions": [
-    { "text": "English definition", "examples": [{ "spanish": "Example sentence", "english": "Translation" }] }
-  ],
-  "conjugations": {
-    "Presente": [
-      { "person": "yo", "form": "..." },
-      { "person": "tú", "form": "..." },
-      { "person": "él/ella/usted", "form": "..." },
-      { "person": "nosotros", "form": "..." },
-      { "person": "vosotros", "form": "..." },
-      { "person": "ellos/ellas/ustedes", "form": "..." }
-    ],
-    "Pretérito Indefinido": [ same structure ],
-    "Pretérito Imperfecto": [ same structure ],
-    "Futuro Simple": [ same structure ],
-    "Condicional": [ same structure ],
-    "Subjuntivo Presente": [ same structure ]
-  },
-  "tenseExamples": [
-    { "tense": "Presente", "spanish": "Sentence in present", "english": "Translation" },
-    { "tense": "Pretérito", "spanish": "Sentence in past", "english": "Translation" },
-    { "tense": "Futuro", "spanish": "Sentence in future", "english": "Translation" }
-  ],
-  "synonyms": ["synonym1", "synonym2"],
-  "antonyms": ["antonym1"]
+function conjugateVerb(infinitive) {
+  const tables = {};
+  let anySuccess = false;
+
+  for (const [label, libTense] of Object.entries(TENSE_MAP)) {
+    const forms = [];
+    for (let p = 0; p < 6; p++) {
+      try {
+        const form = getConjugation(infinitive, libTense, p);
+        forms.push({ person: PERSON_LABELS[p], form });
+      } catch {
+        forms.push({ person: PERSON_LABELS[p], form: '—' });
+      }
+    }
+    if (forms.some(f => f.form !== '—')) {
+      tables[label] = forms;
+      anySuccess = true;
+    }
+  }
+
+  return anySuccess ? tables : null;
 }
 
-RULES:
-- "conjugations" ONLY for verbs. null for other parts of speech.
-- "gender" and "article" ONLY for nouns. null for others.
-- "isIrregular" ONLY for verbs. null for others.
-- For reflexive verbs, show reflexive forms (me levanto, te levantas...).
-- Always include 3 "tenseExamples" (present, past, future).
-- Include 1-3 definitions with 1-2 example sentences each.
-- If the word is not Spanish, set partOfSpeech to "unknown".
-- ALL conjugations must be accurate.
-- Return ONLY valid JSON.`;
+// ─── Wiktionary helpers ────────────────────────────────────────────────
+
+function stripHtml(html) {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-function makeEmptyEntry(word, errorMsg) {
-  return {
-    word,
-    success: false,
-    debugError: errorMsg || null,
-    entries: [{
-      partOfSpeech: 'unknown',
-      definitions: [{ text: 'Could not look up "' + word + '". Please try again.', examples: [] }],
-      conjugations: null, tenseExamples: [], synonyms: [], antonyms: [],
-      gender: null, article: null, isIrregular: null,
-    }],
-  };
+async function fetchWiktionary(word) {
+  const url = `https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(word)}`;
+  const resp = await fetch(url, {
+    headers: { 'Accept': 'application/json', 'User-Agent': 'LenguaHub/1.0' },
+  });
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  const esEntries = data.es || data.ES || [];
+  return esEntries.length > 0 ? esEntries : null;
 }
+
+function parseWiktionaryEntries(esEntries, word) {
+  const results = [];
+
+  for (const entry of esEntries) {
+    const pos = (entry.partOfSpeech || 'unknown').toLowerCase();
+
+    // Skip entries that are just conjugated forms of another verb
+    const isVerbForm = pos === 'verb' &&
+      entry.definitions?.length <= 2 &&
+      entry.definitions?.every(d => d.definition && /form-of-definition/.test(d.definition));
+    if (isVerbForm) continue;
+
+    const definitions = [];
+    for (const defn of (entry.definitions || [])) {
+      const text = stripHtml(defn.definition);
+      if (!text || /form-of-definition/.test(defn.definition)) continue;
+
+      const examples = [];
+      if (defn.parsedExamples) {
+        for (const ex of defn.parsedExamples) {
+          examples.push({
+            spanish: stripHtml(ex.example),
+            english: stripHtml(ex.translation || ''),
+          });
+        }
+      }
+      definitions.push({ text, examples });
+    }
+
+    if (definitions.length === 0) continue;
+
+    // Detect gender for nouns
+    let gender = null;
+    let article = null;
+    if (pos === 'noun') {
+      const rawPos = entry.partOfSpeech || '';
+      if (/feminine/i.test(rawPos)) { gender = 'feminine'; article = 'la'; }
+      else if (/masculine/i.test(rawPos)) { gender = 'masculine'; article = 'el'; }
+      else {
+        if (word.endsWith('a') || word.endsWith('ión') || word.endsWith('dad') || word.endsWith('tud')) {
+          gender = 'feminine'; article = 'la';
+        } else if (word.endsWith('o') || word.endsWith('or') || word.endsWith('aje')) {
+          gender = 'masculine'; article = 'el';
+        }
+      }
+    }
+
+    // Get conjugations for verbs
+    let conjugations = null;
+    let isIrregular = null;
+    if (pos === 'verb') {
+      let infinitive = word;
+      if (word.endsWith('se')) infinitive = word.slice(0, -2);
+      conjugations = conjugateVerb(infinitive);
+
+      if (conjugations) {
+        try {
+          const yo = getConjugation(infinitive, 'INDICATIVE_PRESENT', 0);
+          const stem = infinitive.replace(/(ar|er|ir)$/, '');
+          isIrregular = yo !== stem + 'o';
+        } catch { isIrregular = null; }
+      }
+    }
+
+    // Build tense examples
+    const tenseExamples = [];
+
+    // For verbs, generate tense-specific examples from conjugations
+    if (pos === 'verb' && conjugations) {
+      const inf = word.endsWith('se') ? word.slice(0, -2) : word;
+      try {
+        const pr = getConjugation(inf, 'INDICATIVE_PRESENT', 0);
+        tenseExamples.push({ tense: 'Presente', spanish: `Yo ${pr} todos los días.`, english: '(Present tense)' });
+      } catch { /* skip */ }
+      try {
+        const pt = getConjugation(inf, 'INDICATIVE_PRETERITE', 0);
+        tenseExamples.push({ tense: 'Pretérito', spanish: `Yo ${pt} ayer.`, english: '(Past tense)' });
+      } catch { /* skip */ }
+      try {
+        const ft = getConjugation(inf, 'INDICATIVE_FUTURE', 0);
+        tenseExamples.push({ tense: 'Futuro', spanish: `Yo ${ft} mañana.`, english: '(Future tense)' });
+      } catch { /* skip */ }
+    }
+
+    // Add Wiktionary examples
+    const allExamples = definitions.flatMap(d => d.examples).filter(e => e.spanish);
+    for (let i = 0; i < Math.min(3, allExamples.length); i++) {
+      tenseExamples.push({
+        tense: `Ejemplo ${i + 1}`,
+        spanish: allExamples[i].spanish,
+        english: allExamples[i].english,
+      });
+    }
+
+    results.push({
+      partOfSpeech: pos,
+      definitions,
+      conjugations,
+      tenseExamples,
+      synonyms: [],
+      antonyms: [],
+      gender,
+      article,
+      isIrregular,
+    });
+  }
+
+  return results;
+}
+
+// ─── Handler ───────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -86,104 +188,68 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { word } = req.query;
-
   if (!word || !word.trim()) {
     return res.status(400).json({ error: 'Word parameter required' });
   }
 
   const cleanWord = word.trim().toLowerCase();
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    return res.status(200).json(makeEmptyEntry(cleanWord, 'GEMINI_API_KEY not configured'));
-  }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const prompt = buildPrompt(cleanWord);
-    let rawText = '';
-    let lastError = '';
+    const esEntries = await fetchWiktionary(cleanWord);
 
-    // Try each model/version combo
-    for (const [modelName, apiVersion] of MODEL_CONFIGS) {
-      try {
-        console.log('[wordinfo] Trying model:', modelName, 'version:', apiVersion);
-        const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion });
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        rawText = response.text() || '';
-        if (rawText) {
-          console.log('[wordinfo] Model', modelName, 'returned', rawText.length, 'chars');
-          break;
-        }
-        lastError = 'Empty response from ' + modelName + '/' + apiVersion;
-      } catch (modelErr) {
-        lastError = modelErr.message || String(modelErr);
-        console.error('[wordinfo] Model', modelName, '/', apiVersion, 'failed:', lastError);
+    if (!esEntries) {
+      // Word not found in Wiktionary — try it as a verb anyway
+      const conjugations = conjugateVerb(cleanWord);
+      if (conjugations) {
+        return res.status(200).json({
+          word: cleanWord, success: true,
+          entries: [{
+            partOfSpeech: 'verb',
+            definitions: [{ text: '(Conjugation available — definition not found in dictionary)', examples: [] }],
+            conjugations, tenseExamples: [], synonyms: [], antonyms: [],
+            gender: null, article: null, isIrregular: null,
+          }],
+        });
       }
+
+      return res.status(200).json({
+        word: cleanWord, success: false,
+        entries: [{
+          partOfSpeech: 'unknown',
+          definitions: [{ text: `"${cleanWord}" was not found. Check spelling and try again.`, examples: [] }],
+          conjugations: null, tenseExamples: [], synonyms: [], antonyms: [],
+          gender: null, article: null, isIrregular: null,
+        }],
+      });
     }
 
-    if (!rawText) {
-      return res.status(200).json(makeEmptyEntry(cleanWord, lastError));
+    const entries = parseWiktionaryEntries(esEntries, cleanWord);
+
+    if (entries.length === 0) {
+      return res.status(200).json({
+        word: cleanWord, success: false,
+        entries: [{
+          partOfSpeech: 'unknown',
+          definitions: [{ text: `"${cleanWord}" — no Spanish definitions found.`, examples: [] }],
+          conjugations: null, tenseExamples: [], synonyms: [], antonyms: [],
+          gender: null, article: null, isIrregular: null,
+        }],
+      });
     }
 
-    // Parse JSON from response (may be wrapped in markdown code blocks)
-    let parsed;
-    try {
-      // Strip markdown code fences if present
-      let jsonStr = rawText.trim();
-      if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
-      }
-      parsed = JSON.parse(jsonStr);
-    } catch (parseErr) {
-      // Try extracting JSON object from text
-      const match = rawText.match(/\{[\s\S]*\}/);
-      if (match) {
-        try {
-          parsed = JSON.parse(match[0]);
-        } catch {
-          return res.status(200).json(makeEmptyEntry(cleanWord, 'JSON parse error: ' + parseErr.message));
-        }
-      } else {
-        return res.status(200).json(makeEmptyEntry(cleanWord, 'No JSON in response'));
-      }
-    }
+    console.log('[wordinfo]', cleanWord, '→', entries.map(e => e.partOfSpeech).join(', '));
+    return res.status(200).json({ word: cleanWord, success: true, entries });
 
-    // Normalize response
-    const entry = {
-      partOfSpeech: parsed.partOfSpeech || 'unknown',
-      definitions: Array.isArray(parsed.definitions) ? parsed.definitions.map(d => ({
-        text: d.text || '', examples: Array.isArray(d.examples) ? d.examples.map(ex => ({
-          spanish: ex.spanish || '', english: ex.english || '',
-        })) : [],
-      })) : [],
-      conjugations: null,
-      tenseExamples: Array.isArray(parsed.tenseExamples) ? parsed.tenseExamples.map(ex => ({
-        tense: ex.tense || '', spanish: ex.spanish || '', english: ex.english || '',
-      })) : [],
-      synonyms: Array.isArray(parsed.synonyms) ? parsed.synonyms : [],
-      antonyms: Array.isArray(parsed.antonyms) ? parsed.antonyms : [],
-      gender: parsed.gender || null,
-      article: parsed.article || null,
-      isIrregular: parsed.isIrregular ?? null,
-    };
-
-    // Validate conjugations
-    if (parsed.conjugations && typeof parsed.conjugations === 'object') {
-      const valid = {};
-      for (const [tense, forms] of Object.entries(parsed.conjugations)) {
-        if (Array.isArray(forms) && forms.length > 0) {
-          valid[tense] = forms.map(f => ({ person: f.person || '', form: f.form || '' }));
-        }
-      }
-      if (Object.keys(valid).length > 0) entry.conjugations = valid;
-    }
-
-    console.log('[wordinfo] Success:', cleanWord, '->', entry.partOfSpeech);
-    return res.status(200).json({ word: parsed.word || cleanWord, success: true, entries: [entry] });
   } catch (error) {
-    console.error('[wordinfo] Error:', error.message);
-    return res.status(200).json(makeEmptyEntry(cleanWord, error.message));
+    console.error('[wordinfo] Error:', error);
+    return res.status(200).json({
+      word: cleanWord, success: false, debugError: error.message,
+      entries: [{
+        partOfSpeech: 'unknown',
+        definitions: [{ text: `Error looking up "${cleanWord}". Please try again.`, examples: [] }],
+        conjugations: null, tenseExamples: [], synonyms: [], antonyms: [],
+        gender: null, article: null, isIrregular: null,
+      }],
+    });
   }
 }
