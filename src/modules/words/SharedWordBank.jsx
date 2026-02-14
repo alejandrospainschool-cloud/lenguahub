@@ -1,8 +1,6 @@
 // src/modules/words/SharedWordBank.jsx
 import React, { useState, useMemo, useEffect } from 'react'
-// For enrichment, we'll use a placeholder util for now
-// Later, integrate a real Spanish linguistic/conjugation library
-// import { getWordInfo } from '../../lib/spanishLinguistics';
+import verbo from 'verbo';
 import {
   Plus,
   Search,
@@ -201,16 +199,27 @@ export default function SharedWordBank({
     return searchTerm ? matchesSearch : matchesFolder
   })
 
-  // --- WORD ENRICHMENT LOGIC (placeholder) ---
-  // This will be replaced with a real linguistic library/API
+  // --- WORD ENRICHMENT LOGIC (with verbo) ---
   function getWordEnrichment(word) {
-    // Simple heuristics for Spanish
     const term = word.term?.trim().toLowerCase();
     // Verb detection: ends with -ar, -er, -ir
     if (/^(\w+)(ar|er|ir)$/.test(term)) {
+      try {
+        const conj = verbo.conjugate(term);
+        // verbo returns null if not a verb
+        if (conj) {
+          // Try to detect regularity (verbo does not always provide this)
+          const isRegular = conj.isRegular !== undefined ? conj.isRegular : 'unknown';
+          return {
+            type: 'verb',
+            regularity: isRegular === true ? 'regular' : isRegular === false ? 'irregular' : 'unknown',
+            conjugations: conj,
+          };
+        }
+      } catch (e) {}
+      // fallback if verbo fails
       return {
         type: 'verb',
-        // Placeholder: real conjugations will be fetched later
         regularity: 'unknown',
         conjugations: null,
       };
@@ -413,8 +422,42 @@ export default function SharedWordBank({
                 return (
                   <div className="mb-2">
                     <div className="font-semibold text-blue-400 mb-1">Verb</div>
-                    <div className="text-slate-300 text-sm mb-1">Conjugations: <span className="italic">(coming soon)</span></div>
-                    <div className="text-slate-300 text-sm">Regularity: <span className="italic">{info.regularity}</span></div>
+                    <div className="text-slate-300 text-sm mb-1">Regularity: <span className="italic">{info.regularity}</span></div>
+                    {info.conjugations ? (
+                      <div className="mt-2">
+                        <div className="font-semibold text-slate-200 mb-1">Conjugations:</div>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-xs text-slate-200 border border-slate-700 rounded-xl">
+                            <thead>
+                              <tr>
+                                <th className="px-2 py-1 border-b border-slate-700">Tense</th>
+                                <th className="px-2 py-1 border-b border-slate-700">yo</th>
+                                <th className="px-2 py-1 border-b border-slate-700">tú</th>
+                                <th className="px-2 py-1 border-b border-slate-700">él/ella</th>
+                                <th className="px-2 py-1 border-b border-slate-700">nosotros</th>
+                                <th className="px-2 py-1 border-b border-slate-700">vosotros</th>
+                                <th className="px-2 py-1 border-b border-slate-700">ellos/ellas</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Object.entries(info.conjugations.indicative || {}).map(([tense, forms]) => (
+                                <tr key={tense}>
+                                  <td className="px-2 py-1 border-b border-slate-800 font-semibold">{tense}</td>
+                                  <td className="px-2 py-1 border-b border-slate-800">{forms.yo || '-'}</td>
+                                  <td className="px-2 py-1 border-b border-slate-800">{forms.tu || '-'}</td>
+                                  <td className="px-2 py-1 border-b border-slate-800">{forms.el || '-'}</td>
+                                  <td className="px-2 py-1 border-b border-slate-800">{forms.nosotros || '-'}</td>
+                                  <td className="px-2 py-1 border-b border-slate-800">{forms.vosotros || '-'}</td>
+                                  <td className="px-2 py-1 border-b border-slate-800">{forms.ellos || '-'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-slate-400 text-xs italic">No conjugation data available.</div>
+                    )}
                   </div>
                 );
               }
