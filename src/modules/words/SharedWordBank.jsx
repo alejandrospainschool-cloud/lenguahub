@@ -218,12 +218,17 @@ export default function WordBank({
     fetchWordInfo(detailsModalWord.term)
       .then(data => {
         console.log('Enrichment data received:', data);
-        setEnrichedWordInfo(data);
+        // Check if we got valid data
+        if (data.entries && data.entries.length > 0 && data.entries[0].definitions && data.entries[0].definitions.length > 0) {
+          setEnrichedWordInfo(data);
+        } else {
+          setEnrichmentError('No detailed information available');
+        }
         setEnrichmentLoading(false);
       })
       .catch((err) => {
         console.error('Enrichment fetch error:', err.message);
-        setEnrichmentError(`Error: ${err.message}`);
+        setEnrichmentError(`Unable to load: ${err.message}`);
         setEnrichmentLoading(false);
       });
   }, [detailsModalWord]);
@@ -401,15 +406,28 @@ export default function WordBank({
             {!enrichmentLoading && enrichmentError && <div className="text-amber-400 italic">⚠️ {enrichmentError}</div>}
             {!enrichmentLoading && enrichedWordInfo && (
               <div className="mt-4 pt-4 border-t border-slate-700">
-                {enrichedWordInfo.fallback && (
-                  <div className="text-slate-400 text-xs mb-2 italic">Using basic enrichment (API unavailable)</div>
-                )}
                 {enrichedWordInfo.entries && enrichedWordInfo.entries.length > 0 ? (
                   enrichedWordInfo.entries.map((entry, idx) => (
                     <div key={idx} className="space-y-3">
-                      {entry.partOfSpeech && (
-                        <div className="text-blue-400 font-semibold capitalize text-sm">{entry.partOfSpeech}</div>
+                      {/* Part of Speech & Type */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-400 font-semibold capitalize text-sm">{entry.partOfSpeech}</span>
+                        {entry.partOfSpeechDetail && (
+                          <span className="text-slate-400 text-xs">({entry.partOfSpeechDetail})</span>
+                        )}
+                        {entry.irregular && (
+                          <span className="text-orange-400 text-xs font-semibold">• IRREGULAR</span>
+                        )}
+                      </div>
+                      
+                      {/* Gender */}
+                      {entry.genders && entry.genders.length > 0 && (
+                        <div className="text-slate-300 text-xs">
+                          <span className="font-semibold">Gender:</span> {entry.genders.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(', ')}
+                        </div>
                       )}
+                      
+                      {/* Definitions */}
                       {entry.definitions && entry.definitions.length > 0 && (
                         <div>
                           <div className="text-slate-300 text-sm">
@@ -419,32 +437,35 @@ export default function WordBank({
                           </div>
                         </div>
                       )}
+                      
+                      {/* Inflections */}
                       {entry.inflections && entry.inflections.length > 0 && (
                         <div className="text-slate-300 text-xs">
                           <span className="font-semibold">Inflections:</span> {Array.isArray(entry.inflections) ? entry.inflections.map(i => i.value || i).join(', ') : entry.inflections}
                         </div>
                       )}
-                      {entry.genders && entry.genders.length > 0 && (
-                        <div className="text-slate-300 text-xs">
-                          <span className="font-semibold">Gender:</span> {entry.genders.join(', ')}
-                        </div>
-                      )}
-                      {entry.conjugations && Object.keys(entry.conjugations).length > 0 && !entry.conjugations.note && (
+                      
+                      {/* Conjugations Table */}
+                      {entry.conjugations && Object.keys(entry.conjugations).length > 0 && (
                         <div className="mt-3">
                           <div className="text-slate-300 text-xs font-semibold mb-2">Conjugations:</div>
                           <div className="overflow-x-auto">
                             <table className="min-w-full text-xs text-slate-200 bg-slate-900/50 rounded border border-slate-700">
-                              <thead className="border-b border-slate-700">
+                              <thead className="border-b border-slate-600 bg-slate-800/50">
                                 <tr>
-                                  <th className="px-2 py-1 text-left">Tense</th>
-                                  <th className="px-2 py-1 text-left">Form</th>
+                                  <th className="px-2 py-1.5 text-left font-semibold">Tense</th>
+                                  <th className="px-2 py-1.5 text-left font-semibold">Conjugation</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {Object.entries(entry.conjugations).map(([tense, forms]) => (
-                                  <tr key={tense} className="border-b border-slate-800">
-                                    <td className="px-2 py-1 font-semibold capitalize">{tense}</td>
-                                    <td className="px-2 py-1">{Array.isArray(forms) ? forms.join(', ') : String(forms)}</td>
+                                  <tr key={tense} className="border-b border-slate-800 hover:bg-slate-800/30">
+                                    <td className="px-2 py-1.5 font-semibold text-slate-100">{tense}</td>
+                                    <td className="px-2 py-1.5 text-slate-300">
+                                      {Array.isArray(forms) 
+                                        ? forms.join(' • ') 
+                                        : String(forms)}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -452,13 +473,10 @@ export default function WordBank({
                           </div>
                         </div>
                       )}
-                      {entry.conjugations && entry.conjugations.note && (
-                        <div className="text-slate-400 text-xs italic">{entry.conjugations.note}</div>
-                      )}
                     </div>
                   ))
                 ) : (
-                  <div className="text-slate-400 italic text-sm">No specific enrichment found. Add your own definition above.</div>
+                  <div className="text-slate-400 italic text-sm">No enrichment data found for this word.</div>
                 )}
               </div>
             )}

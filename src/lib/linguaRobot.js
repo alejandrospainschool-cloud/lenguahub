@@ -1,6 +1,6 @@
 // src/lib/linguaRobot.js
 // Utility for fetching word info via the backend API endpoint
-// The backend handles calling Lingua Robot API and provides fallback data
+// The backend handles calling Lingua Robot API and provides database fallback data
 
 /**
  * Fetches word info from the backend endpoint (which calls Lingua Robot API)
@@ -26,9 +26,21 @@ export async function fetchWordInfo(word) {
     console.log('[linguaRobot] Success! Data:', data);
 
     // Validate response has entries
-    if (!data.entries || !Array.isArray(data.entries) || data.entries.length === 0) {
-      console.warn('[linguaRobot] No entries found in response');
+    if (!data.entries || !Array.isArray(data.entries)) {
+      console.warn('[linguaRobot] No entries array in response');
       throw new Error('No entries in response');
+    }
+
+    if (data.entries.length === 0) {
+      console.warn('[linguaRobot] Entries array is empty');
+      throw new Error('No entries found');
+    }
+
+    // Log if data came from database
+    if (data.success === true) {
+      console.log('[linguaRobot] ✓ Data from Spanish word database');
+    } else if (data.success === false) {
+      console.log('[linguaRobot] ⚠ Data not found in database or API');
     }
 
     return data;
