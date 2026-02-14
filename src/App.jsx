@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
 // Icons
@@ -66,9 +66,6 @@ function MainContent() {
   const [isGuest, setIsGuest] = useState(false)
   const [onboardingCompleted, setOnboardingCompleted] = useState(false)
   const [checkingOnboarding, setCheckingOnboarding] = useState(true)
-  const [showDailyWelcome, setShowDailyWelcome] = useState(false)
-  const [userStats, setUserStats] = useState(null)
-  const [words, setWords] = useState([])
 
   useEffect(() => {
     let unsubRole = null
@@ -210,33 +207,29 @@ function StudentLayout({ user, isGuest }) {
   const [words, setWords] = useState([])
   const [events, setEvents] = useState([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [showDailyWelcome, setShowDailyWelcome] = useState(false)
-  const [streakCount, setStreakCount] = useState(0)
+  const [dismissedDailyWelcomeKey, setDismissedDailyWelcomeKey] = useState('')
   const location = useLocation()
 
   // FREEMIUM STATE
   const [isPremium, setIsPremium] = useState(false)
   const [dailyUsage, setDailyUsage] = useState(getEmptyUsage())
 
-  // Check if should show daily welcome
-  useEffect(() => {
-    if (!user || isGuest || hasSeenDailyWelcomeToday(user)) {
-      return
-    }
+  const todayKey = user ? `${user.uid}-${new Date().toDateString()}` : ''
 
-    // Show on dashboard route
-    if (location.pathname === '/') {
-      setShowDailyWelcome(true)
+  const shouldShowDailyWelcome = !!user
+    && !isGuest
+    && location.pathname === '/'
+    && !hasSeenDailyWelcomeToday(user)
+    && dismissedDailyWelcomeKey !== todayKey
+
+  useEffect(() => {
+    if (shouldShowDailyWelcome) {
       markDailyWelcomeAsSeen(user)
     }
-  }, [user, isGuest, location.pathname])
+  }, [shouldShowDailyWelcome, user])
 
-  // Calculate streak from words
-  useEffect(() => {
-    if (words.length === 0) {
-      setStreakCount(0)
-      return
-    }
+  const streakCount = useMemo(() => {
+    if (words.length === 0) return 0
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -257,8 +250,7 @@ function StudentLayout({ user, isGuest }) {
     if (!activeDates.has(today.toDateString())) {
       checkDate.setDate(checkDate.getDate() - 1)
       if (!activeDates.has(checkDate.toDateString())) {
-        setStreakCount(0)
-        return
+        return 0
       }
     }
 
@@ -267,7 +259,7 @@ function StudentLayout({ user, isGuest }) {
       checkDate.setDate(checkDate.getDate() - 1)
     }
 
-    setStreakCount(streak)
+    return streak
   }, [words])
 
   useEffect(() => {
@@ -358,8 +350,8 @@ function StudentLayout({ user, isGuest }) {
       <DailyWelcomeScreen
         userName={user?.displayName?.split(' ')[0] || 'Student'}
         streak={streakCount}
-        isVisible={showDailyWelcome}
-        onDismiss={() => setShowDailyWelcome(false)}
+        isVisible={shouldShowDailyWelcome}
+        onDismiss={() => setDismissedDailyWelcomeKey(todayKey)}
       />
 
       {/* MOBILE HEADER */}
