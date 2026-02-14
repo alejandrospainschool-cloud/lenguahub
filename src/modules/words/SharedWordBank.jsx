@@ -1,6 +1,6 @@
 // src/modules/words/SharedWordBank.jsx
 import React, { useState, useMemo, useEffect } from 'react'
-import verbo from 'verbo';
+import { fetchWordInfo } from '../../lib/linguaRobot';
 import {
   Plus,
   Search,
@@ -67,6 +67,9 @@ export default function SharedWordBank({
 
   // Word Details Modal
   const [detailsModalWord, setDetailsModalWord] = useState(null)
+  const [enrichedWordInfo, setEnrichedWordInfo] = useState(null);
+  const [enrichmentLoading, setEnrichmentLoading] = useState(false);
+  const [enrichmentError, setEnrichmentError] = useState(null);
 
   // Modals
   const [modalMode, setModalMode] = useState(null) // 'add_word', 'add_folder', 'edit_word'
@@ -199,53 +202,27 @@ export default function SharedWordBank({
     return searchTerm ? matchesSearch : matchesFolder
   })
 
-  // --- WORD ENRICHMENT LOGIC (with verbo) ---
-  function getWordEnrichment(word) {
-    const term = word.term?.trim().toLowerCase();
-    // Verb detection: ends with -ar, -er, -ir
-    if (/^(\w+)(ar|er|ir)$/.test(term)) {
-      try {
-        const conj = verbo.conjugate(term);
-        // verbo returns null if not a verb
-        if (conj) {
-          // Try to detect regularity (verbo does not always provide this)
-          const isRegular = conj.isRegular !== undefined ? conj.isRegular : 'unknown';
-          return {
-            type: 'verb',
-            regularity: isRegular === true ? 'regular' : isRegular === false ? 'irregular' : 'unknown',
-            conjugations: conj,
-          };
-        }
-      } catch (e) {}
-      // fallback if verbo fails
-      return {
-        type: 'verb',
-        regularity: 'unknown',
-        conjugations: null,
-      };
+
+  // Fetch enrichment info when modal opens
+  useEffect(() => {
+    if (!detailsModalWord) {
+      setEnrichedWordInfo(null);
+      setEnrichmentError(null);
+      setEnrichmentLoading(false);
+      return;
     }
-    // Noun detection: ends with -o/-a/-ción/-dad etc. (very rough)
-    if (/([oa]|ción|dad|tad|umbre|ie|ez|eza|sis|itis)$/.test(term)) {
-      // Gender guess
-      let gender = 'unknown';
-      if (term.endsWith('a')) gender = 'feminine';
-      if (term.endsWith('o')) gender = 'masculine';
-      return {
-        type: 'noun',
-        gender,
-      };
-    }
-    // Adjective detection: ends with -o/-a/-e/-os/-as
-    if (/([oa]s?|e)$/.test(term)) {
-      return {
-        type: 'adjective',
-      };
-    }
-    // Default: phrase/other
-    return {
-      type: 'other',
-    };
-  }
+    setEnrichmentLoading(true);
+    setEnrichmentError(null);
+    fetchWordInfo(detailsModalWord.term)
+      .then(data => {
+        setEnrichedWordInfo(data);
+        setEnrichmentLoading(false);
+      })
+      .catch(err => {
+        setEnrichmentError('No info found');
+        setEnrichmentLoading(false);
+      });
+  }, [detailsModalWord]);
 
   return (
     <div className="max-w-6xl mx-auto min-h-[80vh] flex flex-col animate-in fade-in duration-500 pb-12">
@@ -416,74 +393,50 @@ export default function SharedWordBank({
             <h2 className="text-2xl font-bold text-white mb-2">{detailsModalWord.term}</h2>
             <p className="text-slate-400 mb-4 text-lg">{detailsModalWord.definition || detailsModalWord.translation}</p>
             {/* Enrichment Section */}
-            {(() => {
-              const info = getWordEnrichment(detailsModalWord);
-              if (info.type === 'verb') {
-                return (
-                  <div className="mb-2">
-                    <div className="font-semibold text-blue-400 mb-1">Verb</div>
-                    <div className="text-slate-300 text-sm mb-1">Regularity: <span className="italic">{info.regularity}</span></div>
-                    {info.conjugations ? (
-                      <div className="mt-2">
-                        <div className="font-semibold text-slate-200 mb-1">Conjugations:</div>
-                        <div className="overflow-x-auto">
+            {enrichmentLoading && <div className="text-slate-400 italic">Loading info...</div>}
+            {enrichmentError && <div className="text-red-400 italic">{enrichmentError}</div>}
+            {enrichedWordInfo && (
+              <div className="mt-2">
+                {enrichedWordInfo.entries && enrichedWordInfo.entries.length > 0 ? (
+                  enrichedWordInfo.entries.map((entry, idx) => (
+                    <div key={idx} className="mb-4">
+                      <div className="font-semibold text-blue-400 mb-1 capitalize">{entry.partOfSpeech || 'Word'}</div>
+                      {entry.inflections && entry.inflections.length > 0 && (
+                        <div className="text-slate-300 text-sm mb-1">Inflections: {entry.inflections.map(i => i.value).join(', ')}</div>
+                      )}
+                      {entry.genders && entry.genders.length > 0 && (
+                        <div className="text-slate-300 text-sm mb-1">Gender: {entry.genders.join(', ')}</div>
+                      )}
+                      {entry.definitions && entry.definitions.length > 0 && (
+                        <div className="text-slate-300 text-sm mb-1">Definition: {entry.definitions[0].text}</div>
+                      )}
+                      {entry.conjugations && (
+                        <div className="overflow-x-auto mt-2">
                           <table className="min-w-full text-xs text-slate-200 border border-slate-700 rounded-xl">
                             <thead>
                               <tr>
                                 <th className="px-2 py-1 border-b border-slate-700">Tense</th>
-                                <th className="px-2 py-1 border-b border-slate-700">yo</th>
-                                <th className="px-2 py-1 border-b border-slate-700">tú</th>
-                                <th className="px-2 py-1 border-b border-slate-700">él/ella</th>
-                                <th className="px-2 py-1 border-b border-slate-700">nosotros</th>
-                                <th className="px-2 py-1 border-b border-slate-700">vosotros</th>
-                                <th className="px-2 py-1 border-b border-slate-700">ellos/ellas</th>
+                                <th className="px-2 py-1 border-b border-slate-700">Form</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {Object.entries(info.conjugations.indicative || {}).map(([tense, forms]) => (
+                              {Object.entries(entry.conjugations).map(([tense, forms]) => (
                                 <tr key={tense}>
                                   <td className="px-2 py-1 border-b border-slate-800 font-semibold">{tense}</td>
-                                  <td className="px-2 py-1 border-b border-slate-800">{forms.yo || '-'}</td>
-                                  <td className="px-2 py-1 border-b border-slate-800">{forms.tu || '-'}</td>
-                                  <td className="px-2 py-1 border-b border-slate-800">{forms.el || '-'}</td>
-                                  <td className="px-2 py-1 border-b border-slate-800">{forms.nosotros || '-'}</td>
-                                  <td className="px-2 py-1 border-b border-slate-800">{forms.vosotros || '-'}</td>
-                                  <td className="px-2 py-1 border-b border-slate-800">{forms.ellos || '-'}</td>
+                                  <td className="px-2 py-1 border-b border-slate-800">{Array.isArray(forms) ? forms.join(', ') : forms}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="text-slate-400 text-xs italic">No conjugation data available.</div>
-                    )}
-                  </div>
-                );
-              }
-              if (info.type === 'noun') {
-                return (
-                  <div className="mb-2">
-                    <div className="font-semibold text-pink-400 mb-1">Noun</div>
-                    <div className="text-slate-300 text-sm">Gender: <span className="italic">{info.gender}</span></div>
-                  </div>
-                );
-              }
-              if (info.type === 'adjective') {
-                return (
-                  <div className="mb-2">
-                    <div className="font-semibold text-green-400 mb-1">Adjective</div>
-                    <div className="text-slate-300 text-sm">(More info coming soon)</div>
-                  </div>
-                );
-              }
-              return (
-                <div className="mb-2">
-                  <div className="font-semibold text-slate-400 mb-1">Phrase/Other</div>
-                  <div className="text-slate-300 text-sm">(No extra info)</div>
-                </div>
-              );
-            })()}
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-slate-400 italic">No enrichment info found.</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
