@@ -2,7 +2,7 @@
 // Serverless endpoint for comprehensive Spanish word lookup using Gemini AI
 // Returns definitions, conjugations, tense examples, synonyms, and more
 
-const MODEL = 'gemini-2.0-flash-exp';
+const MODEL = 'gemini-2.0-flash';
 
 function buildPrompt(word) {
   return `You are a precise Spanish-English dictionary API. Given the Spanish word "${word}", return a single JSON object with comprehensive linguistic information.

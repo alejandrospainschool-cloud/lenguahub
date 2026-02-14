@@ -1,6 +1,6 @@
 // api/generate.js
 
-const MODEL = "gemini-2.0-flash-exp";
+const MODEL = "gemini-2.0-flash";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
