@@ -2,7 +2,7 @@
 // Serverless endpoint for comprehensive Spanish word lookup using Gemini AI
 // Returns definitions, conjugations, tense examples, synonyms, and more
 
-const MODEL = 'gemini-2.0-flash';
+const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
 
 function buildPrompt(word) {
   return `You are a precise Spanish-English dictionary API. Given the Spanish word "${word}", return a single JSON object with comprehensive linguistic information.
@@ -97,33 +97,49 @@ export default async function handler(req, res) {
 
     const prompt = buildPrompt(cleanWord);
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: 'application/json',
-          },
-        }),
-      }
-    );
+    // Try models in order until one works
+    let text = '';
+    let lastError = '';
+    for (const model of MODELS) {
+      try {
+        console.log('[api/wordinfo] Trying model:', model);
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.1,
+                responseMimeType: 'application/json',
+              },
+            }),
+          }
+        );
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const msg = errorData?.error?.message || 'HTTP ' + response.status;
-      console.error('[api/wordinfo] Gemini API error:', msg);
-      throw new Error(msg);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          lastError = errorData?.error?.message || 'HTTP ' + response.status;
+          console.error('[api/wordinfo] Model', model, 'error:', lastError);
+          continue;
+        }
+
+        const data = await response.json();
+        text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (text) {
+          console.log('[api/wordinfo] Model', model, 'returned', text.length, 'chars');
+          break;
+        }
+        lastError = 'Empty response';
+      } catch (modelErr) {
+        lastError = modelErr.message || 'Unknown error';
+        console.error('[api/wordinfo] Model', model, 'exception:', lastError);
+      }
     }
 
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
     if (!text) {
-      throw new Error('Empty response from AI');
+      throw new Error(lastError || 'All models failed');
     }
 
     // Parse the JSON response
@@ -188,6 +204,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       word: cleanWord,
       success: false,
+      debugError: error.message,
       entries: [{
         partOfSpeech: 'unknown',
         definitions: [{ text: 'Could not look up "' + cleanWord + '". Please try again.', examples: [] }],
