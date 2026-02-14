@@ -3,7 +3,19 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const MODEL_NAMES = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro'];
+// Each entry: [modelName, apiVersion]
+const MODEL_CONFIGS = [
+  ['gemini-2.0-flash', 'v1beta'],
+  ['gemini-2.0-flash', 'v1'],
+  ['gemini-1.5-flash', 'v1beta'],
+  ['gemini-1.5-flash', 'v1'],
+  ['gemini-1.5-flash-latest', 'v1beta'],
+  ['gemini-1.5-flash-latest', 'v1'],
+  ['gemini-pro', 'v1beta'],
+  ['gemini-pro', 'v1'],
+  ['gemini-1.0-pro', 'v1beta'],
+  ['gemini-1.0-pro', 'v1'],
+];
 
 function buildPrompt(word) {
   return `You are a precise Spanish-English dictionary API. Given the Spanish word "${word}", return a single JSON object with comprehensive linguistic information.
@@ -91,11 +103,11 @@ export default async function handler(req, res) {
     let rawText = '';
     let lastError = '';
 
-    // Try each model name
-    for (const modelName of MODEL_NAMES) {
+    // Try each model/version combo
+    for (const [modelName, apiVersion] of MODEL_CONFIGS) {
       try {
-        console.log('[wordinfo] Trying model:', modelName);
-        const model = genAI.getGenerativeModel({ model: modelName });
+        console.log('[wordinfo] Trying model:', modelName, 'version:', apiVersion);
+        const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion });
         const result = await model.generateContent(prompt);
         const response = result.response;
         rawText = response.text() || '';
@@ -103,10 +115,10 @@ export default async function handler(req, res) {
           console.log('[wordinfo] Model', modelName, 'returned', rawText.length, 'chars');
           break;
         }
-        lastError = 'Empty response from ' + modelName;
+        lastError = 'Empty response from ' + modelName + '/' + apiVersion;
       } catch (modelErr) {
         lastError = modelErr.message || String(modelErr);
-        console.error('[wordinfo] Model', modelName, 'failed:', lastError);
+        console.error('[wordinfo] Model', modelName, '/', apiVersion, 'failed:', lastError);
       }
     }
 

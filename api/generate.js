@@ -2,7 +2,18 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const MODEL_NAMES = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro'];
+const MODEL_CONFIGS = [
+  ['gemini-2.0-flash', 'v1beta'],
+  ['gemini-2.0-flash', 'v1'],
+  ['gemini-1.5-flash', 'v1beta'],
+  ['gemini-1.5-flash', 'v1'],
+  ['gemini-1.5-flash-latest', 'v1beta'],
+  ['gemini-1.5-flash-latest', 'v1'],
+  ['gemini-pro', 'v1beta'],
+  ['gemini-pro', 'v1'],
+  ['gemini-1.0-pro', 'v1beta'],
+  ['gemini-1.0-pro', 'v1'],
+];
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -23,9 +34,9 @@ export default async function handler(req, res) {
     const genAI = new GoogleGenerativeAI(apiKey);
     let lastError = '';
 
-    for (const modelName of MODEL_NAMES) {
+    for (const [modelName, apiVersion] of MODEL_CONFIGS) {
       try {
-        const model = genAI.getGenerativeModel({ model: modelName });
+        const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion });
         const result = await model.generateContent(prompt);
         const text = result.response.text() || '';
         if (text.trim()) {
@@ -34,7 +45,7 @@ export default async function handler(req, res) {
         lastError = 'Empty response';
       } catch (modelErr) {
         lastError = modelErr.message || String(modelErr);
-        console.error(`[generate] ${modelName} failed:`, lastError);
+        console.error(`[generate] ${modelName}/${apiVersion} failed:`, lastError);
       }
     }
 
