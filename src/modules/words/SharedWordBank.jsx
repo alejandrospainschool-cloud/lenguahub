@@ -127,31 +127,49 @@ function ConjugationTable({ conjugations }) {
 function WordDetailModal({ word, onClose, onEnrich }) {
   const [tab, setTab] = useState('overview')
   const [enriching, setEnriching] = useState(false)
+  const [localEnrichment, setLocalEnrichment] = useState(word.enrichment || null)
+  const [enrichError, setEnrichError] = useState(null)
+  const enrichAttempted = useRef(false)
 
-  const entry = word.enrichment?.entries?.[0]
+  // Keep local enrichment in sync if parent prop updates
+  useEffect(() => {
+    if (word.enrichment) setLocalEnrichment(word.enrichment)
+  }, [word.enrichment])
+
+  const entry = localEnrichment?.entries?.[0]
   const hasConj = entry?.conjugations && Object.keys(entry.conjugations).length > 0
   const hasExamples = entry?.tenseExamples?.length > 0 || entry?.definitions?.some(d => d.examples?.length > 0)
 
-  // Auto-fetch enrichment if missing
+  // Auto-fetch enrichment if missing (runs once per modal open)
   useEffect(() => {
-    if (word.enrichment || enriching) return
+    if (localEnrichment || enrichAttempted.current) return
     if (!word.term) return
+    enrichAttempted.current = true
     let cancelled = false
+
     const doEnrich = async () => {
       setEnriching(true)
+      setEnrichError(null)
       try {
         const data = await fetchWordInfo(word.term)
-        if (!cancelled && data?.entries) onEnrich(word.id, data)
+        if (cancelled) return
+        if (data?.entries) {
+          setLocalEnrichment(data)
+          onEnrich(word.id, data)
+        } else {
+          setEnrichError('No data returned')
+        }
       } catch (err) {
         console.error('Auto-enrich failed:', err)
+        if (!cancelled) setEnrichError(err.message || 'Lookup failed')
       } finally {
         if (!cancelled) setEnriching(false)
       }
     }
-    // Defer the state update to avoid synchronous setState in effect body
-    const timer = setTimeout(doEnrich, 0)
-    return () => { cancelled = true; clearTimeout(timer) }
-  }, [word.id, word.term, word.enrichment, enriching, onEnrich])
+
+    doEnrich()
+    return () => { cancelled = true }
+  }, [word.id, word.term]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <BookOpen size={14} /> },
@@ -218,8 +236,15 @@ function WordDetailModal({ word, onClose, onEnrich }) {
               <div className="w-14 h-14 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
                 <BookOpen size={24} className="text-slate-600" />
               </div>
+              {enrichError && <p className="text-amber-400 text-sm mb-2">Could not look up this word: {enrichError}</p>}
               <p className="text-slate-400 text-sm mb-1">{word.primaryDefinition || word.definition || word.translation || ''}</p>
               <p className="text-slate-600 text-xs">Detailed information unavailable</p>
+              <button
+                onClick={() => { enrichAttempted.current = false; setLocalEnrichment(null); setEnrichError(null) }}
+                className="mt-3 text-blue-400 hover:text-blue-300 text-xs font-bold transition-colors"
+              >
+                Retry Lookup
+              </button>
             </div>
           )}
 
@@ -688,7 +713,7 @@ export default function WordBank({
   const [currentFolder, setCurrentFolder] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [activeMenu, setActiveMenu] = useState(null)
-  const [selectedWord, setSelectedWord] = useState(null)
+  const [selectedWordId, setSelectedWordId] = useState(null)
   const [modalMode, setModalMode] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
 
@@ -705,6 +730,12 @@ export default function WordBank({
   }, [targetUid])
 
   const words = loadedWords
+
+  // Derive selectedWord from the live words array so it's always fresh
+  const selectedWord = useMemo(
+    () => (selectedWordId ? words.find(w => w.id === selectedWordId) || null : null),
+    [selectedWordId, words]
+  )
 
   // ─── Folders ────────────────────────────────────────────────────────────
   const folders = useMemo(() => {
@@ -886,7 +917,7 @@ export default function WordBank({
               <div
                 key={word.id}
                 className="group relative flex items-center justify-between p-4 bg-slate-900/30 border border-white/5 rounded-2xl hover:bg-slate-800/40 hover:border-white/10 transition-all cursor-pointer"
-                onClick={() => setSelectedWord(word)}
+                onClick={() => setSelectedWordId(word.id)}
               >
                 <div className="flex items-center gap-4 min-w-0 flex-1">
                   <div
@@ -942,7 +973,7 @@ export default function WordBank({
       {selectedWord && (
         <WordDetailModal
           word={selectedWord}
-          onClose={() => setSelectedWord(null)}
+          onClose={() => setSelectedWordId(null)}
           onEnrich={handleEnrichWord}
         />
       )}
