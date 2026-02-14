@@ -6,7 +6,7 @@ import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar';
 import { Users, ShieldCheck, Search, Calendar as CalendarIcon, ChevronRight, Crown, Mail, Clock, LogOut, TrendingUp, UserCog } from 'lucide-react';
 import CalendarView from '../calendar/Calendar';
 import AdminPanel from './AdminDashboard';
-import SharedWordBank from '../words/SharedWordBank';
+import WordBank from '../words/WordBank';
 
 // Utility functions
 // assignmentDocId and normalizeUser are already defined below, do not redeclare here
@@ -290,7 +290,7 @@ function StudentDetailView({ student, user, onBack }) {
 
           <div className="mt-8">
             <h3 className="text-lg font-bold text-white mb-2">Word Bank</h3>
-            <SharedWordBank 
+            <WordBank 
               user={user} 
               studentUid={student.uid} 
               isTeacherView={true} 

@@ -46,11 +46,6 @@ export default function WordBank({
     words.forEach(w => {
       if (!map.has(w.category)) {
         map.set(w.category, { name: w.category, color: w.folderColor || FOLDER_COLORS[0].hex, count: 0 });
-      import React from 'react';
-      import SharedWordBank from './SharedWordBank';
-
-      // WordBank now delegates to SharedWordBank for unified logic and enrichment
-      export default function WordBank(props) {
-        // Pass all props directly to SharedWordBank
-        return <SharedWordBank {...props} />;
-      }
+      // WordBank is now the main unified component for both student and tutor views.
+      // WordBank is now the main unified component for both student and tutor views.
+      export { default } from './SharedWordBank';

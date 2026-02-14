@@ -36,7 +36,7 @@ const FOLDER_COLORS = [
  * @param {boolean} props.isTeacherView - Whether tutor is viewing/editing
  * @param {Function} props.onBack - Callback for back button
  */
-export default function SharedWordBank({
+export default function WordBank({
   user,
   words: initialWords = [],
   studentUid,
