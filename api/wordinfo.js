@@ -2,7 +2,14 @@
 // Serverless endpoint for comprehensive Spanish word lookup using Gemini AI
 // Returns definitions, conjugations, tense examples, synonyms, and more
 
-const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+const MODELS = [
+  { version: 'v1beta', model: 'gemini-2.0-flash' },
+  { version: 'v1beta', model: 'gemini-1.5-flash' },
+  { version: 'v1', model: 'gemini-2.0-flash' },
+  { version: 'v1', model: 'gemini-1.5-flash' },
+  { version: 'v1beta', model: 'gemini-pro' },
+  { version: 'v1', model: 'gemini-pro' },
+];
 
 function buildPrompt(word) {
   return `You are a precise Spanish-English dictionary API. Given the Spanish word "${word}", return a single JSON object with comprehensive linguistic information.
@@ -100,11 +107,11 @@ export default async function handler(req, res) {
     // Try models in order until one works
     let text = '';
     let lastError = '';
-    for (const model of MODELS) {
+    for (const { version, model } of MODELS) {
       try {
-        console.log('[api/wordinfo] Trying model:', model);
+        console.log('[api/wordinfo] Trying', version + '/' + model);
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -121,20 +128,20 @@ export default async function handler(req, res) {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           lastError = errorData?.error?.message || 'HTTP ' + response.status;
-          console.error('[api/wordinfo] Model', model, 'error:', lastError);
+          console.error('[api/wordinfo]', version + '/' + model, 'error:', lastError);
           continue;
         }
 
         const data = await response.json();
         text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         if (text) {
-          console.log('[api/wordinfo] Model', model, 'returned', text.length, 'chars');
+          console.log('[api/wordinfo]', version + '/' + model, 'returned', text.length, 'chars');
           break;
         }
         lastError = 'Empty response';
       } catch (modelErr) {
         lastError = modelErr.message || 'Unknown error';
-        console.error('[api/wordinfo] Model', model, 'exception:', lastError);
+        console.error('[api/wordinfo]', version + '/' + model, 'exception:', lastError);
       }
     }
 

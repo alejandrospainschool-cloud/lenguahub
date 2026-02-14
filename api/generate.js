@@ -1,6 +1,13 @@
 // api/generate.js
 
-const MODEL = "gemini-2.0-flash";
+const MODELS = [
+  { version: 'v1beta', model: 'gemini-2.0-flash' },
+  { version: 'v1', model: 'gemini-2.0-flash' },
+  { version: 'v1beta', model: 'gemini-1.5-flash' },
+  { version: 'v1', model: 'gemini-1.5-flash' },
+  { version: 'v1beta', model: 'gemini-pro' },
+  { version: 'v1', model: 'gemini-pro' },
+];
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -18,26 +25,40 @@ export default async function handler(req, res) {
       return res.status(500).json({ text: "Missing GEMINI_API_KEY in Vercel env vars" });
     }
 
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        }),
+    let lastError = '';
+    for (const { version, model } of MODELS) {
+      try {
+        const r = await fetch(
+          `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+            }),
+          }
+        );
+
+        const data = await r.json();
+
+        if (!r.ok) {
+          lastError = data?.error?.message || JSON.stringify(data);
+          console.error(`[generate] ${version}/${model} error:`, lastError);
+          continue;
+        }
+
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        if (text.trim()) {
+          return res.status(200).json({ text: text.trim() });
+        }
+        lastError = 'Empty response';
+      } catch (modelErr) {
+        lastError = modelErr.message || 'Unknown error';
+        console.error(`[generate] ${version}/${model} exception:`, lastError);
       }
-    );
-
-    const data = await r.json();
-
-    if (!r.ok) {
-      const msg = data?.error?.message || JSON.stringify(data);
-      return res.status(r.status).json({ text: `Gemini error: ${msg}` });
     }
 
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    return res.status(200).json({ text: text.trim() || "No response" });
+    return res.status(500).json({ text: `Gemini error: ${lastError}` });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ text: `Server error: ${String(err?.message || err)}` });
