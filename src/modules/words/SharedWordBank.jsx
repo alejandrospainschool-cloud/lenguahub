@@ -127,13 +127,15 @@ function ConjugationTable({ conjugations }) {
 function WordDetailModal({ word, onClose, onEnrich }) {
   const [tab, setTab] = useState('overview')
   const [enriching, setEnriching] = useState(false)
-  const [localEnrichment, setLocalEnrichment] = useState(word.enrichment || null)
+  // Only use cached enrichment if it was successful
+  const cachedEnrichment = (word.enrichment?.success !== false) ? word.enrichment || null : null
+  const [localEnrichment, setLocalEnrichment] = useState(cachedEnrichment)
   const [enrichError, setEnrichError] = useState(null)
   const enrichAttempted = useRef(false)
 
-  // Keep local enrichment in sync if parent prop updates
+  // Keep local enrichment in sync if parent prop updates (only if successful)
   useEffect(() => {
-    if (word.enrichment) setLocalEnrichment(word.enrichment)
+    if (word.enrichment && word.enrichment.success !== false) setLocalEnrichment(word.enrichment)
   }, [word.enrichment])
 
   const entry = localEnrichment?.entries?.[0] || null
@@ -227,6 +229,9 @@ function WordDetailModal({ word, onClose, onEnrich }) {
               )}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {entry && <PosBadge pos={entry.partOfSpeech} />}
+                {entry?.alsoUsedAs?.length > 0 && entry.alsoUsedAs.map((p, i) => (
+                  <span key={i} className="text-[10px] font-medium text-slate-500 bg-slate-800/40 px-2 py-0.5 rounded-full">also: {p}</span>
+                ))}
                 {entry?.gender && (
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     {entry.article && <span className="text-slate-400 mr-1">{entry.article}</span>}
