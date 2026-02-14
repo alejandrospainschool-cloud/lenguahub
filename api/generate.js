@@ -7,12 +7,6 @@ const MODEL_CONFIGS = [
   ['gemini-2.0-flash', 'v1'],
   ['gemini-1.5-flash', 'v1beta'],
   ['gemini-1.5-flash', 'v1'],
-  ['gemini-1.5-flash-latest', 'v1beta'],
-  ['gemini-1.5-flash-latest', 'v1'],
-  ['gemini-pro', 'v1beta'],
-  ['gemini-pro', 'v1'],
-  ['gemini-1.0-pro', 'v1beta'],
-  ['gemini-1.0-pro', 'v1'],
 ];
 
 export default async function handler(req, res) {
