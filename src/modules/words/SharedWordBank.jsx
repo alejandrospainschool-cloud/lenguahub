@@ -860,7 +860,7 @@ export default function WordBank({
 
   // ─── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="w-full max-w-5xl mx-auto min-h-[60vh] flex flex-col pb-12">
+    <div className="w-full max-w-5xl mx-auto px-4 md:px-8 min-h-[60vh] flex flex-col pb-12">
       {/* Toast and Confetti */}
       <AnimatedToast
         message={toastMessage}

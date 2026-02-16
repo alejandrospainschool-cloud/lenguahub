@@ -18,7 +18,25 @@ export default function AnimatedStatCard({
     yellow: 'from-yellow-500/20 to-amber-500/10 border-yellow-400/30 text-yellow-300',
   }
 
+  const iconBgClasses = {
+    blue: 'bg-gradient-to-br from-blue-500/30 to-blue-600/20 group-hover:from-blue-500/50 group-hover:to-blue-600/40',
+    purple: 'bg-gradient-to-br from-purple-500/30 to-purple-600/20 group-hover:from-purple-500/50 group-hover:to-purple-600/40',
+    orange: 'bg-gradient-to-br from-orange-500/30 to-orange-600/20 group-hover:from-orange-500/50 group-hover:to-orange-600/40',
+    green: 'bg-gradient-to-br from-emerald-500/30 to-emerald-600/20 group-hover:from-emerald-500/50 group-hover:to-emerald-600/40',
+    yellow: 'bg-gradient-to-br from-yellow-500/30 to-yellow-600/20 group-hover:from-yellow-500/50 group-hover:to-yellow-600/40',
+  }
+
+  const iconTextClasses = {
+    blue: 'text-blue-300',
+    purple: 'text-purple-300',
+    orange: 'text-orange-300',
+    green: 'text-emerald-300',
+    yellow: 'text-yellow-300',
+  }
+
   const classes = colorClasses[color] || colorClasses.blue
+  const iconBg = iconBgClasses[color] || iconBgClasses.blue
+  const iconText = iconTextClasses[color] || iconTextClasses.blue
 
   return (
     <div
@@ -31,8 +49,8 @@ export default function AnimatedStatCard({
       
       <div className="relative z-10 space-y-4">
         <div className="flex items-center justify-between">
-          <div className={`p-3 rounded-xl bg-gradient-to-br from-${color}-500/30 to-${color}-600/20 group-hover:from-${color}-500/50 group-hover:to-${color}-600/40 transition-all duration-300`}>
-            <Icon size={24} className={`text-${color}-300`} />
+          <div className={`p-3 rounded-xl ${iconBg} transition-all duration-300`}>
+            <Icon size={24} className={iconText} />
           </div>
           {trend && (
             <div className={`text-sm font-bold px-2 py-1 rounded-lg ${

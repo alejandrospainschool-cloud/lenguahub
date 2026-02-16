@@ -116,7 +116,7 @@ export default function CalendarView({ user, events = [], setEvents, setTab }) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="max-w-5xl mx-auto px-4 md:px-8 space-y-6 pb-12 animate-in fade-in duration-500">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">

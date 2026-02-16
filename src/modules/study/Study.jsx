@@ -105,7 +105,7 @@ export default function Study({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto animate-in fade-in duration-500 pb-20 min-h-[800px] relative">
+    <div className="w-full max-w-5xl mx-auto px-4 md:px-8 animate-in fade-in duration-500 pb-12 relative">
       <ConfettiEffect trigger={showConfetti} />
       <AnimatedToast
         message={toastMessage}
@@ -115,7 +115,7 @@ export default function Study({
       />
       
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pt-6 px-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pt-6">
         <div className="flex items-center gap-4">
           {mode !== 'menu' && (
             <button 
@@ -271,7 +271,7 @@ function StudyMenu({ categories, selectedCategory, setSelectedCategory, wordSour
   ];
 
   return (
-    <div className="px-4 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="animate-in slide-in-from-bottom-4 duration-500">
       {/* Word Source Selection */}
       <div className="mb-8">
         <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Study Mode</h3>
