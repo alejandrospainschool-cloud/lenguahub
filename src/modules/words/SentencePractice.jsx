@@ -45,13 +45,18 @@ function HighlightedSentence({ tokens }) {
     <p className="text-lg sm:text-xl leading-relaxed">
       {tokens.map((tok, i) => {
         if (tok.fromBank) {
+          const color = tok.color || '#3b82f6'
           return (
             <span
               key={i}
-              className="relative inline-block font-bold text-blue-300"
-              title="From your word bank"
+              className="relative inline-block font-bold"
+              style={{ color }}
+              title={tok.bankTerm ? `From your word bank: ${tok.bankTerm}` : 'From your word bank'}
             >
-              <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-blue-500/40" />
+              <span
+                className="absolute inset-x-0 bottom-0 h-[3px] rounded-full"
+                style={{ backgroundColor: `${color}66` }}
+              />
               {tok.text}
             </span>
           )
@@ -125,6 +130,16 @@ export default function SentencePractice({ words, onClose }) {
   const [error, setError] = useState(null)
   const inputRef = useRef(null)
 
+  // Build a map of normalized term → { term, color } for color-matching
+  const bankMap = useMemo(() => {
+    const map = new Map()
+    words.forEach(w => {
+      const t = w.term?.toLowerCase()
+      if (t) map.set(normalize(t), { term: t, color: w.folderColor || '#3b82f6' })
+    })
+    return map
+  }, [words])
+
   const bankTerms = useMemo(() => words.map(w => w.term?.toLowerCase()).filter(Boolean), [words])
 
   // ─── Generate a sentence ────────────────────────────────────────────────
@@ -176,9 +191,9 @@ Return ONLY valid JSON (no markdown, no extra text):
       }
 
       // Tokenize the sentence and mark which words are from the bank
-      const bankSet = new Set((data.bankWordsUsed || []).map(w => normalize(w)))
+      const usedNormalized = new Set((data.bankWordsUsed || []).map(w => normalize(w)))
       // Also add the original selected words
-      selectedWords.forEach(w => bankSet.add(normalize(w)))
+      selectedWords.forEach(w => usedNormalized.add(normalize(w)))
 
       const sentenceText = data.sentence
       // Split into tokens keeping whitespace and punctuation attached
@@ -188,8 +203,19 @@ Return ONLY valid JSON (no markdown, no extra text):
           return { text: segment, fromBank: false }
         }
         const stripped = normalize(segment)
-        const isFromBank = bankSet.has(stripped)
-        return { text: segment, fromBank: isFromBank }
+        // Check if this word matches any bank term (including conjugated forms)
+        const match = bankMap.get(stripped)
+        // Also check if AI reported it as a bank word used
+        const isUsed = usedNormalized.has(stripped)
+        if (match || isUsed) {
+          return {
+            text: segment,
+            fromBank: true,
+            color: match?.color || bankMap.values().next().value?.color || '#3b82f6',
+            bankTerm: match?.term || stripped,
+          }
+        }
+        return { text: segment, fromBank: false }
       })
 
       setSentence({
@@ -207,7 +233,7 @@ Return ONLY valid JSON (no markdown, no extra text):
     } finally {
       setGenerating(false)
     }
-  }, [bankTerms, direction, difficulty])
+  }, [bankTerms, bankMap, direction, difficulty])
 
   // ─── Check the answer ───────────────────────────────────────────────────
   const checkAnswer = useCallback(async () => {
@@ -234,12 +260,18 @@ But be strict with:
 - Missing key words
 - Incorrect grammar that changes meaning
 
+ALWAYS provide:
+1. The correct/ideal translation
+2. Specific tips on what could be improved (even if mostly correct)
+3. If they got words wrong, explain what each mistranslated word actually means
+
 Return ONLY valid JSON:
 {
   "correct": true or false,
   "score": number 0-100,
-  "feedback": "brief encouraging feedback explaining what was right/wrong",
-  "correctedAnswer": "the ideal translation if student was wrong, or their answer if correct"
+  "feedback": "encouraging feedback explaining what was right/wrong",
+  "correctedAnswer": "the ideal/best translation (always provide this, even if student was correct)",
+  "improvements": ["specific tip 1 on how to improve", "specific tip 2 if applicable"]
 }`
 
       const raw = await generateContent(prompt)
@@ -254,6 +286,7 @@ Return ONLY valid JSON:
         score: data.score ?? (data.correct ? 100 : 0),
         feedback: data.feedback || '',
         correctedAnswer: data.correctedAnswer || sentence.translation,
+        improvements: Array.isArray(data.improvements) ? data.improvements.filter(Boolean) : [],
         studentAnswer: answer.trim(),
         original: sentence.original,
         direction,
@@ -399,11 +432,17 @@ Return ONLY valid JSON:
                 <HighlightedSentence tokens={sentence.tokens} />
 
                 {/* Legend */}
-                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/[.03]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-[3px] rounded-full bg-blue-500/60" />
-                    <span className="text-[10px] text-slate-500">Your words</span>
-                  </div>
+                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/[.03] flex-wrap">
+                  {sentence.tokens
+                    .filter(t => t.fromBank && t.bankTerm)
+                    .filter((t, i, arr) => arr.findIndex(x => x.bankTerm === t.bankTerm) === i)
+                    .map((t, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <span className="w-3 h-[3px] rounded-full" style={{ backgroundColor: `${t.color || '#3b82f6'}99` }} />
+                        <span className="text-[10px] text-slate-500">{t.bankTerm}</span>
+                      </div>
+                    ))
+                  }
                   <div className="flex items-center gap-1.5">
                     <span className="w-3 h-[3px] rounded-full bg-slate-700" />
                     <span className="text-[10px] text-slate-500">New words</span>
@@ -495,10 +534,11 @@ Return ONLY valid JSON:
                       </p>
                     )}
 
-                    {!result.correct && result.correctedAnswer && (
+                    {/* Always show correct answer */}
+                    {result.correctedAnswer && (
                       <div className="mt-2 pt-2 border-t border-white/[.05]">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                          Correct answer
+                          {result.correct ? 'Best translation' : 'Correct answer'}
                         </p>
                         <p className="text-white text-sm font-medium">
                           {result.correctedAnswer}
@@ -512,6 +552,23 @@ Return ONLY valid JSON:
                       </p>
                       <p className="text-slate-400 text-sm">{result.studentAnswer}</p>
                     </div>
+
+                    {/* Improvement tips */}
+                    {result.improvements?.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-white/[.05]">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                          {result.correct ? 'Tips' : 'How to improve'}
+                        </p>
+                        <ul className="space-y-1.5">
+                          {result.improvements.map((tip, i) => (
+                            <li key={i} className="flex gap-2 items-start text-sm">
+                              <span className="text-blue-400 shrink-0 mt-0.5">•</span>
+                              <span className="text-slate-300 leading-relaxed">{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
 
                   {/* Next button */}
