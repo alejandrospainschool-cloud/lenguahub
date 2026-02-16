@@ -6,6 +6,8 @@ import {
   FolderPlus, X, BookOpen, Languages, MessageSquareText, Loader2, Sparkles,
 } from 'lucide-react'
 import SentencePractice from './SentencePractice'
+import AnimatedToast from '../../components/animations/AnimatedToast'
+import ConfettiEffect from '../../components/animations/ConfettiEffect'
 import {
   addDoc, collection, serverTimestamp, doc, deleteDoc, updateDoc,
   onSnapshot, query,
@@ -401,7 +403,7 @@ function WordDetailModal({ word, onClose, onEnrich }) {
 
 // ─── Add Word Modal ─────────────────────────────────────────────────────────
 
-function AddWordModal({ folders, currentFolder, onClose, targetUid, isTeacherView }) {
+function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid, isTeacherView }) {
   const [term, setTerm] = useState('')
   const [lookup, setLookup] = useState(null)
   const [selectedFolder, setSelectedFolder] = useState(currentFolder?.name || '')
@@ -462,6 +464,7 @@ function AddWordModal({ folders, currentFolder, onClose, targetUid, isTeacherVie
           enrichment,
         }
       )
+      if (onWordSaved) onWordSaved(w)
       onClose()
     } catch (err) {
       console.error('Save error:', err)
@@ -753,6 +756,12 @@ export default function WordBank({
   const [modalMode, setModalMode] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
   const [showPractice, setShowPractice] = useState(false)
+  
+  // Toast and animation state
+  const [toastMessage, setToastMessage] = useState('')
+  const [toastType, setToastType] = useState('success')
+  const [showToast, setShowToast] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
 
   const targetUid = studentUid || user?.uid
 
@@ -826,7 +835,22 @@ export default function WordBank({
     if (!window.confirm('Delete this word?')) return
     try {
       await deleteDoc(doc(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'wordbank', id))
+      setToastMessage('Word deleted')
+      setToastType('info')
+      setShowToast(true)
     } catch (err) { console.error(err) }
+  }
+
+  const handleWordSaved = (term) => {
+    setToastMessage(`"${term}" added to your word bank!`)
+    setToastType('success')
+    setShowToast(true)
+    // Trigger confetti for milestone word counts
+    const newCount = words.length + 1
+    if (newCount % 10 === 0 || newCount === 1) {
+      setShowConfetti(true)
+      setTimeout(() => setShowConfetti(false), 4000)
+    }
   }
 
   const openAddWord = () => {
@@ -837,6 +861,15 @@ export default function WordBank({
   // ─── Render ────────────────────────────────────────────────────────────
   return (
     <div className="w-full max-w-5xl mx-auto min-h-[60vh] flex flex-col pb-12">
+      {/* Toast and Confetti */}
+      <AnimatedToast
+        message={toastMessage}
+        type={toastType}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+      />
+      <ConfettiEffect trigger={showConfetti} />
+
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div className="flex items-center gap-3 min-w-0">
@@ -897,11 +930,12 @@ export default function WordBank({
       {/* ── Folder View ────────────────────────────────────────────────── */}
       {!currentFolder && !searchTerm && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {folders.map(folder => (
+          {folders.map((folder, index) => (
             <button
               key={folder.name}
               onClick={() => setCurrentFolder(folder)}
-              className="group relative flex flex-col items-start p-5 bg-slate-900/30 border border-white/5 rounded-2xl transition-all duration-200 hover:bg-slate-800/50 hover:border-white/10 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 text-left"
+              className="group relative flex flex-col items-start p-5 bg-slate-900/30 border border-white/5 rounded-2xl transition-all duration-200 hover:bg-slate-800/50 hover:border-white/10 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/20 text-left animate-in fade-in slide-in-from-bottom-2"
+              style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
             >
               <div
                 className="mb-3 p-2.5 rounded-xl transition-transform group-hover:scale-110"
@@ -958,10 +992,11 @@ export default function WordBank({
           )}
 
           <div className="space-y-2">
-            {visibleWords.map(word => (
+            {visibleWords.map((word, index) => (
               <div
                 key={word.id}
-                className="group relative flex items-center justify-between p-4 bg-slate-900/30 border border-white/5 rounded-2xl hover:bg-slate-800/40 hover:border-white/10 transition-all cursor-pointer"
+                className="group relative flex items-center justify-between p-4 bg-slate-900/30 border border-white/5 rounded-2xl hover:bg-slate-800/40 hover:border-white/10 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-2"
+                style={{ animationDelay: `${Math.min(index * 30, 300)}ms`, animationFillMode: 'both' }}
                 onClick={() => setSelectedWordId(word.id)}
               >
                 <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -1028,6 +1063,7 @@ export default function WordBank({
           folders={folders}
           currentFolder={currentFolder}
           onClose={() => setModalMode(null)}
+          onWordSaved={handleWordSaved}
           targetUid={targetUid}
           isTeacherView={isTeacherView}
         />

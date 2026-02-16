@@ -14,6 +14,9 @@ import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/f
 import { hasReachedLimit } from '../../lib/freemium'
 import LevelUpAnimation from '../../components/animations/LevelUpAnimation'
 import StreakAnimation from '../../components/animations/StreakAnimation'
+import ConfettiEffect from '../../components/animations/ConfettiEffect'
+import AnimatedToast from '../../components/animations/AnimatedToast'
+import AnimatedStatCard from '../../components/animations/AnimatedStatCard'
 import { 
   checkLevelUp, 
   getPreviousStats, 
@@ -35,20 +38,32 @@ export default function Dashboard({
   // --- ANIMATION STATE ---
   const [showLevelUpAnimation, setShowLevelUpAnimation] = useState(false)
   const [showStreakAnimation, setShowStreakAnimation] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
   const [newLevelReached, setNewLevelReached] = useState(null)
   const [previousStats, setPreviousStats] = useState(null)
+  const [toastMessage, setToastMessage] = useState('')
+  const [toastType, setToastType] = useState('success')
+  const [showToast, setShowToast] = useState(false)
   
   // Use refs to track if we've already shown animations this session
   const levelUpShownRef = useRef(false)
   const streakShownRef = useRef(false)
+  // Track whether we've initialized stats this session (prevents false level-up on login)
+  const sessionInitializedRef = useRef(false)
 
   // --- Track level ups and streaks ---
   useEffect(() => {
     if (!user?.uid) return
 
+    // On FIRST load of this session, always save current stats as baseline
+    // This prevents showing level-up from stale localStorage data on login
+    if (!sessionInitializedRef.current) {
+      sessionInitializedRef.current = true
+      saveCurrentStats(user, stats)
+      return
+    }
+
     const prev = getPreviousStats(user)
-    
-    // If no previous stats, initialize and return (first time loading this session)
     if (!prev) {
       saveCurrentStats(user, stats)
       return
@@ -61,11 +76,13 @@ export default function Dashboard({
 
     setPreviousStats(prev)
 
-    // Check if level up occurred - only if current level is ACTUALLY greater
+    // Check if level up occurred - only during this active session
     if (stats.level > prev.level && !levelUpShownRef.current) {
       setNewLevelReached(stats.level)
       setShowLevelUpAnimation(true)
+      setShowConfetti(true)
       levelUpShownRef.current = true
+      setTimeout(() => setShowConfetti(false), 4000)
     }
 
     // Check if streak milestone reached (only show once per session)
@@ -149,6 +166,10 @@ export default function Dashboard({
       setHasSaved(true)
       setTargetFolder('')
       setIsNewFolder(false)
+      // Show success toast
+      setToastMessage(`"${translatedText}" saved to ${targetFolder}!`)
+      setToastType('success')
+      setShowToast(true)
       setTimeout(() => {
         setInputText('')
         setTranslatedText('')
@@ -156,7 +177,9 @@ export default function Dashboard({
       }, 2000)
     } catch (err) {
       console.error('Failed to save word:', err)
-      alert('Error saving to Word Bank.')
+      setToastMessage('Error saving to Word Bank.')
+      setToastType('error')
+      setShowToast(true)
     }
   }
 
@@ -190,6 +213,13 @@ export default function Dashboard({
         streak={stats.streak}
         isVisible={showStreakAnimation}
         onComplete={() => setShowStreakAnimation(false)}
+      />
+      <ConfettiEffect trigger={showConfetti} />
+      <AnimatedToast
+        message={toastMessage}
+        type={toastType}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
       />
       
       {/* TRANSLATOR */}
@@ -288,6 +318,40 @@ export default function Dashboard({
            </div>
         </div>
       </header>
+
+      {/* 3.5. ANIMATED STAT CARDS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <AnimatedStatCard
+          icon={Book}
+          title="Words"
+          value={words.length}
+          description="Total vocabulary"
+          color="blue"
+          onClick={() => navigate('/words')}
+        />
+        <AnimatedStatCard
+          icon={Flame}
+          title="Streak"
+          value={`${stats.streak}d`}
+          description="Consecutive days"
+          color="orange"
+        />
+        <AnimatedStatCard
+          icon={Trophy}
+          title="Level"
+          value={stats.level}
+          description={`${stats.totalXP} total XP`}
+          color="yellow"
+        />
+        <AnimatedStatCard
+          icon={CalendarIcon}
+          title="Lessons"
+          value={upcomingCount}
+          description="Upcoming events"
+          color="purple"
+          onClick={() => navigate('/calendar')}
+        />
+      </div>
 
       {/* 4. NAVIGATION GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">

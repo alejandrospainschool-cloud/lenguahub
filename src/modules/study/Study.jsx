@@ -6,6 +6,9 @@ import {
   Loader2, CheckCircle2, XCircle, Timer, MoveRight
 } from 'lucide-react';
 import { hasReachedLimit, FREEMIUM_LIMITS } from '../../lib/freemium';
+import ConfettiEffect from '../../components/animations/ConfettiEffect';
+import AnimatedToast from '../../components/animations/AnimatedToast';
+import { getCelebrationMessages } from '../../lib/animationHelpers';
 
 // --- HELPERS ---
 const getWordContent = (word) => word?.translation || word?.definition || 'No Content';
@@ -40,6 +43,9 @@ export default function Study({
   const [questionCount, setQuestionCount] = useState(5);
   const [sessionXP, setSessionXP] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
 
   // --- FILTER LOGIC ---
   const categories = useMemo(() => {
@@ -91,11 +97,22 @@ export default function Study({
   const handleSessionComplete = (type) => {
     const limitMap = { 'quiz': 'quizzesPlayed', 'match': 'matchesPlayed' };
     if (limitMap[type]) trackUsage(limitMap[type]);
-    setMode('menu');
+    // Trigger celebration animations
+    setShowConfetti(true);
+    setToastMessage(getCelebrationMessages());
+    setShowToast(true);
+    setTimeout(() => setShowConfetti(false), 4000);
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto animate-in fade-in duration-500 pb-20 min-h-[800px] relative">
+      <ConfettiEffect trigger={showConfetti} />
+      <AnimatedToast
+        message={toastMessage}
+        type="achievement"
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+      />
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pt-6 px-4">
@@ -605,13 +622,19 @@ function QuizSession({ words, difficulty = 'normal', questionCount = 5, addXP, o
 
   if (finished) return (
     <div className="flex flex-col items-center justify-center min-h-[400px] animate-in zoom-in duration-300">
-      <div className="w-24 h-24 bg-yellow-500 rounded-full flex items-center justify-center text-slate-900 mb-6 shadow-xl shadow-yellow-500/20">
+      <div className="w-24 h-24 bg-yellow-500 rounded-full flex items-center justify-center text-slate-900 mb-6 shadow-xl shadow-yellow-500/20 animate-bounce" style={{ animationDuration: '1.5s' }}>
         <Trophy size={48} />
       </div>
       <h2 className="text-4xl font-bold text-white mb-2">Quiz Complete!</h2>
       <p className="text-slate-400 mb-2 text-lg">You scored <span className="text-white font-bold">{score} / {questions.length}</span></p>
-      <p className="text-indigo-400 font-bold text-lg mb-8">+{score * xpPerCorrect} XP</p>
-      <button onClick={onExit} className="px-8 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+      <p className="text-indigo-400 font-bold text-lg mb-2">+{score * xpPerCorrect} XP</p>
+      {score === questions.length && (
+        <p className="text-yellow-300 font-bold text-sm mb-6 bg-yellow-500/10 px-4 py-2 rounded-full border border-yellow-500/30 animate-pulse">
+          ⭐ Perfect Score! ⭐
+        </p>
+      )}
+      {score !== questions.length && <div className="mb-6" />}
+      <button onClick={onExit} className="px-8 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-200 transition-all hover:scale-105 active:scale-95">
         Back to Menu
       </button>
     </div>
@@ -758,15 +781,21 @@ function MatchSession({ words, difficulty = 'normal', addXP, onComplete, onExit 
 
   if (isFinished) return (
     <div className="flex flex-col items-center justify-center min-h-[400px] animate-in zoom-in duration-300">
-      <div className={`w-24 h-24 rounded-full flex items-center justify-center text-slate-900 mb-6 shadow-xl ${
+      <div className={`w-24 h-24 rounded-full flex items-center justify-center text-slate-900 mb-6 shadow-xl animate-bounce ${
         mistakes === 0 ? 'bg-green-500 shadow-green-500/20' : 'bg-yellow-500 shadow-yellow-500/20'
-      }`}>
+      }`} style={{ animationDuration: '1.5s' }}>
         <Zap size={48} />
       </div>
       <h2 className="text-4xl font-bold text-white mb-2">Match Complete!</h2>
       <p className="text-slate-400 mb-1">Pairs matched: <span className="text-white font-bold">{matchedIds.length / 2} / {cards.length / 2}</span></p>
-      <p className={`text-lg font-bold mb-8 ${mistakes === 0 ? 'text-green-400' : 'text-yellow-400'}`}>+{Math.max(0, 50 * difficultyConfig.xpMultiplier - mistakes * 5)} XP</p>
-      <button onClick={onExit} className="px-8 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+      <p className={`text-lg font-bold mb-2 ${mistakes === 0 ? 'text-green-400' : 'text-yellow-400'}`}>+{Math.max(0, 50 * difficultyConfig.xpMultiplier - mistakes * 5)} XP</p>
+      {mistakes === 0 && (
+        <p className="text-emerald-300 font-bold text-sm mb-6 bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/30 animate-pulse">
+          🎯 Flawless! No mistakes!
+        </p>
+      )}
+      {mistakes !== 0 && <div className="mb-6" />}
+      <button onClick={onExit} className="px-8 py-3 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-200 transition-all hover:scale-105 active:scale-95">
         Back to Menu
       </button>
     </div>
