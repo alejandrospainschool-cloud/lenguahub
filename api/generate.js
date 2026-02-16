@@ -5,8 +5,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const MODEL_CONFIGS = [
   ['gemini-2.0-flash', 'v1beta'],
   ['gemini-2.0-flash', 'v1'],
-  ['gemini-1.5-flash', 'v1beta'],
-  ['gemini-1.5-flash', 'v1'],
+  ['gemini-2.0-flash-lite', 'v1beta'],
+  ['gemini-2.0-flash-lite', 'v1'],
 ];
 
 export default async function handler(req, res) {
