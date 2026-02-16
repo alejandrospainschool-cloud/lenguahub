@@ -3,8 +3,9 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { fetchWordInfo } from '../../lib/linguaRobot'
 import {
   Plus, Search, Folder, ArrowLeft, MoreHorizontal, Trash2, Edit2,
-  FolderPlus, X, BookOpen, Languages, MessageSquareText, Loader2,
+  FolderPlus, X, BookOpen, Languages, MessageSquareText, Loader2, Sparkles,
 } from 'lucide-react'
+import SentencePractice from './SentencePractice'
 import {
   addDoc, collection, serverTimestamp, doc, deleteDoc, updateDoc,
   onSnapshot, query,
@@ -751,6 +752,7 @@ export default function WordBank({
   const [selectedWordId, setSelectedWordId] = useState(null)
   const [modalMode, setModalMode] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
+  const [showPractice, setShowPractice] = useState(false)
 
   const targetUid = studentUid || user?.uid
 
@@ -875,6 +877,14 @@ export default function WordBank({
               </button>
             )}
           </div>
+          {words.length > 0 && (
+            <button
+              onClick={() => setShowPractice(true)}
+              className="flex items-center gap-2 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl font-bold text-sm border border-white/5 hover:border-white/10 active:scale-[.97] transition-all shrink-0"
+            >
+              <Sparkles size={16} /> <span className="hidden sm:inline">Practice</span>
+            </button>
+          )}
           <button
             onClick={openAddWord}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-blue-600/10 active:scale-[.97] transition-all shrink-0"
@@ -1029,6 +1039,13 @@ export default function WordBank({
           folders={folders}
           onClose={() => { setModalMode(null); setEditTarget(null) }}
           targetUid={targetUid}
+        />
+      )}
+
+      {showPractice && (
+        <SentencePractice
+          words={words}
+          onClose={() => setShowPractice(false)}
         />
       )}
     </div>
