@@ -12,9 +12,7 @@ import { generateContent } from '../../lib/ai'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore'
 import { hasReachedLimit } from '../../lib/freemium'
-import LevelUpAnimation from '../../components/animations/LevelUpAnimation'
 import StreakAnimation from '../../components/animations/StreakAnimation'
-import ConfettiEffect from '../../components/animations/ConfettiEffect'
 import AnimatedToast from '../../components/animations/AnimatedToast'
 import AnimatedStatCard from '../../components/animations/AnimatedStatCard'
 import { 
@@ -33,63 +31,22 @@ export default function Dashboard({
   const stats = useMemo(() => calculateStats(words), [words])
 
   // --- ANIMATION STATE ---
-  const [showLevelUpAnimation, setShowLevelUpAnimation] = useState(false)
   const [showStreakAnimation, setShowStreakAnimation] = useState(false)
-  const [showConfetti, setShowConfetti] = useState(false)
-  const [newLevelReached, setNewLevelReached] = useState(null)
-  const [previousStats, setPreviousStats] = useState(null)
   const [toastMessage, setToastMessage] = useState('')
   const [toastType, setToastType] = useState('success')
   const [showToast, setShowToast] = useState(false)
-  
-  // Use state instead of refs to track baseline stats from session start
-  const [baselineStats, setBaselineStats] = useState(null)
-  const [levelUpShown, setLevelUpShown] = useState(false)
   const [streakShown, setStreakShown] = useState(false)
 
-  // Track level ups and streaks ---
-  // Initialize baseline only ONCE per session using sessionStorage
+  // Track streak milestone animations
   useEffect(() => {
     if (!user?.uid) return
-    
-    const sessionKey = `level_baseline_${user.uid}`
-    const existing = sessionStorage.getItem(sessionKey)
-    
-    // Only set baseline once per browser session
-    if (!existing) {
-      sessionStorage.setItem(sessionKey, JSON.stringify({ 
-        level: stats.level, 
-        streak: stats.streak,
-        timestamp: Date.now()
-      }))
-      setBaselineStats({ level: stats.level, streak: stats.streak })
-    } else if (!baselineStats) {
-      // If we already have it in sessionStorage, use that
-      const stored = JSON.parse(existing)
-      setBaselineStats({ level: stored.level, streak: stored.streak })
-    }
-  }, [user?.uid, baselineStats])
-
-  // Check for level ups during active session (only compare during session, not at startup)
-  useEffect(() => {
-    if (!user?.uid || !baselineStats) return
-
-    // Only show animation if level INCREASED from baseline (not equal)
-    // This prevents showing animation when baseline is first set
-    if (stats.level > baselineStats.level && !levelUpShown) {
-      setNewLevelReached(stats.level)
-      setShowLevelUpAnimation(true)
-      setShowConfetti(true)
-      setLevelUpShown(true)
-      setTimeout(() => setShowConfetti(false), 4000)
-    }
 
     // Check if streak milestone reached (only show once per session)
-    if (stats.streak > baselineStats.streak && isStreakMilestone(stats.streak) && !streakShown) {
+    if (isStreakMilestone(stats.streak) && !streakShown) {
       setShowStreakAnimation(true)
       setStreakShown(true)
     }
-  }, [stats.level, stats.streak, baselineStats, levelUpShown, streakShown, user?.uid])
+  }, [stats.streak, user?.uid, streakShown])
 
   // --- STATE ---
   const [inputText, setInputText] = useState('')
@@ -200,17 +157,11 @@ export default function Dashboard({
   return (
     <div className="w-full max-w-5xl mx-auto px-4 md:px-8 space-y-10 animate-slide-in pb-12">
       {/* ANIMATION OVERLAYS */}
-      <LevelUpAnimation 
-        level={newLevelReached}
-        isVisible={showLevelUpAnimation}
-        onComplete={() => setShowLevelUpAnimation(false)}
-      />
       <StreakAnimation
         streak={stats.streak}
         isVisible={showStreakAnimation}
         onComplete={() => setShowStreakAnimation(false)}
       />
-      <ConfettiEffect trigger={showConfetti} />
       <AnimatedToast
         message={toastMessage}
         type={toastType}
