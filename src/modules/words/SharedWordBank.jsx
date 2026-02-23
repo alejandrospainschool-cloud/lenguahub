@@ -3,9 +3,8 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { fetchWordInfo } from '../../lib/linguaRobot'
 import {
   Plus, Search, Folder, ArrowLeft, MoreHorizontal, Trash2, Edit2,
-  FolderPlus, X, BookOpen, Languages, MessageSquareText, Loader2, Sparkles,
+  FolderPlus, X, BookOpen, Languages, MessageSquareText, Loader2,
 } from 'lucide-react'
-import SentencePractice from './SentencePractice'
 import AnimatedToast from '../../components/animations/AnimatedToast'
 import ConfettiEffect from '../../components/animations/ConfettiEffect'
 import {
@@ -895,7 +894,6 @@ export default function WordBank({
   const [modalMode, setModalMode] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
   const [moveTarget, setMoveTarget] = useState(null)
-  const [showPractice, setShowPractice] = useState(false)
   
   // Toast and animation state
   const [toastMessage, setToastMessage] = useState('')
@@ -1248,19 +1246,6 @@ export default function WordBank({
               </div>
             ))}
           </div>
-
-          {/* Practice button in folder view */}
-          {visibleWords.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-white/5">
-              <button
-                onClick={() => setShowPractice(true)}
-                className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-6 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-600/20 active:scale-[.97] transition-all"
-              >
-                <Sparkles size={20} />
-                Practice with these words
-              </button>
-            </div>
-          )}
         </>
       )}
 
@@ -1309,13 +1294,6 @@ export default function WordBank({
         <CreateFolderModal
           onClose={() => setModalMode(null)}
           onFolderCreated={handleFolderCreated}
-        />
-      )}
-
-      {showPractice && (
-        <SentencePractice
-          words={currentFolder ? visibleWords : words}
-          onClose={() => setShowPractice(false)}
         />
       )}
     </div>

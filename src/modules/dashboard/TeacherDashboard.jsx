@@ -347,7 +347,8 @@ function TeacherCalendar({ user }) {
         user={user} 
         events={[...localEvents, ...googleEvents]} 
         setEvents={setLocalEvents} 
-        setTab={() => {}} 
+        studentUid={null}
+        isTeacherView={true}
       />
     </div>
   )

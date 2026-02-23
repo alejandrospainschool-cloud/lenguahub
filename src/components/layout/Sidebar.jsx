@@ -6,6 +6,7 @@ import {
   Calendar, 
   Brain, 
   Sparkles, 
+  Zap,
   LogOut, 
   X 
 } from 'lucide-react';
@@ -19,7 +20,8 @@ export default function Sidebar({ user, isOpen, onClose }) {
   const menuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { label: 'Word Bank', icon: Book, path: '/words' },
-    { label: 'Schedule', icon: Calendar, path: '/calendar' },
+    { label: 'Practice', icon: Zap, path: '/practice' },
+    { label: 'Lesson Log', icon: Calendar, path: '/calendar' },
     { label: 'Study Mode', icon: Brain, path: '/study' },
     { label: 'AI Tools', icon: Sparkles, path: '/tools' },
   ];

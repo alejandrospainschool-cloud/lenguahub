@@ -11,6 +11,7 @@ import Dashboard from './modules/dashboard/Dashboard'
 import WordBank from './modules/words/WordBank'
 import CalendarView from './modules/calendar/Calendar'
 import Study from './modules/study/Study'
+import Practice from './modules/study/Practice'
 import Tools from './modules/ai/Tools'
 import Login from './modules/auth/Login'
 import ForgotPassword from './modules/auth/ForgotPassword'
@@ -397,7 +398,15 @@ function StudentLayout({ user, isGuest }) {
                 />
               }
             />
-            <Route path="/calendar" element={<CalendarView user={user} events={events} setEvents={setEvents} />} />
+            <Route
+              path="/practice"
+              element={
+                <Practice
+                  words={words}
+                />
+              }
+            />
+            <Route path="/calendar" element={<CalendarView user={user} events={events} setEvents={setEvents} studentUid={null} isTeacherView={false} />} />
             <Route
               path="/study"
               element={

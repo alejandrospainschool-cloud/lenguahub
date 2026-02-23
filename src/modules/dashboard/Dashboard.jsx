@@ -356,7 +356,7 @@ export default function Dashboard({
       {/* 4. NAVIGATION GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
         <MenuCard icon={<Book />} title="Word Bank" stats={`${words.length} words collected.`} desc="Grow your vocabulary." btnText="Open Word Bank" onClick={() => navigate('/words')} />
-        <MenuCard icon={<CalendarIcon />} title="Schedule" stats={`${upcomingCount} lessons planned.`} desc="Plan your week." btnText="View Schedule" onClick={() => navigate('/calendar')} />
+        <MenuCard icon={<CalendarIcon />} title="Lesson Log" stats={`${upcomingCount} lesson${upcomingCount !== 1 ? 's' : ''} logged.`} desc="Track your progress." btnText="View Lessons" onClick={() => navigate('/calendar')} />
         <MenuCard icon={<Brain />} title="Study Mode" stats="Flashcards & quizzes." desc="Earn XP by practicing." btnText="Start Studying" onClick={() => navigate('/study')} />
         <MenuCard icon={<Sparkles />} title="AI Tools" stats="Translate & summarize." desc="Get smart assistance." btnText="Open AI Tools" onClick={() => navigate('/tools')} />
       </div>
