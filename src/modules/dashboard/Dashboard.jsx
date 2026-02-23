@@ -51,7 +51,7 @@ export default function Dashboard({
   // Track whether we've initialized stats this session (prevents false level-up on login)
   const sessionInitializedRef = useRef(false)
 
-  // --- Track level ups and streaks ---
+  // Track level ups and streaks ---
   useEffect(() => {
     if (!user?.uid) return
 
@@ -69,14 +69,14 @@ export default function Dashboard({
       return
     }
 
-    // Only process if stats have actually changed
+    // Only process if level or streak have actually changed
     if (stats.level === prev.level && stats.streak === prev.streak) {
       return
     }
 
     setPreviousStats(prev)
 
-    // Check if level up occurred - only during this active session
+    // Check if level up occurred - only show if level actually increased
     if (stats.level > prev.level && !levelUpShownRef.current) {
       setNewLevelReached(stats.level)
       setShowLevelUpAnimation(true)
@@ -93,7 +93,7 @@ export default function Dashboard({
 
     // Save current stats for next comparison
     saveCurrentStats(user, stats)
-  }, [stats, user?.uid])
+  }, [stats.level, stats.streak, user?.uid])
 
   // --- STATE ---
   const [inputText, setInputText] = useState('')

@@ -1,11 +1,12 @@
 // src/modules/study/Practice.jsx
 import React, { useState, useMemo } from 'react'
-import { ArrowLeft, Search, X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import SentencePractice from '../words/SentencePractice'
 
 export default function Practice({ words = [], onBack = null }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
+  const [showPractice, setShowPractice] = useState(false)
 
   // Get unique categories from words
   const categories = useMemo(() => {
@@ -154,9 +155,20 @@ export default function Practice({ words = [], onBack = null }) {
           </p>
         </div>
       ) : (
+        <button
+          onClick={() => setShowPractice(true)}
+          className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-6 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-600/20 active:scale-[.97] transition-all mt-8"
+        >
+          <span>🚀</span>
+          Start Practice
+        </button>
+      )}
+
+      {/* Practice Modal */}
+      {showPractice && (
         <SentencePractice
           words={practiceWords}
-          onClose={() => {}}
+          onClose={() => setShowPractice(false)}
         />
       )}
     </div>
