@@ -636,20 +636,88 @@ function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid,
   )
 }
 
-// ─── Edit Word Modal ────────────────────────────────────────────────────────
+// ─── Move Word Modal ────────────────────────────────────────────────────────
 
-function EditWordModal({ word, folders, onClose, targetUid }) {
-  const [term, setTerm] = useState(word.term || '')
+function MoveWordModal({ word, folders, onClose, targetUid }) {
   const [selectedFolder, setSelectedFolder] = useState(word.category || '')
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
-    const w = term.trim()
-    if (!w || !selectedFolder) return
+    if (!selectedFolder) return
     setSaving(true)
     try {
       const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'wordbank', word.id)
       const folderColor = folders.find(f => f.name === selectedFolder)?.color || word.folderColor
+
+      await updateDoc(ref, {
+        category: selectedFolder,
+        folderColor,
+      })
+      onClose()
+    } catch (err) {
+      console.error('Move error:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-[#0b1120] border border-white/10 w-full max-w-md rounded-3xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-black text-white">Move to Collection</h2>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <p className="text-slate-400 text-sm">Move <strong className="text-white">"{word.term}"</strong> to:</p>
+          
+          <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+            {folders.map(f => (
+              <button
+                key={f.name}
+                type="button"
+                onClick={() => setSelectedFolder(f.name)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-left transition-all border ${
+                  selectedFolder === f.name
+                    ? 'bg-blue-600/10 border-blue-500/30 text-white ring-1 ring-blue-500/20'
+                    : 'bg-slate-900/60 border-white/5 text-slate-400 hover:border-white/10 hover:text-white'
+                }`}
+              >
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: f.color }} />
+                <span className="truncate">{f.name}</span>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={!selectedFolder || selectedFolder === word.category || saving}
+            className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-[.98]"
+          >
+            {saving ? <><Loader2 size={16} className="animate-spin" /> Moving...</> : 'Move Word'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Edit Word Modal ────────────────────────────────────────────────────────
+
+function EditWordModal({ word, onClose, targetUid }) {
+  const [term, setTerm] = useState(word.term || '')
+  const [customNote, setCustomNote] = useState(word.customNote || '')
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    const w = term.trim()
+    if (!w) return
+    setSaving(true)
+    try {
+      const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'wordbank', word.id)
 
       let enrichment = word.enrichment
       let primaryDef = word.primaryDefinition
@@ -669,11 +737,10 @@ function EditWordModal({ word, folders, onClose, targetUid }) {
 
       await updateDoc(ref, {
         term: w.toLowerCase(),
-        category: selectedFolder,
-        folderColor,
         enrichment,
         primaryDefinition: primaryDef,
         partOfSpeech: pos,
+        customNote: customNote || '',
       })
       onClose()
     } catch (err) {
@@ -685,15 +752,15 @@ function EditWordModal({ word, folders, onClose, targetUid }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="bg-[#0b1120] border border-white/10 w-full max-w-md rounded-3xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between mb-5">
+      <div onClick={e => e.stopPropagation()} className="bg-[#0b1120] border border-white/10 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+        <div className="p-6 pb-4 border-b border-white/5 flex items-center justify-between shrink-0">
           <h2 className="text-xl font-black text-white">Edit Word</h2>
           <button onClick={onClose} className="p-2 text-slate-500 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
             <X size={18} />
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div>
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Term</label>
             <input
@@ -704,29 +771,21 @@ function EditWordModal({ word, folders, onClose, targetUid }) {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Collection</label>
-            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-              {folders.map(f => (
-                <button
-                  key={f.name}
-                  type="button"
-                  onClick={() => setSelectedFolder(f.name)}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-left transition-all border ${
-                    selectedFolder === f.name
-                      ? 'bg-blue-600/10 border-blue-500/30 text-white ring-1 ring-blue-500/20'
-                      : 'bg-slate-900/60 border-white/5 text-slate-400 hover:border-white/10 hover:text-white'
-                  }`}
-                >
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: f.color }} />
-                  <span className="truncate">{f.name}</span>
-                </button>
-              ))}
-            </div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Personal Note</label>
+            <textarea
+              value={customNote}
+              onChange={e => setCustomNote(e.target.value)}
+              placeholder="Add your own notes for this word..."
+              className="w-full bg-slate-900/80 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 transition-all resize-none"
+              rows="4"
+            />
           </div>
+        </div>
 
+        <div className="p-6 pt-4 border-t border-white/5 shrink-0">
           <button
             onClick={handleSave}
-            disabled={!term.trim() || !selectedFolder || saving}
+            disabled={!term.trim() || saving}
             className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 active:scale-[.98]"
           >
             {saving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : 'Save Changes'}
@@ -736,6 +795,86 @@ function EditWordModal({ word, folders, onClose, targetUid }) {
     </div>
   )
 }
+
+// ─── Create Folder Modal ────────────────────────────────────────────────────
+
+function CreateFolderModal({ onClose, onFolderCreated }) {
+  const [folderName, setFolderName] = useState('')
+  const [folderColor, setFolderColor] = useState(FOLDER_COLORS[0])
+  const inputRef = useRef(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  const handleCreate = async () => {
+    const name = folderName.trim()
+    if (!name) return
+    onFolderCreated?.(name, folderColor.hex)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-[#0b1120] border border-white/10 w-full max-w-md rounded-3xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-black text-white">New Collection</h2>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Collection Name</label>
+            <input
+              ref={inputRef}
+              value={folderName}
+              onChange={e => setFolderName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              placeholder="e.g. Food, Verbs, Family..."
+              className="w-full bg-slate-900/80 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Color</label>
+            <div className="flex gap-3 flex-wrap">
+              {FOLDER_COLORS.map(c => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => setFolderColor(c)}
+                  className={`w-8 h-8 rounded-full border-2 transition-all ${
+                    folderColor.name === c.name ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-100'
+                  }`}
+                  style={{ backgroundColor: c.hex }}
+                  title={c.name}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={handleCreate}
+              disabled={!folderName.trim()}
+              className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold rounded-xl transition-all"
+            >
+              Create Collection
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Old Edit Word Modal code was here
 
 // ─── Main WordBank Component ────────────────────────────────────────────────
 
@@ -755,6 +894,7 @@ export default function WordBank({
   const [selectedWordId, setSelectedWordId] = useState(null)
   const [modalMode, setModalMode] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
+  const [moveTarget, setMoveTarget] = useState(null)
   const [showPractice, setShowPractice] = useState(false)
   
   // Toast and animation state
@@ -838,7 +978,12 @@ export default function WordBank({
       setToastMessage('Word deleted')
       setToastType('info')
       setShowToast(true)
-    } catch (err) { console.error(err) }
+    } catch (err) { 
+      console.error(err)
+      setToastMessage('Failed to delete word')
+      setToastType('error')
+      setShowToast(true)
+    }
   }
 
   const handleWordSaved = (term) => {
@@ -853,6 +998,12 @@ export default function WordBank({
     }
   }
 
+  const handleFolderCreated = (name) => {
+    setToastMessage(`Collection "${name}" created!`)
+    setToastType('success')
+    setShowToast(true)
+  }
+
   const openAddWord = () => {
     if (trackUsage) trackUsage('wordsAdded')
     setModalMode('add_word')
@@ -860,7 +1011,7 @@ export default function WordBank({
 
   // ─── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 md:px-8 min-h-[60vh] flex flex-col pb-12">
+    <div className="w-full mx-auto px-4 md:px-8 min-h-[60vh] flex flex-col pb-12">
       {/* Toast and Confetti */}
       <AnimatedToast
         message={toastMessage}
@@ -910,19 +1061,18 @@ export default function WordBank({
               </button>
             )}
           </div>
-          {words.length > 0 && (
-            <button
-              onClick={() => setShowPractice(true)}
-              className="flex items-center gap-2 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl font-bold text-sm border border-white/5 hover:border-white/10 active:scale-[.97] transition-all shrink-0"
-            >
-              <Sparkles size={16} /> <span className="hidden sm:inline">Practice</span>
-            </button>
-          )}
+          <button
+            onClick={() => setModalMode('create_folder')}
+            className="flex items-center gap-2 bg-slate-800/60 hover:bg-slate-700 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl font-bold text-sm border border-white/5 hover:border-white/10 active:scale-[.97] transition-all shrink-0"
+            title="New Collection"
+          >
+            <FolderPlus size={16} /> <span className="hidden sm:inline">Collection</span>
+          </button>
           <button
             onClick={openAddWord}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-blue-600/10 active:scale-[.97] transition-all shrink-0"
           >
-            <Plus size={16} /> <span className="hidden sm:inline">Add Word</span>
+            <Plus size={16} /> <span className="hidden sm:inline">Word</span>
           </button>
         </div>
       </div>
@@ -948,12 +1098,25 @@ export default function WordBank({
             </button>
           ))}
 
+          {/* New Collection Card */}
+          <button
+            onClick={() => setModalMode('create_folder')}
+            className="flex flex-col items-center justify-center p-5 border border-dashed border-white/10 rounded-2xl text-slate-500 hover:text-white hover:border-white/20 hover:bg-white/[.02] transition-all min-h-[130px] group"
+          >
+            <div className="w-10 h-10 rounded-xl border-2 border-dashed border-current flex items-center justify-center mb-2 group-hover:bg-white/10 transition-all">
+              <FolderPlus size={18} />
+            </div>
+            <span className="text-xs font-medium">New Collection</span>
+          </button>
+
           {/* Add Word Card */}
           <button
             onClick={openAddWord}
-            className="flex flex-col items-center justify-center p-5 border border-dashed border-white/10 rounded-2xl text-slate-500 hover:text-white hover:border-white/20 hover:bg-white/[.02] transition-all min-h-[130px]"
+            className="flex flex-col items-center justify-center p-5 border border-dashed border-white/10 rounded-2xl text-slate-500 hover:text-white hover:border-white/20 hover:bg-white/[.02] transition-all min-h-[130px] group"
           >
-            <Plus size={24} className="mb-2 opacity-60" />
+            <div className="w-10 h-10 rounded-xl border-2 border-dashed border-current flex items-center justify-center mb-2 group-hover:bg-white/10 transition-all">
+              <Plus size={18} />
+            </div>
             <span className="text-xs font-medium">Add Word</span>
           </button>
 
@@ -963,7 +1126,13 @@ export default function WordBank({
                 <Folder size={28} className="text-slate-600" />
               </div>
               <p className="text-slate-400 text-sm font-medium mb-1">No collections yet</p>
-              <p className="text-slate-600 text-xs">Add your first word to get started</p>
+              <p className="text-slate-600 text-xs mb-4">Create a collection or add your first word to get started</p>
+              <button
+                onClick={() => setModalMode('create_folder')}
+                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm font-bold transition-colors"
+              >
+                <FolderPlus size={14} /> New Collection
+              </button>
             </div>
           )}
         </div>
@@ -991,11 +1160,11 @@ export default function WordBank({
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {visibleWords.map((word, index) => (
               <div
                 key={word.id}
-                className="group relative flex items-center justify-between p-4 bg-slate-900/30 border border-white/5 rounded-2xl hover:bg-slate-800/40 hover:border-white/10 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-2"
+                className="group flex items-center justify-between p-4 bg-slate-900/30 border border-white/5 rounded-2xl hover:bg-slate-800/40 hover:border-white/10 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-2"
                 style={{ animationDelay: `${Math.min(index * 30, 300)}ms`, animationFillMode: 'both' }}
                 onClick={() => setSelectedWordId(word.id)}
               >
@@ -1015,7 +1184,31 @@ export default function WordBank({
                   </div>
                 </div>
 
-                <div className="relative shrink-0 ml-2" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-1 shrink-0 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => { setMoveTarget(word); setModalMode('move_word') }}
+                    className="p-2 text-slate-600 hover:text-blue-400 transition-colors rounded-lg hover:bg-white/5 active:scale-95"
+                    title="Move to collection"
+                  >
+                    <Folder size={16} />
+                  </button>
+                  <button
+                    onClick={() => { setEditTarget(word); setModalMode('edit_word') }}
+                    className="p-2 text-slate-600 hover:text-blue-400 transition-colors rounded-lg hover:bg-white/5 active:scale-95"
+                    title="Edit"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteWord(word.id)}
+                    className="p-2 text-slate-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10 active:scale-95"
+                    title="Delete"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                <div className="relative shrink-0 ml-2 block group-hover:hidden" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => setActiveMenu(activeMenu === word.id ? null : word.id)}
                     className="p-2 text-slate-600 hover:text-white transition-colors rounded-lg hover:bg-white/5"
@@ -1024,7 +1217,19 @@ export default function WordBank({
                   </button>
 
                   {activeMenu === word.id && (
-                    <div className="absolute right-0 top-full mt-1 w-36 bg-slate-800 border border-white/10 rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="absolute right-0 top-full mt-1 w-40 bg-slate-800 border border-white/10 rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <button
+                        onClick={() => { setSelectedWordId(word.id); setActiveMenu(null) }}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white text-left transition-colors"
+                      >
+                        <BookOpen size={14} /> View Details
+                      </button>
+                      <button
+                        onClick={() => { setMoveTarget(word); setModalMode('move_word'); setActiveMenu(null) }}
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white text-left transition-colors"
+                      >
+                        <Folder size={14} /> Move
+                      </button>
                       <button
                         onClick={() => { setEditTarget(word); setModalMode('edit_word'); setActiveMenu(null) }}
                         className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white text-left transition-colors"
@@ -1043,6 +1248,19 @@ export default function WordBank({
               </div>
             ))}
           </div>
+
+          {/* Practice button in folder view */}
+          {visibleWords.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-white/5">
+              <button
+                onClick={() => setShowPractice(true)}
+                className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-6 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-600/20 active:scale-[.97] transition-all"
+              >
+                <Sparkles size={20} />
+                Practice with these words
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -1078,9 +1296,25 @@ export default function WordBank({
         />
       )}
 
+      {modalMode === 'move_word' && moveTarget && (
+        <MoveWordModal
+          word={moveTarget}
+          folders={folders}
+          onClose={() => { setModalMode(null); setMoveTarget(null) }}
+          targetUid={targetUid}
+        />
+      )}
+
+      {modalMode === 'create_folder' && (
+        <CreateFolderModal
+          onClose={() => setModalMode(null)}
+          onFolderCreated={handleFolderCreated}
+        />
+      )}
+
       {showPractice && (
         <SentencePractice
-          words={words}
+          words={currentFolder ? visibleWords : words}
           onClose={() => setShowPractice(false)}
         />
       )}
