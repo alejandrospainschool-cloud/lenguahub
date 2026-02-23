@@ -48,17 +48,34 @@ export default function Dashboard({
   const [streakShown, setStreakShown] = useState(false)
 
   // Track level ups and streaks ---
-  // Initialize baseline on first render
+  // Initialize baseline only ONCE per session using sessionStorage
   useEffect(() => {
-    if (!user?.uid || baselineStats) return
-    setBaselineStats({ level: stats.level, streak: stats.streak })
-  }, [user?.uid, baselineStats, stats])
+    if (!user?.uid) return
+    
+    const sessionKey = `level_baseline_${user.uid}`
+    const existing = sessionStorage.getItem(sessionKey)
+    
+    // Only set baseline once per browser session
+    if (!existing) {
+      sessionStorage.setItem(sessionKey, JSON.stringify({ 
+        level: stats.level, 
+        streak: stats.streak,
+        timestamp: Date.now()
+      }))
+      setBaselineStats({ level: stats.level, streak: stats.streak })
+    } else if (!baselineStats) {
+      // If we already have it in sessionStorage, use that
+      const stored = JSON.parse(existing)
+      setBaselineStats({ level: stored.level, streak: stored.streak })
+    }
+  }, [user?.uid, baselineStats])
 
-  // Check for level ups only after baseline is set and only within this session
+  // Check for level ups during active session (only compare during session, not at startup)
   useEffect(() => {
     if (!user?.uid || !baselineStats) return
 
-    // Only show animation if level increased from baseline (in THIS session)
+    // Only show animation if level INCREASED from baseline (not equal)
+    // This prevents showing animation when baseline is first set
     if (stats.level > baselineStats.level && !levelUpShown) {
       setNewLevelReached(stats.level)
       setShowLevelUpAnimation(true)
@@ -72,7 +89,7 @@ export default function Dashboard({
       setShowStreakAnimation(true)
       setStreakShown(true)
     }
-  }, [stats.level, stats.streak, user?.uid, baselineStats, levelUpShown, streakShown])
+  }, [stats.level, stats.streak, baselineStats, levelUpShown, streakShown, user?.uid])
 
   // --- STATE ---
   const [inputText, setInputText] = useState('')
