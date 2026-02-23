@@ -18,9 +18,6 @@ import ConfettiEffect from '../../components/animations/ConfettiEffect'
 import AnimatedToast from '../../components/animations/AnimatedToast'
 import AnimatedStatCard from '../../components/animations/AnimatedStatCard'
 import { 
-  checkLevelUp, 
-  getPreviousStats, 
-  saveCurrentStats,
   isStreakMilestone,
   getCelebrationMessages
 } from '../../lib/animationHelpers' 
@@ -45,55 +42,37 @@ export default function Dashboard({
   const [toastType, setToastType] = useState('success')
   const [showToast, setShowToast] = useState(false)
   
-  // Use refs to track if we've already shown animations this session
-  const levelUpShownRef = useRef(false)
-  const streakShownRef = useRef(false)
-  // Track whether we've initialized stats this session (prevents false level-up on login)
-  const sessionInitializedRef = useRef(false)
+  // Use state instead of refs to track baseline stats from session start
+  const [baselineStats, setBaselineStats] = useState(null)
+  const [levelUpShown, setLevelUpShown] = useState(false)
+  const [streakShown, setStreakShown] = useState(false)
 
   // Track level ups and streaks ---
+  // Initialize baseline on first render
   useEffect(() => {
-    if (!user?.uid) return
+    if (!user?.uid || baselineStats) return
+    setBaselineStats({ level: stats.level, streak: stats.streak })
+  }, [user?.uid, baselineStats, stats])
 
-    // On FIRST load of this session, always save current stats as baseline
-    // This prevents showing level-up from stale localStorage data on login
-    if (!sessionInitializedRef.current) {
-      sessionInitializedRef.current = true
-      saveCurrentStats(user, stats)
-      return
-    }
+  // Check for level ups only after baseline is set and only within this session
+  useEffect(() => {
+    if (!user?.uid || !baselineStats) return
 
-    const prev = getPreviousStats(user)
-    if (!prev) {
-      saveCurrentStats(user, stats)
-      return
-    }
-
-    // Only process if level or streak have actually changed
-    if (stats.level === prev.level && stats.streak === prev.streak) {
-      return
-    }
-
-    setPreviousStats(prev)
-
-    // Check if level up occurred - only show if level actually increased
-    if (stats.level > prev.level && !levelUpShownRef.current) {
+    // Only show animation if level increased from baseline (in THIS session)
+    if (stats.level > baselineStats.level && !levelUpShown) {
       setNewLevelReached(stats.level)
       setShowLevelUpAnimation(true)
       setShowConfetti(true)
-      levelUpShownRef.current = true
+      setLevelUpShown(true)
       setTimeout(() => setShowConfetti(false), 4000)
     }
 
     // Check if streak milestone reached (only show once per session)
-    if (stats.streak > prev.streak && isStreakMilestone(stats.streak) && !streakShownRef.current) {
+    if (stats.streak > baselineStats.streak && isStreakMilestone(stats.streak) && !streakShown) {
       setShowStreakAnimation(true)
-      streakShownRef.current = true
+      setStreakShown(true)
     }
-
-    // Save current stats for next comparison
-    saveCurrentStats(user, stats)
-  }, [stats.level, stats.streak, user?.uid])
+  }, [stats.level, stats.streak, user?.uid, baselineStats, levelUpShown, streakShown])
 
   // --- STATE ---
   const [inputText, setInputText] = useState('')
