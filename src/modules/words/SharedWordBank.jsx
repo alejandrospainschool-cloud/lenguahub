@@ -1,6 +1,7 @@
 // src/modules/words/SharedWordBank.jsx
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { fetchWordInfo } from '../../lib/linguaRobot'
+import { handleError } from '../../lib/errorHandler'
 import {
   Plus, Search, Folder, ArrowLeft, MoreHorizontal, Trash2, Edit2,
   FolderPlus, X, BookOpen, Languages, MessageSquareText, Loader2,
@@ -173,9 +174,8 @@ function WordDetailModal({ word, onClose, onEnrich }) {
         setEnrichError('No data returned for this word')
       }
     } catch (err) {
-      const msg = err.name === 'AbortError' ? 'Request timed out' : (err.message || 'Lookup failed')
-      console.error('Word lookup failed:', msg)
-      setEnrichError(msg)
+      handleError(err, 'Word Lookup')
+      setEnrichError('Something went wrong')
     } finally {
       setEnriching(false)
     }
@@ -423,7 +423,8 @@ function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid,
       const data = await fetchWordInfo(w)
       setLookup({ loading: false, data, error: null })
     } catch (err) {
-      setLookup({ loading: false, data: null, error: err.message })
+      handleError(err, 'Word Lookup')
+      setLookup({ loading: false, data: null, error: 'Something went wrong' })
     }
   }, [term])
 
@@ -466,7 +467,7 @@ function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid,
       if (onWordSaved) onWordSaved(w)
       onClose()
     } catch (err) {
-      console.error('Save error:', err)
+      handleError(err, 'Save Word')
     } finally {
       setSaving(false)
     }
@@ -654,7 +655,7 @@ function MoveWordModal({ word, folders, onClose, targetUid }) {
       })
       onClose()
     } catch (err) {
-      console.error('Move error:', err)
+      handleError(err, 'Move Word')
     } finally {
       setSaving(false)
     }
@@ -743,7 +744,7 @@ function EditWordModal({ word, onClose, targetUid }) {
       })
       onClose()
     } catch (err) {
-      console.error('Edit error:', err)
+      handleError(err, 'Edit Word')
     } finally {
       setSaving(false)
     }
@@ -964,7 +965,7 @@ export default function WordBank({
         partOfSpeech: entry?.partOfSpeech || '',
       })
     } catch (err) {
-      console.error('Enrich update failed:', err)
+      handleError(err, 'Update Word Enrichment')
     }
   }, [targetUid])
 
@@ -977,8 +978,8 @@ export default function WordBank({
       setToastType('info')
       setShowToast(true)
     } catch (err) { 
-      console.error(err)
-      setToastMessage('Failed to delete word')
+      handleError(err, 'Delete Word')
+      setToastMessage('Something went wrong')
       setToastType('error')
       setShowToast(true)
     }

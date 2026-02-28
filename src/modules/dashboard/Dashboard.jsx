@@ -12,6 +12,7 @@ import { generateContent } from '../../lib/ai'
 import { db } from '../../lib/firebase'
 import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore'
 import { hasReachedLimit } from '../../lib/freemium'
+import { handleError } from '../../lib/errorHandler'
 import StreakAnimation from '../../components/animations/StreakAnimation'
 import AnimatedToast from '../../components/animations/AnimatedToast'
 import AnimatedStatCard from '../../components/animations/AnimatedStatCard'
@@ -80,8 +81,8 @@ export default function Dashboard({
       const result = await generateContent(prompt)
       setTranslatedText(result.trim())
     } catch (error) {
-      console.error('Translation Failed:', error)
-      setTranslatedText(`Error: ${error?.message || 'AI request failed'}`)
+      handleError(error, 'Text Translation')
+      setTranslatedText('Something went wrong. Please try again.')
     } finally {
       setIsTranslating(false)
     }
@@ -129,8 +130,8 @@ export default function Dashboard({
         setHasSaved(false)
       }, 2000)
     } catch (err) {
-      console.error('Failed to save word:', err)
-      setToastMessage('Error saving to Word Bank.')
+      handleError(err, 'Save Word to Bank')
+      setToastMessage('Something went wrong.')
       setToastType('error')
       setShowToast(true)
     }

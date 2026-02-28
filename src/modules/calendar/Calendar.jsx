@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { ArrowLeft, Plus, Trash2, Edit2, MessageSquare, X, Loader2, Clock, FileText } from 'lucide-react'
 import { addDoc, collection, deleteDoc, doc, updateDoc, onSnapshot, query } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
+import { handleError } from '../../lib/errorHandler'
 import AnimatedToast from '../../components/animations/AnimatedToast'
 
 export default function CalendarView({ user, events = [], setEvents, studentUid = null, isTeacherView = false }) {
@@ -65,8 +66,8 @@ export default function CalendarView({ user, events = [], setEvents, studentUid 
       setEditingId(null)
       setFormData({ date: new Date().toISOString().split('T')[0], duration: 60, topic: '', notes: '', studentNotes: '' })
     } catch (err) {
-      console.error('Save error:', err)
-      setToastMessage('Error saving lesson')
+      handleError(err, 'Save Lesson')
+      setToastMessage('Something went wrong')
       setToastType('error')
       setShowToast(true)
     } finally {
@@ -82,7 +83,7 @@ export default function CalendarView({ user, events = [], setEvents, studentUid 
       setToastType('info')
       setShowToast(true)
     } catch (err) {
-      console.error('Delete error:', err)
+      handleError(err, 'Delete Lesson')
     }
   }, [targetUid])
 
@@ -111,7 +112,7 @@ export default function CalendarView({ user, events = [], setEvents, studentUid 
       setShowToast(true)
       setShowNoteModal(null)
     } catch (err) {
-      console.error('Note save error:', err)
+      handleError(err, 'Save Lesson Notes')
     }
   }, [targetUid])
 

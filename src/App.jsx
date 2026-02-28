@@ -41,6 +41,9 @@ import {
 // Freemium Helper
 import { getEmptyUsage } from './lib/freemium'
 
+// Error Handler
+import { handleError } from './lib/errorHandler'
+
 // Animation Helpers
 import { 
   hasSeenDailyWelcomeToday, 
@@ -147,13 +150,13 @@ function MainContent() {
             setLoading(false)
           },
           (err) => {
-            console.error('Role snapshot error:', err)
+            handleError(err, 'Role Snapshot')
             setRole('student')
             setLoading(false)
           }
         )
       } catch (err) {
-        console.error('User Sync/Role Error:', err)
+        handleError(err, 'User Sync and Role Setup')
         setRole('student')
         setCheckingOnboarding(false)
         setLoading(false)
@@ -319,7 +322,7 @@ function StudentLayout({ user, isGuest }) {
         [`usage.${metricKey}`]: increment(1),
       })
     } catch (err) {
-      console.error('Usage tracking failed:', err)
+      handleError(err, 'Usage Tracking')
     }
   }
 
@@ -336,12 +339,12 @@ function StudentLayout({ user, isGuest }) {
       if (data.url) {
         window.location.href = data.url
       } else {
-        console.error('Stripe Error:', data)
-        alert('Failed to start checkout. Please try again.')
+        handleError(data, 'Stripe Checkout')
+        alert('Something went wrong. Please try again.')
       }
     } catch (error) {
-      console.error('Checkout error:', error)
-      alert('Something went wrong with the payment server. Please try again.')
+      handleError(error, 'Payment Checkout')
+      alert('Something went wrong. Please try again.')
     }
   }
 

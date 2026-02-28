@@ -22,6 +22,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { generateContent } from '../../lib/ai'
 import { hasReachedLimit, FREEMIUM_LIMITS } from '../../lib/freemium'
+import { handleError } from '../../lib/errorHandler'
 
 // -------------------- HELPERS --------------------
 function extractJson(text) {
@@ -211,8 +212,8 @@ ${inputText}`
 
       trackUsage && trackUsage('aiRequests')
     } catch (err) {
-      console.error(err)
-      setResults({ type: 'summary', content: `Error: ${err?.message || 'AI request failed'}` })
+      handleError(err, 'AI Content Generation')
+      setResults({ type: 'summary', content: 'Something went wrong. Please try again.' })
     } finally {
       setIsProcessing(false)
     }
@@ -236,8 +237,8 @@ ${inputText}`
       setSavedIDs((prev) => [...prev, item.id])
       showToast(`Saved to ${category}`)
     } catch (error) {
-      console.error('Error saving:', error)
-      showToast('Could not save')
+      handleError(error, 'Save Word to Bank')
+      showToast('Something went wrong')
     }
   }
 

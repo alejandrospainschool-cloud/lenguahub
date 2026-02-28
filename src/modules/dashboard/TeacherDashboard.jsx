@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, getDoc, query, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { handleError } from '../../lib/errorHandler';
 import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar';
 import { Users, ShieldCheck, Search, Calendar as CalendarIcon, ChevronRight, Crown, Mail, Clock, LogOut, TrendingUp, UserCog } from 'lucide-react';
 import CalendarView from '../calendar/Calendar';
@@ -119,8 +120,8 @@ function StudentRow({ student, onManage }) {
       const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
       await setDoc(ref, { isPremium: !isPremium }, { merge: true })
     } catch (err) {
-      console.error(err)
-      alert('Error updating status')
+      handleError(err, 'Toggle Premium Status')
+      alert('Something went wrong')
     }
   }
 
@@ -224,8 +225,8 @@ function StudentDetailView({ student, user, onBack }) {
       const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
       await setDoc(ref, { teacherNotes: notes }, { merge: true })
     } catch (err) {
-      console.error('Failed to save notes:', err)
-      alert('Failed to save notes')
+      handleError(err, 'Save Teacher Notes')
+      alert('Something went wrong')
     } finally {
       setSaving(false)
     }
@@ -588,7 +589,7 @@ export default function TeacherDashboard({ user, logout }) {
   
   const setUserRole = async (targetUid, newRole) => {
     if (!targetUid) {
-      alert('Target UID missing (user doc likely missing uid field).')
+      alert('Something went wrong.')
       return
     }
     
@@ -603,8 +604,8 @@ export default function TeacherDashboard({ user, logout }) {
       )
       console.log('✅ Role updated:', targetUid, '→', newRole)
     } catch (e) {
-      console.error('❌ Role update error:', e)
-      alert('Failed to update role. Check Firestore rules.')
+      handleError(e, 'Update User Role')
+      alert('Something went wrong.')
     }
   }
 
@@ -643,8 +644,8 @@ export default function TeacherDashboard({ user, logout }) {
 
       setAssignStudentUid('')
     } catch (e) {
-      console.error('❌ Assign error:', e)
-      alert('Failed to assign. Check Firestore rules.')
+      handleError(e, 'Assign Student to Tutor')
+      alert('Something went wrong.')
     }
   }
 
@@ -660,8 +661,8 @@ export default function TeacherDashboard({ user, logout }) {
       setAssignments((prev) => prev.filter((a) => a.id !== id))
       console.log('✅ Assignment removed:', id)
     } catch (e) {
-      console.error('❌ Unassign error:', e)
-      alert('Failed to unassign. Check Firestore rules.')
+      handleError(e, 'Unassign Student from Tutor')
+      alert('Something went wrong.')
     }
   }
 
