@@ -1,6 +1,6 @@
 // src/modules/dashboard/TeacherDashboard.jsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs, getDoc, query, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, getDocs, getDoc, query, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, where, addDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { handleError } from '../../lib/errorHandler';
 import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar';
@@ -8,6 +8,7 @@ import { Users, ShieldCheck, Search, Calendar as CalendarIcon, ChevronRight, Cro
 import CalendarView from '../calendar/Calendar';
 import AdminPanel from './AdminDashboard';
 import WordBank from '../words/WordBank';
+import TeacherLessonModal from '../../components/lessons/TeacherLessonModal';
 
 // Utility functions
 // assignmentDocId and normalizeUser are already defined below, do not redeclare here
@@ -207,6 +208,8 @@ function StudentDetailView({ student, user, onBack }) {
   const [words, setWords] = useState([])
   const [studentMeta, setStudentMeta] = useState(null)
   const [activeTab, setActiveTab] = useState('activity') // activity, lessons, words
+  const [showTeacherLessonModal, setShowTeacherLessonModal] = useState(false)
+  const [addingLesson, setAddingLesson] = useState(false)
 
   // Load teacher notes and student metadata
   useEffect(() => {
@@ -252,6 +255,24 @@ function StudentDetailView({ student, user, onBack }) {
       handleError(err, 'Save Teacher Notes')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleAddLesson = async (lessonData) => {
+    setAddingLesson(true)
+    try {
+      await addDoc(
+        collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'lessons'),
+        {
+          ...lessonData,
+          createdAt: serverTimestamp(),
+        }
+      )
+      setShowTeacherLessonModal(false)
+    } catch (err) {
+      handleError(err, 'Add Lesson')
+    } finally {
+      setAddingLesson(false)
     }
   }
 
@@ -413,8 +434,16 @@ function StudentDetailView({ student, user, onBack }) {
 
       {/* TAB: LESSONS */}
       {activeTab === 'lessons' && (
-        <div>
-          <h3 className="text-sm font-bold text-white mb-3">📚 Lesson History ({lessons.length} total)</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white">📚 Lesson History ({lessons.length} total)</h3>
+            <button
+              onClick={() => setShowTeacherLessonModal(true)}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all border border-purple-500/50"
+            >
+              + Add Lesson
+            </button>
+          </div>
           {lessons.length === 0 ? (
             <div className="bg-slate-800/40 rounded-lg p-6 text-slate-500 text-sm text-center">
               No lessons logged yet. You'll see a full history here.
@@ -427,6 +456,9 @@ function StudentDetailView({ student, user, onBack }) {
                     <div>
                       <div className="font-bold text-white">{lesson.title || lesson.topic || 'Lesson'}</div>
                       <div className="text-xs text-slate-400 mt-1">Type: {lesson.lessonType || 'General'}</div>
+                      {lesson.addedByTeacher && (
+                        <div className="text-xs text-purple-400 mt-1">👨‍🏫 Added by teacher</div>
+                      )}
                     </div>
                     <span className="text-xs text-slate-500">{new Date(lesson.date).toLocaleDateString()}</span>
                   </div>
@@ -463,6 +495,15 @@ function StudentDetailView({ student, user, onBack }) {
           )}
         </div>
       )}
+
+      {/* TEACHER LESSON MODAL */}
+      <TeacherLessonModal
+        isOpen={showTeacherLessonModal}
+        onClose={() => setShowTeacherLessonModal(false)}
+        onSubmit={handleAddLesson}
+        isLoading={addingLesson}
+        studentName={student.displayName}
+      />
     </div>
   )
 }
