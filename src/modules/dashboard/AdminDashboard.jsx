@@ -1,7 +1,7 @@
 // src/modules/dashboard/AdminDashboard.jsx
 
 import React, { useMemo } from 'react';
-import { UserPlus, Link2, Unlink, Search } from 'lucide-react';
+import { UserPlus, Link2, Unlink, Search, Trash2 } from 'lucide-react';
 
 function AdminPanel({
   adminUid,
@@ -13,6 +13,7 @@ function AdminPanel({
   adminSearch,
   setAdminSearch,
   setUserRole,
+  deleteUser,
   assignTutorUid,
   setAssignTutorUid,
   assignStudentUid,
@@ -80,7 +81,7 @@ function AdminPanel({
                       </span>
                     </td>
                     <td className="p-6 text-right">
-                      <div className="flex gap-2 justify-end">
+                      <div className="flex gap-2 justify-end flex-wrap">
                         <button
                           onClick={() => setUserRole(u.uid, 'student')}
                           className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-700 bg-slate-800 hover:bg-blue-900/20 text-slate-200"
@@ -92,6 +93,12 @@ function AdminPanel({
                           className="px-3 py-2 rounded-lg text-xs font-bold border border-cyan-500/30 bg-cyan-900/20 hover:bg-cyan-900/40 text-cyan-200"
                         >
                           Set Tutor
+                        </button>
+                        <button
+                          onClick={() => deleteUser(u.uid, u.displayName || u.email)}
+                          className="px-3 py-2 rounded-lg text-xs font-bold border border-red-500/30 bg-red-900/20 hover:bg-red-900/40 text-red-200 inline-flex items-center gap-1.5"
+                        >
+                          <Trash2 size={12} /> Delete
                         </button>
                       </div>
                     </td>

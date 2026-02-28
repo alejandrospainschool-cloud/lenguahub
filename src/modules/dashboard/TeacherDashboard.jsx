@@ -772,6 +772,48 @@ export default function TeacherDashboard({ user, logout }) {
     }
   }
 
+  const deleteUser = async (targetUid, userName) => {
+    if (!targetUid) {
+      alert('Something went wrong.')
+      return
+    }
+    
+    if (!window.confirm(`⚠️ PERMANENTLY DELETE "${userName || targetUid}"?\n\nThis will delete:\n• User account\n• All lessons\n• All words\n• All settings\n\nThis CANNOT be undone.`)) {
+      return
+    }
+
+    try {
+      // Delete user document
+      await deleteDoc(doc(db, 'users', targetUid))
+      
+      // Delete user's lessons
+      const lessonsRef = collection(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'lessons')
+      const lessonsSnap = await getDocs(lessonsRef)
+      for (const doc of lessonsSnap.docs) {
+        await deleteDoc(doc.ref)
+      }
+      
+      // Delete user's wordbank
+      const wordbankRef = collection(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'wordbank')
+      const wordSnap = await getDocs(wordbankRef)
+      for (const doc of wordSnap.docs) {
+        await deleteDoc(doc.ref)
+      }
+      
+      // Delete user's settings
+      await deleteDoc(doc(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'settings', 'metadata'))
+      
+      // Remove from local state
+      setAllUsers((prev) => prev.filter((u) => u.uid !== targetUid))
+      
+      console.log('✅ User deleted:', targetUid)
+      alert(`✅ ${userName || targetUid} has been completely deleted.`)
+    } catch (e) {
+      handleError(e, 'Delete User')
+      alert('Something went wrong while deleting the user.')
+    }
+  }
+
   const assignStudentToTutor = async () => {
     if (!assignTutorUid || !assignStudentUid) {
       alert('Pick both a tutor and a student.')
@@ -1034,6 +1076,7 @@ export default function TeacherDashboard({ user, logout }) {
               adminSearch={adminSearch}
               setAdminSearch={setAdminSearch}
               setUserRole={setUserRole}
+              deleteUser={deleteUser}
               assignTutorUid={assignTutorUid}
               setAssignTutorUid={setAssignTutorUid}
               assignStudentUid={assignStudentUid}
