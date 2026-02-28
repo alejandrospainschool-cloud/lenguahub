@@ -1,7 +1,7 @@
 // src/components/lessons/LessonProgressCard.jsx
 import React from 'react'
-import { BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
-import { calculateLessonStats, isPaymentDue } from '../../lib/lessonTracking'
+import { BookOpen } from 'lucide-react'
+import { calculateLessonStats } from '../../lib/lessonTracking'
 
 export default function LessonProgressCard({ lessons = [], onClick, isPremium = false }) {
   const stats = calculateLessonStats(lessons)
@@ -9,9 +9,6 @@ export default function LessonProgressCard({ lessons = [], onClick, isPremium = 
   if (isPremium) {
     return null // Premium users don't have lesson limits
   }
-
-  const percentage = (stats.thisMonth / 8) * 100
-  const isComplete = stats.isPaid
 
   return (
     <div
@@ -25,58 +22,40 @@ export default function LessonProgressCard({ lessons = [], onClick, isPremium = 
           </div>
           <div>
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              This Month's Lessons
+              Lessons Logged
             </div>
             <div className="text-white font-bold text-2xl">
-              {stats.thisMonth}
-              <span className="text-slate-400 text-lg ml-1">/8</span>
+              {stats.total}
+              <span className="text-slate-400 text-lg ml-1">total</span>
             </div>
           </div>
         </div>
-        <div>
-          {isComplete ? (
-            <CheckCircle2 size={24} className="text-emerald-400" />
-          ) : stats.thisMonth >= 6 ? (
-            <AlertCircle size={24} className="text-amber-400" />
-          ) : (
-            <div className="text-2xl">📚</div>
-          )}
-        </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Recent Lessons List */}
       <div className="mb-4">
-        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className={`h-full transition-all duration-500 ${
-              isComplete ? 'bg-emerald-500' : 'bg-blue-500'
-            }`}
-            style={{ width: `${Math.min(percentage, 100)}%` }}
-          />
-        </div>
+        {lessons.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-2">No lessons logged yet</div>
+        ) : (
+          <div className="space-y-1 max-h-[100px] overflow-y-auto">
+            {lessons.slice(0, 3).map((lesson) => (
+              <div key={lesson.id} className="text-xs text-slate-400 flex items-center gap-2">
+                <span className="text-blue-400">✓</span>
+                <span className="line-clamp-1">{lesson.title || lesson.topic || 'Lesson'}</span>
+                <span className="text-slate-600 ml-auto flex-shrink-0">{new Date(lesson.date).toLocaleDateString()}</span>
+              </div>
+            ))}
+            {lessons.length > 3 && (
+              <div className="text-xs text-slate-500 italic">+{lessons.length - 3} more</div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Status Message */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="text-slate-400">
-          {isComplete ? (
-            <span className="text-emerald-400 font-bold flex items-center gap-1">
-              ✓ Payment due this month
-            </span>
-          ) : stats.remaining === 0 ? (
-            <span className="text-emerald-400 font-bold">All lessons logged!</span>
-          ) : stats.remaining <= 2 ? (
-            <span className="text-amber-400 font-bold">
-              {stats.remaining} more to reach payment
-            </span>
-          ) : (
-            <span>{stats.remaining} more lessons</span>
-          )}
-        </div>
-        <button className="text-blue-400 font-bold text-xs hover:text-blue-300 transition-colors">
-          Log Lesson →
-        </button>
-      </div>
+      {/* CTA */}
+      <button className="w-full px-4 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 font-bold text-sm rounded-lg transition-all border border-blue-500/20 hover:border-blue-500/40">
+        Log New Lesson
+      </button>
     </div>
   )
 }

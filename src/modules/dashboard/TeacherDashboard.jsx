@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, getDoc, query, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { handleError } from '../../lib/errorHandler';
-import { calculateLessonStats } from '../../lib/lessonTracking';
 import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar';
 import { Users, ShieldCheck, Search, Calendar as CalendarIcon, ChevronRight, Crown, Mail, Clock, LogOut, TrendingUp, UserCog } from 'lucide-react';
 import CalendarView from '../calendar/Calendar';
@@ -76,148 +75,149 @@ class ErrorBoundary extends React.Component {
 }
 
 // ============================================================================
-// STUDENT ROW COMPONENT
+// STUDENT ACTIVITY CARD COMPONENT (Modern card-based view)
 // ============================================================================
 
-function StudentRow({ student, onManage }) {
-  const [isPremium, setIsPremium] = useState(false)
-  const [loading, setLoading] = useState(true)
+function StudentActivityCard({ student, onViewDetails, onManageWords }) {
+  const [stats, setStats] = useState({ lessons: 0, words: 0, lastActive: null })
 
   useEffect(() => {
     if (!student?.uid) return
-    
-    const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        if (snap.exists()) {
-          setIsPremium(!!snap.data().isPremium)
-        }
-        setLoading(false)
-      },
-      (err) => {
-        console.error('Premium snapshot error:', err)
-        setLoading(false)
-      }
-    )
-    
-    return () => unsub()
-  }, [student?.uid])
 
-  const togglePremium = async () => {
-    if (!student?.uid) {
-      alert('Student UID missing.')
-      return
+    const loadStats = async () => {
+      try {
+        // Load lessons
+        const lessonsRef = collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'lessons')
+        const lessonSnap = await getDocs(lessonsRef)
+        
+        // Load words
+        const wordsRef = collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank')
+        const wordSnap = await getDocs(wordsRef)
+
+        setStats({
+          lessons: lessonSnap.size,
+          words: wordSnap.size,
+          lastActive: student.lastLogin?.toDate?.() || null
+        })
+      } catch (err) {
+        console.error('Error loading stats:', err)
+      }
     }
+
+    loadStats()
+  }, [student?.uid, student?.lastLogin])
+
+  const getLastActiveText = () => {
+    if (!stats.lastActive) return 'Never'
+    const now = new Date()
+    const diff = Math.floor((now - stats.lastActive) / 1000)
     
-    const studentName = student.displayName || 'student'
-    const newStatus = !isPremium ? 'Premium' : 'Free'
-    
-    if (!window.confirm(`Change ${studentName} to ${newStatus}?`)) {
-      return
-    }
-    
-    try {
-      const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
-      await setDoc(ref, { isPremium: !isPremium }, { merge: true })
-    } catch (err) {
-      handleError(err, 'Toggle Premium Status')
-      alert('Something went wrong')
-    }
+    if (diff < 60) return 'Now'
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+    return stats.lastActive.toLocaleDateString()
   }
 
-  const statusClassName = isPremium
-    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-    : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white'
+  const getActivityColor = () => {
+    if (!stats.lastActive) return 'text-slate-500'
+    const now = new Date()
+    const diff = Math.floor((now - stats.lastActive) / 1000)
+    if (diff < 86400) return 'text-green-400'
+    if (diff < 604800) return 'text-yellow-400'
+    return 'text-slate-400'
+  }
 
   return (
-    <tr className="hover:bg-white/5 transition-colors group border-b border-white/5">
-      <td className="p-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden">
+    <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 hover:bg-slate-800/60 hover:border-slate-600/70 transition-all cursor-pointer group" onClick={onViewDetails}>
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start gap-3 flex-1">
+          <div className="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center border border-slate-600 overflow-hidden flex-shrink-0">
             {student.photoURL ? (
-              <img src={student.photoURL} className="w-full h-full rounded-full" alt="" />
+              <img src={student.photoURL} className="w-full h-full" alt="" />
             ) : (
-              <span className="font-bold text-slate-400">
-                {student.displayName?.[0] || '?'}
+              <span className="font-bold text-slate-300 text-lg">
+                {student.displayName?.[0]?.toUpperCase() || '?'}
               </span>
             )}
           </div>
-          <div>
-            <div className="font-bold text-white">{student.displayName || 'Unknown'}</div>
-            <div className="text-xs text-slate-500 flex items-center gap-1">
-              <Mail size={10} /> {student.email || 'No email'}
-            </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-white truncate group-hover:text-blue-400 transition-colors">
+              {student.displayName || 'Unknown'}
+            </h3>
+            <p className="text-xs text-slate-400 truncate">{student.email || 'No email'}</p>
           </div>
         </div>
-      </td>
-
-      <td className="p-6">
-        <button
-          onClick={togglePremium}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${statusClassName}`}
-        >
-          {loading ? (
-            '...'
-          ) : isPremium ? (
-            <>
-              <Crown size={12} fill="currentColor" /> Premium
-            </>
-          ) : (
-            'Student'
-          )}
-        </button>
-      </td>
-
-      <td className="p-6 text-slate-400 text-sm">
-        <div className="flex items-center gap-2">
-          <Clock size={14} />
-          {student.lastLogin?.toDate 
-            ? student.lastLogin.toDate().toLocaleDateString() 
-            : 'Never'}
+        <div className="text-right">
+          <div className={`text-xs font-bold ${getActivityColor()}`}>
+            {getLastActiveText()}
+          </div>
         </div>
-      </td>
+      </div>
 
-      <td className="p-6 text-right">
+      {/* Activity Stats */}
+      <div className="grid grid-cols-3 gap-2 mb-3 pb-3 border-b border-slate-700/30">
+        <div className="text-center">
+          <div className="text-xl font-bold text-blue-400">{stats.lessons}</div>
+          <div className="text-xs text-slate-500">Lessons</div>
+        </div>
+        <div className="text-center">
+          <div className="text-xl font-bold text-purple-400">{stats.words}</div>
+          <div className="text-xs text-slate-500">Words</div>
+        </div>
+        <div className="text-center">
+          <div className="text-xl font-bold text-cyan-400">-</div>
+          <div className="text-xs text-slate-500">Progress</div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2">
         <button
-          onClick={onManage}
-          className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 rounded-lg text-xs font-bold transition-all border border-blue-500/20 hover:border-blue-500/40 flex items-center gap-2 ml-auto"
+          onClick={(e) => {
+            e.stopPropagation()
+            onViewDetails()
+          }}
+          className="flex-1 px-3 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 rounded-lg text-xs font-bold transition-all border border-blue-500/20"
         >
-          Manage Words <ChevronRight size={14} />
+          View Profile
         </button>
-      </td>
-    </tr>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onManageWords()
+          }}
+          className="flex-1 px-3 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold transition-all border border-slate-600/50"
+        >
+          Words
+        </button>
+      </div>
+    </div>
   )
 }
 
 // ============================================================================
-// STUDENT DETAIL VIEW COMPONENT
+// STUDENT PROFILE VIEW COMPONENT (Comprehensive Activity Dashboard)
 // ============================================================================
 
 function StudentDetailView({ student, user, onBack }) {
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
-  const [loadError, setLoadError] = useState(null)
-  const [studentMeta, setStudentMeta] = useState(null)
   const [lessons, setLessons] = useState([])
+  const [words, setWords] = useState([])
+  const [studentMeta, setStudentMeta] = useState(null)
+  const [activeTab, setActiveTab] = useState('activity') // activity, lessons, words
 
+  // Load teacher notes and student metadata
   useEffect(() => {
     if (!student?.uid) return
-    
     const ref = doc(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'settings', 'metadata')
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        if (snap.exists()) {
-          setNotes(snap.data().teacherNotes || '')
-          setStudentMeta(snap.data())
-        }
-      },
-      (err) => {
-        setLoadError(err.message || 'Error loading student metadata')
+    const unsub = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        setNotes(snap.data().teacherNotes || '')
+        setStudentMeta(snap.data())
       }
-    )
-    
+    }, (err) => console.error('Error loading metadata:', err))
     return () => unsub()
   }, [student?.uid])
 
@@ -232,7 +232,16 @@ function StudentDetailView({ student, user, onBack }) {
     return () => unsub()
   }, [student?.uid])
 
-  const lessonStats = calculateLessonStats(lessons)
+  // Load words
+  useEffect(() => {
+    if (!student?.uid) return
+    const q = query(collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'wordbank'))
+    const unsub = onSnapshot(q, snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      setWords(data)
+    })
+    return () => unsub()
+  }, [student?.uid])
 
   const handleSaveNotes = async () => {
     setSaving(true)
@@ -241,136 +250,219 @@ function StudentDetailView({ student, user, onBack }) {
       await setDoc(ref, { teacherNotes: notes }, { merge: true })
     } catch (err) {
       handleError(err, 'Save Teacher Notes')
-      alert('Something went wrong')
     } finally {
       setSaving(false)
     }
   }
 
-  return (
-    <div className="bg-slate-900/80 border border-slate-700/40 rounded-3xl p-8 max-w-3xl mx-auto animate-in fade-in">
-      <button
-        onClick={onBack}
-        className="mb-6 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg text-xs font-bold border border-blue-500/20 hover:border-blue-500/40 flex items-center gap-2"
-      >
-        <ChevronRight size={14} className="rotate-180" /> Back to Roster
-      </button>
+  const lastActive = student.lastLogin?.toDate?.() || null
+  const getLastActiveColor = () => {
+    if (!lastActive) return 'text-slate-500'
+    const diff = Math.floor((new Date() - lastActive) / 1000)
+    if (diff < 86400) return 'text-green-400'
+    if (diff < 604800) return 'text-yellow-400'
+    return 'text-slate-400'
+  }
 
-      <div className="flex flex-col md:flex-row gap-8 items-start">
-        <div className="flex flex-col items-center gap-3 min-w-[120px]">
-          <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden">
+  const formatLastActive = () => {
+    if (!lastActive) return 'Never'
+    const diff = Math.floor((new Date() - lastActive) / 1000)
+    if (diff < 60) return 'Online now'
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+    return lastActive.toLocaleDateString()
+  }
+
+  return (
+    <div className="w-full animate-in fade-in">
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-6 px-1">
+        <button
+          onClick={onBack}
+          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold border border-slate-700 flex items-center gap-2 transition-all"
+        >
+          <ChevronRight size={14} className="rotate-180" /> Back
+        </button>
+        <div className="flex items-center gap-4 flex-1">
+          <div className="w-16 h-16 rounded-lg bg-slate-700 flex items-center justify-center border border-slate-600 overflow-hidden flex-shrink-0">
             {student.photoURL ? (
-              <img src={student.photoURL} className="w-full h-full rounded-full" alt="" />
+              <img src={student.photoURL} className="w-full h-full" alt="" />
             ) : (
-              <span className="font-bold text-slate-400 text-3xl">
-                {student.displayName?.[0] || '?'}
+              <span className="font-bold text-slate-300 text-2xl">
+                {student.displayName?.[0]?.toUpperCase() || '?'}
               </span>
             )}
           </div>
-          <div className="font-bold text-white text-lg">
-            {student.displayName || 'Unknown'}
-          </div>
-          <div className="text-xs text-slate-500 flex items-center gap-1">
-            <Mail size={12} /> {student.email || 'No email'}
-          </div>
-          <div className="text-xs text-slate-400 mt-2">
-            Last Login:{' '}
-            {student.lastLogin?.toDate 
-              ? student.lastLogin.toDate().toLocaleString() 
-              : 'Never'}
-          </div>
-          <div className="text-xs text-slate-400">
-            Status: {studentMeta?.isPremium ? 'Premium' : 'Student'}
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-white">{student.displayName || 'Unknown'}</h1>
+            <p className="text-sm text-slate-400">{student.email || 'No email'}</p>
+            <p className={`text-xs font-bold mt-1 ${getLastActiveColor()}`}>
+              Last active: {formatLastActive()}
+            </p>
           </div>
         </div>
+      </div>
 
-        <div className="flex-1 w-full">
-          <h2 className="text-xl font-bold text-white mb-4">Teacher Notes</h2>
-          <textarea
-            className="w-full min-h-[120px] bg-slate-800 border border-slate-700 rounded-lg p-3 text-slate-100 mb-2"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add notes about this student..."
-            disabled={saving}
-          />
-          <div className="flex gap-2">
+      {/* Quick Stats */}
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-blue-400">{lessons.length}</div>
+          <div className="text-xs text-slate-400 mt-1">Total Lessons</div>
+        </div>
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-purple-400">{words.length}</div>
+          <div className="text-xs text-slate-400 mt-1">Words Added</div>
+        </div>
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-cyan-400">-</div>
+          <div className="text-xs text-slate-400 mt-1">Quizzes</div>
+        </div>
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-emerald-400">{studentMeta?.isPremium ? 'Pro' : 'Free'}</div>
+          <div className="text-xs text-slate-400 mt-1">Status</div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-slate-700/50">
+        {[
+          { id: 'activity', label: '📊 Activity' },
+          { id: 'lessons', label: '📚 Lessons' },
+          { id: 'words', label: '📝 Words' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-3 text-sm font-bold transition-all border-b-2 ${
+              activeTab === tab.id
+                ? 'text-white border-blue-500 bg-blue-500/10'
+                : 'text-slate-400 border-transparent hover:text-white'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* TAB: ACTIVITY */}
+      {activeTab === 'activity' && (
+        <div className="space-y-6">
+          {/* Teacher Notes */}
+          <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+            <h3 className="text-sm font-bold text-white mb-3">📝 Teacher Notes</h3>
+            <textarea
+              className="w-full min-h-[100px] bg-slate-900/50 border border-slate-600 rounded-lg p-3 text-slate-100 text-sm focus:border-blue-500 focus:outline-none"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add notes about this student's progress, behavior, focus areas..."
+              disabled={saving}
+            />
             <button
               onClick={handleSaveNotes}
-              className="px-4 py-2 bg-blue-600/80 hover:bg-blue-700 text-white rounded-lg text-sm font-bold disabled:opacity-60"
               disabled={saving}
+              className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white rounded-lg text-xs font-bold transition-all"
             >
               {saving ? 'Saving...' : 'Save Notes'}
             </button>
           </div>
-          {loadError && <div className="text-red-400 text-xs mt-2">{loadError}</div>}
 
-          {/* LESSON PROGRESS */}
-          <div className="mt-8 p-4 bg-blue-600/10 border border-blue-500/20 rounded-xl">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-white">📚 Lessons This Month</h3>
-              <span className={`text-sm font-bold px-3 py-1 rounded-full ${
-                lessonStats.isPaid 
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                  : lessonStats.remaining <= 2
-                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                  : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-              }`}>
-                {lessonStats.thisMonth} / 8
-              </span>
-            </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
-              <div
-                className={`h-full transition-all ${
-                  lessonStats.isPaid ? 'bg-emerald-500' : lessonStats.thisMonth >= 6 ? 'bg-amber-500' : 'bg-blue-500'
-                }`}
-                style={{ width: `${Math.min((lessonStats.thisMonth / 8) * 100, 100)}%` }}
-              />
-            </div>
-            <p className="text-xs text-slate-400">
-              {lessonStats.remaining === 0 ? (
-                <span className="text-emerald-400 font-bold">All lessons logged - payment due</span>
+          {/* Recent Activity Timeline */}
+          <div>
+            <h3 className="text-sm font-bold text-white mb-3">🕐 Recent Activity</h3>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {lessons.length === 0 && words.length === 0 ? (
+                <div className="bg-slate-800/40 rounded-lg p-4 text-slate-500 text-sm text-center">
+                  No activity yet
+                </div>
               ) : (
-                `${lessonStats.remaining} more lessons needed`
-              )}
-            </p>
-          </div>
-
-          <div className="mt-8">
-            <h3 className="text-lg font-bold text-white mb-4">Lessons ({lessonStats.total} total)</h3>
-            {lessons.length === 0 ? (
-              <div className="bg-slate-800/40 rounded-lg p-4 text-slate-500 text-sm text-center">
-                No lessons logged yet
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {lessons.slice(0, 10).map(lesson => (
-                  <div key={lesson.id} className="bg-slate-800/40 rounded-lg p-3 text-sm hover:bg-slate-800/60 transition-colors">
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="font-bold text-white">{lesson.title || lesson.topic || 'Lesson'}</div>
-                      <span className="text-xs text-slate-500">{new Date(lesson.date).toLocaleDateString()}</span>
-                    </div>
-                    {lesson.studentNotes && (
-                      <div className="text-xs text-slate-400 bg-blue-900/20 rounded p-2 mt-1">
-                        💭 {lesson.studentNotes.substring(0, 100)}...
+                <>
+                  {lessons.slice(0, 5).map(lesson => (
+                    <div key={lesson.id} className="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3 text-sm hover:bg-slate-800/60 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-bold text-white">📚 Lesson Logged</div>
+                          <div className="text-xs text-slate-400 mt-1">{lesson.title || lesson.topic || 'Lesson'}</div>
+                        </div>
+                        <span className="text-xs text-slate-500 flex-shrink-0">{new Date(lesson.date).toLocaleDateString()}</span>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-8">
-            <h3 className="text-lg font-bold text-white mb-2">Word Bank</h3>
-            <WordBank 
-              user={user} 
-              studentUid={student.uid} 
-              isTeacherView={true} 
-              onBack={onBack} 
-            />
+                      {lesson.studentNotes && (
+                        <div className="text-xs text-slate-400 bg-blue-900/20 rounded p-2 mt-2">
+                          💭 "{lesson.studentNotes.substring(0, 80)}..."
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {words.slice(0, 2).map(word => (
+                    <div key={word.id} className="bg-slate-800/40 border border-slate-700/30 rounded-lg p-3 text-sm hover:bg-slate-800/60 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-bold text-white">📝 Word Added</div>
+                          <div className="text-xs text-slate-300 mt-1 font-mono">{word.term}</div>
+                        </div>
+                        <span className="text-xs text-slate-500">in {word.category}</span>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* TAB: LESSONS */}
+      {activeTab === 'lessons' && (
+        <div>
+          <h3 className="text-sm font-bold text-white mb-3">📚 Lesson History ({lessons.length} total)</h3>
+          {lessons.length === 0 ? (
+            <div className="bg-slate-800/40 rounded-lg p-6 text-slate-500 text-sm text-center">
+              No lessons logged yet. You'll see a full history here.
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[500px] overflow-y-auto">
+              {lessons.map(lesson => (
+                <div key={lesson.id} className="bg-slate-800/40 border border-slate-700/30 rounded-lg p-4 hover:bg-slate-800/60 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="font-bold text-white">{lesson.title || lesson.topic || 'Lesson'}</div>
+                      <div className="text-xs text-slate-400 mt-1">Type: {lesson.lessonType || 'General'}</div>
+                    </div>
+                    <span className="text-xs text-slate-500">{new Date(lesson.date).toLocaleDateString()}</span>
+                  </div>
+                  {lesson.studentNotes && (
+                    <div className="text-xs text-slate-300 bg-blue-900/20 rounded p-2 mt-2 border border-blue-800/30">
+                      <div className="text-blue-300 font-bold mb-1">Student Notes:</div>
+                      {lesson.studentNotes}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: WORDS */}
+      {activeTab === 'words' && (
+        <div>
+          <h3 className="text-sm font-bold text-white mb-3">📝 Word Bank ({words.length} total)</h3>
+          {words.length === 0 ? (
+            <div className="bg-slate-800/40 rounded-lg p-6 text-slate-500 text-sm text-center">
+              No words added yet
+            </div>
+          ) : (
+            <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4 max-h-[500px] overflow-y-auto">
+              <WordBank 
+                user={user} 
+                studentUid={student.uid} 
+                isTeacherView={true} 
+                onBack={onBack} 
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -861,14 +953,17 @@ export default function TeacherDashboard({ user, logout }) {
               </div>
             </div>
 
-            {/* Student Roster Table */}
-            <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 backdrop-blur-2xl border border-slate-700/40 rounded-3xl overflow-hidden shadow-lg shadow-black/30">
+            {/* Student Roster Cards (Modern Grid) */}
+            <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 backdrop-blur-2xl border border-slate-700/40 rounded-3xl shadow-lg shadow-black/30">
               <div className="p-7 border-b border-slate-700/40 flex flex-col md:flex-row justify-between items-center gap-4 bg-gradient-to-r from-slate-900/40 to-transparent">
-                <h2 className="text-2xl font-bold text-white">Student Roster</h2>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Student Roster</h2>
+                  <p className="text-xs text-slate-400 mt-1">{filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''}</p>
+                </div>
                 <div className="bg-gradient-to-r from-slate-800/50 to-slate-900/30 backdrop-blur-lg border border-blue-500/20 rounded-xl flex items-center px-5 py-3 text-sm text-slate-400 w-full md:w-auto hover:border-blue-400/30 transition-all">
                   <Search size={18} className="mr-3 text-blue-400/60" />
                   <input
-                    placeholder="Search students..."
+                    placeholder="Search by name or email..."
                     className="bg-transparent outline-none placeholder-slate-500 w-full text-slate-100 text-sm"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -876,48 +971,39 @@ export default function TeacherDashboard({ user, logout }) {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-gradient-to-r from-slate-900/60 to-slate-800/40 text-slate-300 text-xs uppercase font-bold tracking-widest border-b border-slate-700/40">
-                    <tr>
-                      <th className="p-6">Student</th>
-                      <th className="p-6">Status</th>
-                      <th className="p-6">Last Login</th>
-                      <th className="p-6 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {loading && (
-                      <tr>
-                        <td className="p-6 text-slate-400" colSpan={4}>
-                          Loading students...
-                        </td>
-                      </tr>
-                    )}
+              <div className="p-7">
+                {loading && (
+                  <div className="text-slate-400 text-center py-12">Loading students...</div>
+                )}
 
-                    {!loading && filteredStudents.length === 0 && (
-                      <tr>
-                        <td className="p-6 text-slate-500" colSpan={4}>
-                          {isTutor
-                            ? 'No students assigned to you yet. Ask the admin to assign students.'
-                            : 'No students found.'}
-                        </td>
-                      </tr>
-                    )}
+                {!loading && filteredStudents.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-slate-500 text-sm">
+                      {search ? 'No students match your search.' : isTutor
+                        ? 'No students assigned to you yet. Ask the admin to assign students.'
+                        : 'No students found.'}
+                    </div>
+                  </div>
+                )}
 
-                    {!loading &&
-                      filteredStudents.map((student) => (
-                        <StudentRow
-                          key={student.uid}
-                          student={student}
-                          onManage={() => {
-                            setSelectedStudent(student)
-                            setCurrentView('student-detail')
-                          }}
-                        />
-                      ))}
-                  </tbody>
-                </table>
+                {!loading && filteredStudents.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredStudents.map((student) => (
+                      <StudentActivityCard
+                        key={student.uid}
+                        student={student}
+                        onViewDetails={() => {
+                          setSelectedStudent(student)
+                          setCurrentView('student-detail')
+                        }}
+                        onManageWords={() => {
+                          setSelectedStudent(student)
+                          setCurrentView('word-bank')
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
