@@ -4,15 +4,18 @@ import { useNavigate } from 'react-router-dom'
 import {
   Calendar as CalendarIcon, Book, Sparkles, Brain, ArrowRight,
   Flame, Languages, Loader2, Save, Check, X, Trophy, FolderPlus,
-  Crown, Lock
+  Crown, Lock, BookOpen
 } from 'lucide-react'
 
 import { calculateStats } from '../../lib/gamification'
 import { generateContent } from '../../lib/ai'
 import { db } from '../../lib/firebase'
-import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, onSnapshot, query } from 'firebase/firestore'
 import { hasReachedLimit } from '../../lib/freemium'
 import { handleError } from '../../lib/errorHandler'
+import { calculateLessonStats } from '../../lib/lessonTracking'
+import LessonLogModal from '../../components/lessons/LessonLogModal'
+import LessonProgressCard from '../../components/lessons/LessonProgressCard'
 import StreakAnimation from '../../components/animations/StreakAnimation'
 import AnimatedToast from '../../components/animations/AnimatedToast'
 import AnimatedStatCard from '../../components/animations/AnimatedStatCard'
@@ -59,6 +62,11 @@ export default function Dashboard({
   const [isNewFolder, setIsNewFolder] = useState(false)
   const [hasSaved, setHasSaved] = useState(false)
 
+  // Lesson logging state
+  const [showLessonLogModal, setShowLessonLogModal] = useState(false)
+  const [lessonLoggingLoading, setLessonLoggingLoading] = useState(false)
+  const [lessons, setLessons] = useState([])
+
   // Extract Folders
   const existingFolders = useMemo(() => {
     const map = new Map()
@@ -70,6 +78,17 @@ export default function Dashboard({
     })
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
   }, [words])
+
+  // Load lessons for progress tracking
+  useEffect(() => {
+    if (!user?.uid) return
+    const q = query(collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'lessons'))
+    const unsub = onSnapshot(q, snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      setLessons(data.sort((a, b) => new Date(b.date) - new Date(a.date)))
+    })
+    return () => unsub()
+  }, [user?.uid])
 
   // --- TRANSLATE LOGIC ---
   const handleTranslate = async () => {
@@ -137,7 +156,30 @@ export default function Dashboard({
     }
   }
 
-  // Fetch user's firstName from Firestore if available
+  // --- LESSON LOGGING ---
+  const handleLogLesson = async (lessonData) => {
+    if (!user?.uid) return
+
+    setLessonLoggingLoading(true)
+    try {
+      await addDoc(collection(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'lessons'), {
+        ...lessonData,
+        createdAt: serverTimestamp(),
+      })
+      setShowLessonLogModal(false)
+      setToastMessage('✓ Lesson logged! ' + (lessons.length === 7 ? 'Payment due soon!' : ''))
+      setToastType('success')
+      setShowToast(true)
+      trackUsage && trackUsage('lessonsLogged')
+    } catch (error) {
+      handleError(error, 'Log Lesson')
+      setToastMessage('Something went wrong')
+      setToastType('error')
+      setShowToast(true)
+    } finally {
+      setLessonLoggingLoading(false)
+    }
+  }
   const [userProfile, setUserProfile] = React.useState(null)
   React.useEffect(() => {
     if (!user?.uid) return
@@ -245,6 +287,21 @@ export default function Dashboard({
           </div>
         )}
       </section>
+
+      {/* LESSON PROGRESS & LOG */}
+      <LessonProgressCard 
+        lessons={lessons} 
+        onClick={() => setShowLessonLogModal(true)}
+        isPremium={isPremium}
+      />
+
+      {/* LESSON LOG MODAL */}
+      <LessonLogModal 
+        isOpen={showLessonLogModal}
+        onClose={() => setShowLessonLogModal(false)}
+        onSubmit={handleLogLesson}
+        isLoading={lessonLoggingLoading}
+      />
 
       {/* 3. STATS HEADER */}
       <header className="text-center space-y-6">

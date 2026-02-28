@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, getDoc, query, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { handleError } from '../../lib/errorHandler';
+import { calculateLessonStats } from '../../lib/lessonTracking';
 import { fetchGoogleCalendarEvents } from '../../lib/googleCalendar';
 import { Users, ShieldCheck, Search, Calendar as CalendarIcon, ChevronRight, Crown, Mail, Clock, LogOut, TrendingUp, UserCog } from 'lucide-react';
 import CalendarView from '../calendar/Calendar';
@@ -198,6 +199,7 @@ function StudentDetailView({ student, user, onBack }) {
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const [studentMeta, setStudentMeta] = useState(null)
+  const [lessons, setLessons] = useState([])
 
   useEffect(() => {
     if (!student?.uid) return
@@ -218,6 +220,19 @@ function StudentDetailView({ student, user, onBack }) {
     
     return () => unsub()
   }, [student?.uid])
+
+  // Load lessons
+  useEffect(() => {
+    if (!student?.uid) return
+    const q = query(collection(db, 'artifacts', 'language-hub-v2', 'users', student.uid, 'lessons'))
+    const unsub = onSnapshot(q, snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      setLessons(data.sort((a, b) => new Date(b.date) - new Date(a.date)))
+    })
+    return () => unsub()
+  }, [student?.uid])
+
+  const lessonStats = calculateLessonStats(lessons)
 
   const handleSaveNotes = async () => {
     setSaving(true)
@@ -288,6 +303,62 @@ function StudentDetailView({ student, user, onBack }) {
             </button>
           </div>
           {loadError && <div className="text-red-400 text-xs mt-2">{loadError}</div>}
+
+          {/* LESSON PROGRESS */}
+          <div className="mt-8 p-4 bg-blue-600/10 border border-blue-500/20 rounded-xl">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-white">📚 Lessons This Month</h3>
+              <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+                lessonStats.isPaid 
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                  : lessonStats.remaining <= 2
+                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                  : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              }`}>
+                {lessonStats.thisMonth} / 8
+              </span>
+            </div>
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+              <div
+                className={`h-full transition-all ${
+                  lessonStats.isPaid ? 'bg-emerald-500' : lessonStats.thisMonth >= 6 ? 'bg-amber-500' : 'bg-blue-500'
+                }`}
+                style={{ width: `${Math.min((lessonStats.thisMonth / 8) * 100, 100)}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-400">
+              {lessonStats.remaining === 0 ? (
+                <span className="text-emerald-400 font-bold">All lessons logged - payment due</span>
+              ) : (
+                `${lessonStats.remaining} more lessons needed`
+              )}
+            </p>
+          </div>
+
+          <div className="mt-8">
+            <h3 className="text-lg font-bold text-white mb-4">Lessons ({lessonStats.total} total)</h3>
+            {lessons.length === 0 ? (
+              <div className="bg-slate-800/40 rounded-lg p-4 text-slate-500 text-sm text-center">
+                No lessons logged yet
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {lessons.slice(0, 10).map(lesson => (
+                  <div key={lesson.id} className="bg-slate-800/40 rounded-lg p-3 text-sm hover:bg-slate-800/60 transition-colors">
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="font-bold text-white">{lesson.title || lesson.topic || 'Lesson'}</div>
+                      <span className="text-xs text-slate-500">{new Date(lesson.date).toLocaleDateString()}</span>
+                    </div>
+                    {lesson.studentNotes && (
+                      <div className="text-xs text-slate-400 bg-blue-900/20 rounded p-2 mt-1">
+                        💭 {lesson.studentNotes.substring(0, 100)}...
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="mt-8">
             <h3 className="text-lg font-bold text-white mb-2">Word Bank</h3>
