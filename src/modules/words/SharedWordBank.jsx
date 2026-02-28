@@ -901,6 +901,7 @@ export default function WordBank({
   const [toastType, setToastType] = useState('success')
   const [showToast, setShowToast] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+  const [loadedFolders, setLoadedFolders] = useState([])
 
   const targetUid = studentUid || user?.uid
 
@@ -910,6 +911,16 @@ export default function WordBank({
     const q = query(collection(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'wordbank'))
     const unsub = onSnapshot(q, snap => {
       setLoadedWords(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+    return () => unsub()
+  }, [targetUid])
+
+  // ─── Load folders from Firestore ───────────────────────────────────────
+  useEffect(() => {
+    if (!targetUid) return
+    const q = query(collection(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'folders'))
+    const unsub = onSnapshot(q, snap => {
+      setLoadedFolders(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     })
     return () => unsub()
   }, [targetUid])
@@ -925,13 +936,20 @@ export default function WordBank({
   // ─── Folders ────────────────────────────────────────────────────────────
   const folders = useMemo(() => {
     const map = new Map()
+    
+    // Add explicit folders from Firestore
+    loadedFolders.forEach(f => {
+      map.set(f.name, { name: f.name, color: f.color || '#3b82f6', count: 0, id: f.id })
+    })
+    
+    // Derive folders from words and count words
     words.forEach(w => {
       const cat = w.category || 'Uncategorized'
       if (!map.has(cat)) map.set(cat, { name: cat, color: w.folderColor || '#3b82f6', count: 0 })
       map.get(cat).count++
     })
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [words])
+  }, [words, loadedFolders])
 
   // ─── Visible words ─────────────────────────────────────────────────────
   const visibleWords = useMemo(() => {
@@ -997,10 +1015,26 @@ export default function WordBank({
     }
   }
 
-  const handleFolderCreated = (name) => {
-    setToastMessage(`Collection "${name}" created!`)
-    setToastType('success')
-    setShowToast(true)
+  const handleFolderCreated = async (name, color) => {
+    if (!targetUid || !name.trim()) return
+    try {
+      await addDoc(
+        collection(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'folders'),
+        {
+          name: name.trim(),
+          color: color || '#3b82f6',
+          createdAt: serverTimestamp(),
+        }
+      )
+      setToastMessage(`Collection "${name}" created!`)
+      setToastType('success')
+      setShowToast(true)
+    } catch (err) {
+      handleError(err, 'Create Folder')
+      setToastMessage('Failed to create collection')
+      setToastType('error')
+      setShowToast(true)
+    }
   }
 
   const openAddWord = () => {
@@ -1294,7 +1328,7 @@ export default function WordBank({
       {modalMode === 'create_folder' && (
         <CreateFolderModal
           onClose={() => setModalMode(null)}
-          onFolderCreated={handleFolderCreated}
+          onFolderCreated={(name, color) => handleFolderCreated(name, color)}
         />
       )}
     </div>
