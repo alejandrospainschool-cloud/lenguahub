@@ -664,41 +664,41 @@ ${inputText}`
       {showFolderModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-[#0f172a] border border-white/10 rounded-2xl sm:rounded-3xl max-w-md w-full overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4">
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between gap-3\">
-              <h2 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3 min-w-0\">
-                <BookOpen size={20} className=\"sm:w-6 sm:h-6 shrink-0\" /> <span className=\"truncate\">Choose Folder</span>
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between gap-3">
+              <h2 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3 min-w-0">
+                <BookOpen size={20} className="sm:w-6 sm:h-6 shrink-0" /> <span className="truncate">Choose Folder</span>
               </h2>
               <button
                 onClick={() => {
                   setShowFolderModal(false)
                   setPendingItem(null)
                 }}
-                className=\"text-white hover:text-slate-200 transition-colors shrink-0\"
+                className="text-white hover:text-slate-200 transition-colors shrink-0"
               >
-                <X size={20} className=\"sm:w-6 sm:h-6\" />
+                <X size={20} className="sm:w-6 sm:h-6" />
               </button>
             </div>
 
-            <div className=\"p-4 sm:p-6 space-y-2\">
+            <div className="p-4 sm:p-6 space-y-2">
               {categories.map((category) => (
                 <button
                   key={category}
                   onClick={() => applyFolderChoice(category)}
-                  className=\"w-full px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-2xl bg-[#1e293b] border border-white/10 hover:border-purple-500/50 hover:bg-[#263345] text-left font-semibold text-sm sm:text-base text-white transition-all flex items-center gap-2 sm:gap-3 group\"
+                  className="w-full px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-2xl bg-[#1e293b] border border-white/10 hover:border-purple-500/50 hover:bg-[#263345] text-left font-semibold text-sm sm:text-base text-white transition-all flex items-center gap-2 sm:gap-3 group"
                 >
-                  <div className=\"w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 group-hover:scale-150 transition-transform shrink-0\" />
-                  <div className=\"flex-1 truncate\">{category}</div>
-                  <Plus size={16} className=\"sm:w-4.5 sm:h-4.5 text-slate-500 group-hover:text-white transition-colors shrink-0\" />
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 group-hover:scale-150 transition-transform shrink-0" />
+                  <div className="flex-1 truncate">{category}</div>
+                  <Plus size={16} className="sm:w-4.5 sm:h-4.5 text-slate-500 group-hover:text-white transition-colors shrink-0" />
                 </button>
               ))}
 
               <button
                 onClick={createNewFolderAndSave}
-                className=\"w-full px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-2xl bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-500/30 text-left font-semibold text-sm sm:text-base text-purple-300 transition-all flex items-center gap-2 sm:gap-3 group mt-3 sm:mt-4\"
+                className="w-full px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-2xl bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-500/30 text-left font-semibold text-sm sm:text-base text-purple-300 transition-all flex items-center gap-2 sm:gap-3 group mt-3 sm:mt-4"
               >
-                <div className=\"w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 shrink-0\" />
-                <div className=\"flex-1 truncate\">+ Create New Folder</div>
-                <Plus size={16} className=\"sm:w-4.5 sm:h-4.5 shrink-0\" />
+                <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 shrink-0" />
+                <div className="flex-1 truncate">+ Create New Folder</div>
+                <Plus size={16} className="sm:w-4.5 sm:h-4.5 shrink-0" />
               </button>
             </div>
           </div>
@@ -722,14 +722,14 @@ ${inputText}`
                 setShowPaywall(false)
                 onUpgrade && onUpgrade()
               }}
-              className="w-full py-3 sm:py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-sm sm:text-base rounded-lg sm:rounded-xl mb-2.5 sm:mb-3 hover:scale-[1.02] transition-transform\"
+              className="w-full py-3 sm:py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-sm sm:text-base rounded-lg sm:rounded-xl mb-2.5 sm:mb-3 hover:scale-[1.02] transition-transform"
             >
               Upgrade
             </button>
 
             <button
               onClick={() => setShowPaywall(false)}
-              className="text-slate-500 hover:text-white text-xs sm:text-sm font-medium\"
+              className="text-slate-500 hover:text-white text-xs sm:text-sm font-medium"
             >
               No thanks
             </button>

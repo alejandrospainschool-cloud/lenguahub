@@ -266,11 +266,11 @@ function WordDetailModal({ word, onClose, onEnrich }) {
 
           {/* Error state */}
           {!enriching && enrichError && (
-            <div className="flex items-center justify-between gap-2 sm:gap-3 py-2 sm:py-3 px-3 sm:px-4 mb-4 bg-amber-500/5 border border-amber-500/10 rounded-lg sm:rounded-2xl\">
+            <div className="flex items-center justify-between gap-2 sm:gap-3 py-2 sm:py-3 px-3 sm:px-4 mb-4 bg-amber-500/5 border border-amber-500/10 rounded-lg sm:rounded-2xl">
               <span className="text-amber-300 text-xs font-medium">{enrichError}</span>
               <button
                 onClick={handleRetry}
-                className="text-blue-400 hover:text-blue-300 text-xs font-bold transition-colors shrink-0 whitespace-nowrap\"
+                className="text-blue-400 hover:text-blue-300 text-xs font-bold transition-colors shrink-0 whitespace-nowrap"
               >
                 Retry
               </button>
@@ -279,9 +279,9 @@ function WordDetailModal({ word, onClose, onEnrich }) {
 
           {/* Show saved definition when no enrichment data yet */}
           {!entry && savedDefinition && (
-            <div className="mb-4\">
-              <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2\">Saved Definition</h3>
-              <p className="text-slate-200 text-xs sm:text-sm\">{savedDefinition}</p>
+            <div className="mb-4">
+              <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Saved Definition</h3>
+              <p className="text-slate-200 text-xs sm:text-sm">{savedDefinition}</p>
             </div>
           )}
 
