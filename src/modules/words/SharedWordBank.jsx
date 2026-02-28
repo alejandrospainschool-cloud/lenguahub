@@ -205,31 +205,31 @@ function WordDetailModal({ word, onClose, onEnrich }) {
   const savedDefinition = word.primaryDefinition || word.definition || word.translation || ''
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-[#0b1120] border border-white/10 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col"
+        className="bg-[#0b1120] border border-white/10 w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] sm:max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="relative p-6 pb-4 border-b border-white/5 shrink-0">
-          <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-500 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
-            <X size={18} />
+        <div className="relative p-4 sm:p-6 pb-3 sm:pb-4 border-b border-white/5 shrink-0">
+          <button onClick={onClose} className="absolute top-3 sm:top-4 right-3 sm:right-4 p-1.5 sm:p-2 text-slate-500 hover:text-white hover:bg-white/10 rounded-lg sm:rounded-xl transition-colors">
+            <X size={16} className="sm:w-4.5 sm:h-4.5" />
           </button>
 
-          <div className="flex items-start gap-4 pr-10">
+          <div className="flex items-start gap-3 sm:gap-4 pr-8 sm:pr-10">
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black shrink-0"
+              className="w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-2xl flex items-center justify-center text-base sm:text-lg font-black shrink-0"
               style={{ backgroundColor: `${word.folderColor || '#3b82f6'}15`, color: word.folderColor || '#3b82f6' }}
             >
               {word.term?.[0]?.toUpperCase() || '?'}
             </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-black text-white tracking-tight leading-tight">{word.term}</h2>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight break-words">{word.term}</h2>
               {/* Always show saved definition under title */}
               {savedDefinition && !entry && (
-                <p className="text-slate-400 text-sm mt-1">{savedDefinition}</p>
+                <p className="text-slate-400 text-xs sm:text-sm mt-1 line-clamp-2">{savedDefinition}</p>
               )}
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 flex-wrap">
                 {entry && <PosBadge pos={entry.partOfSpeech} />}
                 {entry?.alsoUsedAs?.length > 0 && entry.alsoUsedAs.map((p, i) => (
                   <span key={i} className="text-[10px] font-medium text-slate-500 bg-slate-800/40 px-2 py-0.5 rounded-full">also: {p}</span>
@@ -255,22 +255,22 @@ function WordDetailModal({ word, onClose, onEnrich }) {
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto flex-1 min-h-0">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0">
           {/* Loading indicator (compact, doesn't block content) */}
           {enriching && (
-            <div className="flex items-center gap-3 text-slate-400 py-3 px-4 mb-4 bg-slate-900/40 rounded-2xl border border-white/5">
-              <Loader2 size={14} className="animate-spin text-blue-400 shrink-0" />
-              <span className="text-xs">Looking up detailed info...</span>
+            <div className="flex items-center gap-2 sm:gap-3 text-slate-400 py-2 sm:py-3 px-3 sm:px-4 mb-4 bg-slate-900/40 rounded-lg sm:rounded-2xl border border-white/5">
+              <Loader2 size={12} className="sm:w-3.5 sm:h-3.5 animate-spin text-blue-400 shrink-0" />
+              <span className="text-[10px] sm:text-xs">Looking up detailed info...</span>
             </div>
           )}
 
           {/* Error state */}
           {!enriching && enrichError && (
-            <div className="flex items-center justify-between gap-3 py-3 px-4 mb-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
-              <span className="text-amber-300 text-xs">{enrichError}</span>
+            <div className="flex items-center justify-between gap-2 sm:gap-3 py-2 sm:py-3 px-3 sm:px-4 mb-4 bg-amber-500/5 border border-amber-500/10 rounded-lg sm:rounded-2xl\">
+              <span className="text-amber-300 text-xs font-medium">{enrichError}</span>
               <button
                 onClick={handleRetry}
-                className="text-blue-400 hover:text-blue-300 text-xs font-bold transition-colors shrink-0"
+                className="text-blue-400 hover:text-blue-300 text-xs font-bold transition-colors shrink-0 whitespace-nowrap\"
               >
                 Retry
               </button>
@@ -279,9 +279,9 @@ function WordDetailModal({ word, onClose, onEnrich }) {
 
           {/* Show saved definition when no enrichment data yet */}
           {!entry && savedDefinition && (
-            <div className="mb-4">
-              <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Saved Definition</h3>
-              <p className="text-slate-200 text-sm">{savedDefinition}</p>
+            <div className="mb-4\">
+              <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2\">Saved Definition</h3>
+              <p className="text-slate-200 text-xs sm:text-sm\">{savedDefinition}</p>
             </div>
           )}
 

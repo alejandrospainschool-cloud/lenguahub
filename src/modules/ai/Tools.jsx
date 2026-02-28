@@ -283,58 +283,58 @@ ${inputText}`
 
   // -------------------- UI --------------------
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 md:px-8 space-y-8 animate-in fade-in duration-500 pb-12">
+    <div className="w-full max-w-5xl mx-auto px-3 sm:px-4 md:px-8 space-y-6 sm:space-y-8 animate-in fade-in duration-500 pb-12">
       {/* HEADER */}
-      <div className="pt-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-2 flex items-center gap-3">
-              <Sparkles className="text-purple-400 fill-purple-400/20" size={30} />
-              AI Studio
+      <div className="pt-3 sm:pt-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 mb-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight mb-2 flex items-center gap-2 sm:gap-3">
+              <Sparkles className="text-purple-400 fill-purple-400/20 shrink-0" size={28} />
+              <span className="truncate">AI Studio</span>
             </h1>
-            <p className="text-slate-400">
+            <p className="text-slate-400 text-sm sm:text-base line-clamp-2">
               Extract vocabulary, analyze sentences, summarize text, and save to your Word Bank.
             </p>
           </div>
           {toast && (
-            <div className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 text-sm">
+            <div className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 text-xs sm:text-sm shrink-0">
               {toast}
             </div>
           )}
         </div>
 
         {/* MODE SWITCH */}
-        <div className="mt-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="bg-[#0f172a] p-1.5 rounded-2xl border border-white/10 flex relative w-full md:w-auto overflow-x-auto">
+        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
+          <div className="bg-[#0f172a] p-1 sm:p-1.5 rounded-2xl border border-white/10 flex relative w-full overflow-x-auto">
             <button
               onClick={() => setActiveTab('vocab')}
-              className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all relative z-10 whitespace-nowrap ${
+              className={`flex-1 py-2.5 sm:py-3 px-2 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1 sm:gap-2 transition-all relative z-10 shrink-0 ${
                 activeTab === 'vocab'
                   ? 'text-white'
                   : 'text-slate-500 hover:text-slate-300'
               }`}
             >
-              <Brain size={16} /> Vocab
+              <Brain size={14} className="sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Vocab</span><span className="xs:hidden">V</span>
             </button>
             <button
               onClick={() => setActiveTab('breakdown')}
-              className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all relative z-10 whitespace-nowrap ${
+              className={`flex-1 py-2.5 sm:py-3 px-2 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1 sm:gap-2 transition-all relative z-10 shrink-0 ${
                 activeTab === 'breakdown'
                   ? 'text-white'
                   : 'text-slate-500 hover:text-slate-300'
               }`}
             >
-              <BookOpen size={16} /> Breakdown
+              <BookOpen size={14} className="sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Breakdown</span><span className="xs:hidden">B</span>
             </button>
             <button
               onClick={() => setActiveTab('summary')}
-              className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all relative z-10 whitespace-nowrap ${
+              className={`flex-1 py-2.5 sm:py-3 px-2 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1 sm:gap-2 transition-all relative z-10 shrink-0 ${
                 activeTab === 'summary'
                   ? 'text-white'
                   : 'text-slate-500 hover:text-slate-300'
               }`}
             >
-              <FileText size={16} /> Summary
+              <FileText size={14} className="sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Summary</span><span className="xs:hidden">S</span>
             </button>
 
             <div
@@ -356,15 +356,15 @@ ${inputText}`
       </div>
 
       {/* MAIN GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         {/* LEFT: INPUT */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-[#0f172a] border border-white/10 rounded-3xl p-5 flex flex-col focus-within:border-purple-500/50 transition-colors relative overflow-hidden min-h-[420px]">
+        <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+          <div className="bg-[#0f172a] border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex flex-col focus-within:border-purple-500/50 transition-colors relative overflow-hidden min-h-[300px] sm:min-h-[420px]">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-50" />
 
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <div className="text-white font-bold">
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <div className="min-w-0">
+                <div className="text-white font-bold text-sm sm:text-base">
                   {activeTab === 'vocab'
                     ? 'Vocab Extractor'
                     : activeTab === 'breakdown'
@@ -382,9 +382,9 @@ ${inputText}`
                   showToast('Cleared')
                 }}
                 disabled={!inputText}
-                className="text-slate-400 hover:text-white disabled:opacity-40 transition-colors flex items-center gap-2 text-sm font-bold"
+                className="text-slate-400 hover:text-white disabled:opacity-40 transition-colors flex items-center gap-1 text-xs sm:text-sm font-bold shrink-0"
               >
-                <Trash2 size={16} /> Clear
+                <Trash2 size={16} /> <span className="hidden xs:inline">Clear</span>
               </button>
             </div>
 
@@ -395,25 +395,25 @@ ${inputText}`
               onChange={(e) => setInputText(e.target.value)}
             />
 
-            <div className="mt-4 flex items-center justify-between gap-3">
+            <div className="mt-3 sm:mt-4 flex flex-col xs:flex-row items-center justify-between gap-2 sm:gap-3">
               <button
                 onClick={resetAll}
-                className="px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 font-bold transition flex items-center gap-2"
+                className="w-full xs:w-auto px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-sm transition flex items-center justify-center xs:justify-start gap-1 sm:gap-2"
               >
-                <RotateCcw size={18} /> Reset
+                <RotateCcw size={16} /> <span className="hidden xs:inline">Reset</span>
               </button>
 
               <button
                 onClick={processAI}
                 disabled={!inputText.trim() || isProcessing}
-                className="bg-white text-slate-900 px-6 py-3 rounded-xl font-bold shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center gap-2"
+                className="w-full xs:flex-1 bg-white text-slate-900 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-1 sm:gap-2"
               >
                 {isProcessing ? (
-                  <Loader2 className="animate-spin" size={20} />
+                  <Loader2 className="animate-spin" size={18} />
                 ) : hasReachedLimit(dailyUsage, 'aiRequests', isPremium) ? (
-                  <Lock size={20} className="text-red-600" />
+                  <Lock size={18} className="text-red-600" />
                 ) : (
-                  <Wand2 size={20} />
+                  <Wand2 size={18} />
                 )}
                 {isProcessing ? 'Processing...' : 'Generate'}
               </button>
@@ -613,22 +613,22 @@ ${inputText}`
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-4">
                 {vocabItems.map((item) => {
                   const isSaved = savedIDs.includes(item.id)
                   return (
                     <div
                       key={item.id}
-                      className={`p-5 rounded-2xl border transition-all ${
+                      className={`p-3 sm:p-5 rounded-xl sm:rounded-2xl border transition-all ${
                         isSaved
                           ? 'bg-green-500/10 border-green-500/30'
                           : 'bg-[#0f172a] border-white/10 hover:border-purple-500/40'
                       }`}
                     >
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="min-w-0">
-                          <div className="text-lg font-bold text-white truncate">{item.term}</div>
-                          <div className="text-sm text-slate-400 truncate">
+                      <div className="flex justify-between items-start gap-2 sm:gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm sm:text-lg font-bold text-white truncate">{item.term}</div>
+                          <div className="text-xs sm:text-sm text-slate-400 truncate">
                             {item.translation}
                           </div>
                         </div>
@@ -636,18 +636,18 @@ ${inputText}`
                         <button
                           onClick={() => !isSaved && handleSaveClick(item)}
                           disabled={isSaved}
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shrink-0 ${
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center transition-all shrink-0 ${
                             isSaved
                               ? 'bg-green-500 text-white'
                               : 'bg-slate-800 text-slate-400 hover:bg-purple-600 hover:text-white'
                           }`}
                         >
-                          {isSaved ? <Check size={20} /> : <Plus size={20} />}
+                          {isSaved ? <Check size={16} /> : <Plus size={16} />}
                         </button>
                       </div>
 
-                      <div className="mt-4 pt-4 border-t border-white/5">
-                        <p className="text-xs text-slate-500 leading-relaxed">
+                      <div className="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-white/5">
+                        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
                           {item.definition || '—'}
                         </p>
                       </div>
@@ -662,43 +662,43 @@ ${inputText}`
 
       {/* FOLDER SELECTION MODAL */}
       {showFolderModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#0f172a] border border-white/10 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4">
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                <BookOpen size={24} /> Choose Folder
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#0f172a] border border-white/10 rounded-2xl sm:rounded-3xl max-w-md w-full overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between gap-3\">
+              <h2 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3 min-w-0\">
+                <BookOpen size={20} className=\"sm:w-6 sm:h-6 shrink-0\" /> <span className=\"truncate\">Choose Folder</span>
               </h2>
               <button
                 onClick={() => {
                   setShowFolderModal(false)
                   setPendingItem(null)
                 }}
-                className="text-white hover:text-slate-200 transition-colors"
+                className=\"text-white hover:text-slate-200 transition-colors shrink-0\"
               >
-                <X size={24} />
+                <X size={20} className=\"sm:w-6 sm:h-6\" />
               </button>
             </div>
 
-            <div className="p-6 space-y-2">
+            <div className=\"p-4 sm:p-6 space-y-2\">
               {categories.map((category) => (
                 <button
                   key={category}
                   onClick={() => applyFolderChoice(category)}
-                  className="w-full px-6 py-3 rounded-2xl bg-[#1e293b] border border-white/10 hover:border-purple-500/50 hover:bg-[#263345] text-left font-semibold text-white transition-all flex items-center gap-3 group"
+                  className=\"w-full px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-2xl bg-[#1e293b] border border-white/10 hover:border-purple-500/50 hover:bg-[#263345] text-left font-semibold text-sm sm:text-base text-white transition-all flex items-center gap-2 sm:gap-3 group\"
                 >
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 group-hover:scale-150 transition-transform" />
-                  <div className="flex-1">{category}</div>
-                  <Plus size={18} className="text-slate-500 group-hover:text-white transition-colors" />
+                  <div className=\"w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 group-hover:scale-150 transition-transform shrink-0\" />
+                  <div className=\"flex-1 truncate\">{category}</div>
+                  <Plus size={16} className=\"sm:w-4.5 sm:h-4.5 text-slate-500 group-hover:text-white transition-colors shrink-0\" />
                 </button>
               ))}
 
               <button
                 onClick={createNewFolderAndSave}
-                className="w-full px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-500/30 text-left font-semibold text-purple-300 transition-all flex items-center gap-3 group mt-4"
+                className=\"w-full px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-2xl bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-500/30 text-left font-semibold text-sm sm:text-base text-purple-300 transition-all flex items-center gap-2 sm:gap-3 group mt-3 sm:mt-4\"
               >
-                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500" />
-                <div className="flex-1">+ Create New Folder</div>
-                <Plus size={18} />
+                <div className=\"w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 shrink-0\" />
+                <div className=\"flex-1 truncate\">+ Create New Folder</div>
+                <Plus size={16} className=\"sm:w-4.5 sm:h-4.5 shrink-0\" />
               </button>
             </div>
           </div>
@@ -707,12 +707,12 @@ ${inputText}`
 
       {/* PAYWALL MODAL */}
       {showPaywall && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#1e293b] border border-amber-500/50 rounded-3xl p-8 max-w-md w-full text-center relative overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#1e293b] border border-amber-500/50 rounded-2xl sm:rounded-3xl p-5 sm:p-8 max-w-md w-full text-center relative overflow-hidden shadow-2xl">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-orange-600" />
-            <Crown size={48} className="text-amber-500 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-white mb-2">Daily Limit Reached</h2>
-            <p className="text-slate-400 mb-6">
+            <Crown size={40} className="sm:w-12 sm:h-12 text-amber-500 mx-auto mb-3 sm:mb-4" />
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1.5 sm:mb-2">Daily Limit Reached</h2>
+            <p className="text-slate-400 text-sm sm:text-base mb-5 sm:mb-6">
               You&#39;ve used your free AI requests for today. Upgrade to Premium for unlimited
               use.
             </p>
@@ -722,14 +722,14 @@ ${inputText}`
                 setShowPaywall(false)
                 onUpgrade && onUpgrade()
               }}
-              className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold rounded-xl mb-3 hover:scale-[1.02] transition-transform"
+              className="w-full py-3 sm:py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-sm sm:text-base rounded-lg sm:rounded-xl mb-2.5 sm:mb-3 hover:scale-[1.02] transition-transform\"
             >
               Upgrade
             </button>
 
             <button
               onClick={() => setShowPaywall(false)}
-              className="text-slate-500 hover:text-white text-sm"
+              className="text-slate-500 hover:text-white text-xs sm:text-sm font-medium\"
             >
               No thanks
             </button>
