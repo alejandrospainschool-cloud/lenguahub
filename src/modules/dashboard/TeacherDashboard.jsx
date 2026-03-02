@@ -951,7 +951,7 @@ export default function TeacherDashboard({ user, logout }) {
                   setSelectedStudent(null)
                 }}
                 className={headerButtonClass(
-                  currentView === 'roster' || currentView === 'student-detail'
+                  currentView === 'roster' || currentView === 'student-detail' || currentView === 'word-bank'
                 )}
               >
                 <Users size={16} /> Students
@@ -1126,6 +1126,32 @@ export default function TeacherDashboard({ user, logout }) {
               unassign={unassign}
             />
           </ErrorBoundary>
+        )}
+
+        {/* VIEW: WORD BANK */}
+        {currentView === 'word-bank' && selectedStudent && (
+          <div className="animate-slide-in">
+            <div className="flex items-center gap-4 mb-6">
+              <button
+                onClick={() => setCurrentView('roster')}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold border border-slate-700 flex items-center gap-2 transition-all"
+              >
+                <ChevronRight size={14} className="rotate-180" /> Back
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-white">{selectedStudent.displayName}'s Words</h1>
+                <p className="text-sm text-slate-400">{selectedStudent.email}</p>
+              </div>
+            </div>
+            <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6">
+              <WordBank 
+                user={user} 
+                studentUid={selectedStudent.uid} 
+                isTeacherView={true}
+                onBack={() => setCurrentView('roster')}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>
