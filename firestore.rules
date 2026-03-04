@@ -1,0 +1,192 @@
+// firestore.rules (Firestore Security Rules)
+// Deploy with: firebase deploy --only firestore:rules
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+    
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    function isMemberOfOrg(orgId) {
+      return isAuth() && exists(/databases/$(database)/documents/organization-members/$(orgId)/$(request.auth.uid));
+    }
+
+    function getOrgMember(orgId) {
+      return get(/databases/$(database)/documents/organization-members/$(orgId)/$(request.auth.uid)).data;
+    }
+
+    function getUserRole(orgId) {
+      return getOrgMember(orgId).role;
+    }
+
+    function hasRole(orgId, role) {
+      return isMemberOfOrg(orgId) && getUserRole(orgId) == role;
+    }
+
+    function hasAnyRole(orgId, roles) {
+      return isMemberOfOrg(orgId) && getUserRole(orgId) in roles;
+    }
+
+    function isOrgOwner(orgId) {
+      return hasRole(orgId, 'owner');
+    }
+
+    function isOrgAdmin(orgId) {
+      return hasAnyRole(orgId, ['owner', 'admin']);
+    }
+
+    function canManageStudents(orgId) {
+      return isMemberOfOrg(orgId) && getOrgMember(orgId).can_manage_students == true;
+    }
+
+    function canViewAnalytics(orgId) {
+      return isMemberOfOrg(orgId) && getOrgMember(orgId).can_view_analytics == true;
+    }
+
+    function canInviteUsers(orgId) {
+      return isMemberOfOrg(orgId) && getOrgMember(orgId).can_invite_users == true;
+    }
+
+    // ========================================
+    // USERS COLLECTION
+    // ========================================
+    
+    match /users/{uid} {
+      allow read, write: if isUser(uid);
+    }
+
+    // ========================================
+    // ORGANIZATIONS COLLECTION
+    // ========================================
+    
+    match /organizations/{orgId} {
+      // Anyone can read org metadata (name, type, etc)
+      allow read: if true;
+      
+      // Only owner can write to org
+      allow write: if isOrgOwner(orgId);
+
+      // ========================================
+      // ORGANIZATION MEMBERS SUBCOLLECTION
+      // ========================================
+      
+      match /students/{studentUid} {
+        // Members can read students in their org
+        allow read: if isMemberOfOrg(orgId);
+        
+        // Admins/teachers can write
+        allow write: if canManageStudents(orgId);
+        
+        // Students can read/write their own data
+        allow read, write: if isUser(studentUid) && isMemberOfOrg(orgId);
+      }
+
+      // ========================================
+      // CLASSES SUBCOLLECTION (School-only)
+      // ========================================
+      
+      match /classes/{classId} {
+        // Teachers/admins in the org can read classes
+        allow read: if canManageStudents(orgId);
+        
+        // Teachers/admins can write
+        allow write: if canManageStudents(orgId);
+        
+        // Students can read classes they belong to
+        allow read: if isAuth() && isMemberOfOrg(orgId);
+      }
+
+      // ========================================
+      // LESSONS SUBCOLLECTION
+      // ========================================
+      
+      match /lessons/{lessonId} {
+        // All org members can read lessons
+        allow read: if isMemberOfOrg(orgId);
+        
+        // Admins/teachers can write lessons
+        allow write: if canManageStudents(orgId);
+      }
+
+      // ========================================
+      // PROGRESS SUBCOLLECTION
+      // ========================================
+      
+      match /progress/{progressId} {
+        // Students can read/write their own progress
+        allow read, write: if isAuth() && 
+          isMemberOfOrg(orgId) && 
+          resource.data.student_uid == request.auth.uid;
+        
+        // Teachers/admins can read all progress in their org
+        allow read: if canViewAnalytics(orgId);
+        
+        // Teachers can update student progress (add feedback)
+        allow write: if canManageStudents(orgId);
+      }
+    }
+
+    // ========================================
+    // ORGANIZATION MEMBERS COLLECTION
+    // ========================================
+    
+    match /organization-members/{orgId}/{uid} {
+      // Members of org can read membership data
+      allow read: if isMemberOfOrg(orgId);
+      
+      // Only org owner/admin can modify membership
+      allow write: if isOrgAdmin(orgId);
+    }
+
+    // ========================================
+    // INVITATIONS COLLECTION
+    // ========================================
+    
+    match /invitations/{invitationId} {
+      // Users can read invitations sent to their email (requires data)
+      allow read: if request.auth.token.email == resource.data.email;
+      
+      // Org admins can read invitations for their org
+      allow read: if isMemberOfOrg(resource.data.org_id) && 
+        canInviteUsers(resource.data.org_id);
+      
+      // Org admins can create invitations
+      allow create: if request.auth != null && 
+        exists(/databases/$(database)/documents/organizations/$(request.resource.data.org_id)) &&
+        isMemberOfOrg(request.resource.data.org_id) &&
+        canInviteUsers(request.resource.data.org_id) &&
+        request.resource.data.invited_by == request.auth.uid;
+      
+      // Only allow updating used_at and used_by
+      allow update: if (request.auth.token.email == resource.data.email && 
+        request.resource.data.used_at != null &&
+        request.resource.data.used_by == request.auth.uid) ||
+        (isMemberOfOrg(resource.data.org_id) && 
+         canInviteUsers(resource.data.org_id));
+    }
+
+    // ========================================
+    // WORD BANK DATA (ORG-SCOPED)
+    // ========================================
+    
+    match /organizations/{orgId}/word-banks/{uid}/words/{wordId} {
+      // User can read/write their own words
+      allow read, write: if isUser(uid) && isMemberOfOrg(orgId);
+      
+      // Teachers can read student words for feedback
+      allow read: if canManageStudents(orgId);
+    }
+
+  }
+}
