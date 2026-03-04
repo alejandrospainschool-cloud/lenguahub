@@ -11,6 +11,7 @@ import {
   X 
 } from 'lucide-react';
 import { logout } from '../../lib/firebase';
+import WorkspaceSelector from './WorkspaceSelector';
 import logo from '../../logo.png'; // IMPORTING LOGO FROM SRC
 
 export default function Sidebar({ user, isOpen, onClose }) {
@@ -69,6 +70,11 @@ export default function Sidebar({ user, isOpen, onClose }) {
           >
             <X size={20} />
           </button>
+        </div>
+
+        {/* Workspace Selector */}
+        <div className="p-4 border-b border-white/5">
+          <WorkspaceSelector user={user} />
         </div>
 
         {/* Navigation Links */}

@@ -23,6 +23,11 @@ import DailyWelcomeScreen from './components/animations/DailyWelcomeScreen'
 import PrivacyPolicy from './modules/legal/PrivacyPolicy'
 import TermsOfService from './modules/legal/TermsOfService'
 
+// Organization & Billing
+import CreateOrganization from './modules/organizations/CreateOrganization'
+import InviteStudents from './modules/organizations/InviteStudents'
+import PricingPlans from './modules/billing/PricingPlans'
+
 // Firebase
 import { onUserStateChange, logout, db } from './lib/firebase'
 import {
@@ -49,6 +54,9 @@ import {
   hasSeenDailyWelcomeToday, 
   markDailyWelcomeAsSeen
 } from './lib/animationHelpers'
+
+// Workspace Context
+import { WorkspaceProvider } from './contexts/WorkspaceContext'
 
 // Logo Import
 import logo from './logo.png'
@@ -183,27 +191,34 @@ function MainContent() {
   }
 
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-      <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/" />} />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/terms" element={<TermsOfService />} />
+    <WorkspaceProvider user={user}>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+        <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/" />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/pricing" element={<PricingPlans user={user} />} />
 
-      {/* Protected Routes */}
-      <Route
-        path="/*"
-        element={
-          !user ? (
-            <Navigate to="/login" />
-          ) : role === 'admin' || role === 'tutor' ? (
-            <TeacherDashboard user={user} logout={logout} role={role} />
-          ) : (
-            <StudentLayout user={user} isGuest={isGuest} />
-          )
-        }
-      />
-    </Routes>
+        {/* Organization & Team Routes (Protected) */}
+        <Route path="/create-team" element={user ? <CreateOrganization currentUserUid={user?.uid} /> : <Navigate to="/login" />} />
+        <Route path="/teams/:org_id/invite" element={user ? <InviteStudents /> : <Navigate to="/login" />} />
+
+        {/* Protected Routes */}
+        <Route
+          path="/*"
+          element={
+            !user ? (
+              <Navigate to="/login" />
+            ) : role === 'admin' || role === 'tutor' ? (
+              <TeacherDashboard user={user} logout={logout} role={role} />
+            ) : (
+              <StudentLayout user={user} isGuest={isGuest} />
+            )
+          }
+        />
+      </Routes>
+    </WorkspaceProvider>
   )
 }
 
