@@ -734,7 +734,7 @@ export default function TeacherDashboard({ user, logout }) {
       console.log('👑 Loading admin data...')
       try {
         const userSnap = await getDocs(collection(db, 'users'))
-        const usersData = userSnap.docs
+        let usersData = userSnap.docs
           .map(normalizeUser)
           .filter((u) => !!u.uid)
           .sort((a, b) => {
@@ -742,6 +742,22 @@ export default function TeacherDashboard({ user, logout }) {
             const bd = b.lastLogin?.toDate ? b.lastLogin.toDate().getTime() : 0
             return bd - ad
           })
+
+        // Load premium status for each user
+        usersData = await Promise.all(
+          usersData.map(async (user) => {
+            try {
+              const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', user.uid, 'settings', 'metadata')
+              const metaSnap = await getDoc(metaRef)
+              if (metaSnap.exists()) {
+                return { ...user, isPremium: !!metaSnap.data().isPremium }
+              }
+            } catch (e) {
+              console.error('Error loading metadata for user', user.uid, ':', e)
+            }
+            return { ...user, isPremium: false }
+          })
+        )
 
         console.log('👥 Loaded', usersData.length, 'users')
         setAllUsers(usersData)
@@ -852,6 +868,32 @@ export default function TeacherDashboard({ user, logout }) {
     } catch (e) {
       handleError(e, 'Delete User')
       alert('Something went wrong while deleting the user.')
+    }
+  }
+
+  const toggleStudentPremium = async (targetUid, shouldGrantPremium, userName) => {
+    if (!targetUid) {
+      alert('Something went wrong.')
+      return
+    }
+
+    if (!window.confirm(`${shouldGrantPremium ? '✨ Grant' : '✂️ Revoke'} premium access for "${userName || targetUid}"?`)) {
+      return
+    }
+
+    try {
+      const metaRef = doc(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'settings', 'metadata')
+      await setDoc(metaRef, { isPremium: shouldGrantPremium }, { merge: true })
+      
+      setAllUsers((prev) =>
+        prev.map((u) => (u.uid === targetUid ? { ...u, isPremium: shouldGrantPremium } : u))
+      )
+      
+      console.log(`✅ Premium ${shouldGrantPremium ? 'granted' : 'revoked'}:`, targetUid)
+      alert(`✅ Premium ${shouldGrantPremium ? 'granted' : 'revoked'} for ${userName || targetUid}`)
+    } catch (e) {
+      handleError(e, 'Toggle Student Premium')
+      alert('Something went wrong.')
     }
   }
 
@@ -1118,6 +1160,7 @@ export default function TeacherDashboard({ user, logout }) {
               setAdminSearch={setAdminSearch}
               setUserRole={setUserRole}
               deleteUser={deleteUser}
+              toggleStudentPremium={toggleStudentPremium}
               assignTutorUid={assignTutorUid}
               setAssignTutorUid={setAssignTutorUid}
               assignStudentUid={assignStudentUid}

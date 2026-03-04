@@ -1,7 +1,7 @@
 // src/modules/dashboard/AdminDashboard.jsx
 
 import React, { useMemo } from 'react';
-import { UserPlus, Link2, Unlink, Search, Trash2 } from 'lucide-react';
+import { UserPlus, Link2, Unlink, Search, Trash2, Crown } from 'lucide-react';
 
 function AdminPanel({
   adminUid,
@@ -20,6 +20,7 @@ function AdminPanel({
   setAssignStudentUid,
   assignStudentToTutor,
   unassign,
+  toggleStudentPremium,
 }) {
   const uidToUser = useMemo(() => {
     const m = new Map();
@@ -56,13 +57,14 @@ function AdminPanel({
               <tr>
                 <th className="p-6">User</th>
                 <th className="p-6">Role</th>
+                <th className="p-6">Premium</th>
                 <th className="p-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
               {users.filter((u) => u?.uid && u.uid !== adminUid).length === 0 && (
                 <tr>
-                  <td className="p-6 text-slate-500" colSpan={3}>
+                  <td className="p-6 text-slate-500" colSpan={4}>
                     No users found. Ensure users have logged in at least once so <code>users/&#123;uid&#125;</code> exists.
                   </td>
                 </tr>
@@ -80,8 +82,31 @@ function AdminPanel({
                         {(u.role || 'student').toUpperCase()}
                       </span>
                     </td>
+                    <td className="p-6">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 ${
+                        u.isPremium
+                          ? 'border-amber-500/30 bg-amber-900/20 text-amber-200'
+                          : 'border-slate-700 bg-slate-800 text-slate-200'
+                      }`}>
+                        {u.isPremium && <Crown size={12} />}
+                        {u.isPremium ? 'PRO' : 'FREE'}
+                      </span>
+                    </td>
                     <td className="p-6 text-right">
                       <div className="flex gap-2 justify-end flex-wrap">
+                        {toggleStudentPremium && (
+                          <button
+                            onClick={() => toggleStudentPremium(u.uid, !u.isPremium, u.displayName || u.email)}
+                            className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors inline-flex items-center gap-1.5 ${
+                              u.isPremium
+                                ? 'border-amber-500/30 bg-amber-900/20 hover:bg-amber-900/40 text-amber-200'
+                                : 'border-amber-500/30 bg-amber-900/20 hover:bg-amber-900/40 text-amber-200'
+                            }`}
+                          >
+                            <Crown size={12} />
+                            {u.isPremium ? 'Revoke' : 'Grant'} Pro
+                          </button>
+                        )}
                         <button
                           onClick={() => setUserRole(u.uid, 'student')}
                           className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-700 bg-slate-800 hover:bg-blue-900/20 text-slate-200"
