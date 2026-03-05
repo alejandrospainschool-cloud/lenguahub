@@ -61,6 +61,7 @@ export default function Dashboard({
   const [targetFolder, setTargetFolder] = useState('')
   const [isNewFolder, setIsNewFolder] = useState(false)
   const [hasSaved, setHasSaved] = useState(false)
+  const [translationDirection, setTranslationDirection] = useState('en-to-es') // 'en-to-es' or 'es-to-en'
 
   // Lesson logging state
   const [showLessonLogModal, setShowLessonLogModal] = useState(false)
@@ -95,7 +96,14 @@ export default function Dashboard({
     if (!inputText.trim() || isTranslating) return
     setIsTranslating(true)
     setHasSaved(false)
-    const prompt = `Translate the following English text to Spanish. Return ONLY the Spanish translation. Text: "${inputText}"`
+    
+    let prompt
+    if (translationDirection === 'en-to-es') {
+      prompt = `Translate the following English text to Spanish. Return ONLY the Spanish translation. Text: "${inputText}"`
+    } else {
+      prompt = `Translate the following Spanish text to English. Return ONLY the English translation. Text: "${inputText}"`
+    }
+    
     try {
       const result = await generateContent(prompt)
       setTranslatedText(result.trim())
@@ -226,19 +234,36 @@ export default function Dashboard({
               <div className="p-3 bg-gradient-to-br from-blue-500/30 to-cyan-500/20 rounded-xl text-blue-300 shadow-lg shadow-blue-500/20"><Languages size={24} /></div>
               <h2 className="text-2xl md:text-3xl font-bold text-white">Quick Translator</h2>
             </div>
-            {hasSaved && <span className="text-emerald-400 text-sm font-bold flex items-center gap-1 bg-emerald-500/15 px-3 py-1.5 rounded-lg border border-emerald-400/30"><Check size={16} /> Saved!</span>}
+            <div className="flex items-center gap-3">
+              {hasSaved && <span className="text-emerald-400 text-sm font-bold flex items-center gap-1 bg-emerald-500/15 px-3 py-1.5 rounded-lg border border-emerald-400/30"><Check size={16} /> Saved!</span>}
+              <button
+                onClick={() => {
+                  setTranslationDirection(translationDirection === 'en-to-es' ? 'es-to-en' : 'en-to-es')
+                  setInputText('')
+                  setTranslatedText('')
+                  setHasSaved(false)
+                }}
+                className="px-3 py-1.5 bg-slate-700/60 hover:bg-slate-700 border border-slate-500/30 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition-all"
+              >
+                {translationDirection === 'en-to-es' ? 'EN→ES' : 'ES→EN'}
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center">
              <div className="space-y-2">
-               <label className="text-xs font-bold text-blue-300 uppercase ml-2 tracking-wider">English</label>
+               <label className="text-xs font-bold text-blue-300 uppercase ml-2 tracking-wider">
+                 {translationDirection === 'en-to-es' ? 'English' : 'Spanish'}
+               </label>
                <input value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleTranslate()} className="w-full h-[64px] bg-gradient-to-br from-slate-800/50 to-slate-900/30 border border-blue-500/20 hover:border-blue-500/30 rounded-xl px-4 text-lg text-white placeholder:text-slate-500 focus:border-cyan-400/40 focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-all duration-300 shadow-sm shadow-blue-500/10" placeholder="Type to translate..." />
              </div>
 
              <div className="hidden md:flex justify-center text-slate-400 group-hover:text-blue-400 transition-colors">{isTranslating ? <Loader2 size={24} className="animate-spin" /> : <ArrowRight size={24} />}</div>
 
              <div className="space-y-2 relative">
-               <label className="text-xs font-bold text-cyan-300 uppercase ml-2 tracking-wider">Spanish</label>
+               <label className="text-xs font-bold text-cyan-300 uppercase ml-2 tracking-wider">
+                 {translationDirection === 'en-to-es' ? 'Spanish' : 'English'}
+               </label>
                <div className="w-full h-[64px] bg-gradient-to-br from-cyan-900/30 to-blue-900/20 border border-cyan-500/20 rounded-xl px-4 text-lg flex items-center text-white shadow-sm shadow-cyan-500/10">{translatedText || <span className="text-slate-600">Translation...</span>}</div>
                {translatedText && !translatedText.startsWith('Error') && !hasSaved && (
                  <button onClick={() => setShowSaveModal(true)} className="absolute right-3 top-9 p-2.5 bg-gradient-to-br from-blue-600/30 to-blue-700/20 hover:from-blue-600/50 hover:to-blue-700/40 text-blue-300 rounded-lg active:scale-95 transition-all border border-blue-400/30 shadow-lg shadow-blue-500/15 hover:shadow-blue-500/25"><Save size={20} /></button>
