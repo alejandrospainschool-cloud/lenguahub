@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import { BADGE_TIERS } from '../../lib/gamification-simple'
+import { ChevronRight } from 'lucide-react'
 
 export default function BadgeWall({ stats = {} }) {
   // Calculate badge tier for each activity type
@@ -33,23 +34,22 @@ export default function BadgeWall({ stats = {} }) {
           current: currentTier,
           next: null,
           progress: 100,
-          progressCount: count,
-          goalCount: count,
+          currentCount: count,
+          nextGoal: count,
+          needed: 0,
         }
       }
 
-      const currentGoal = currentTier.goals[activityName]
       const nextGoal = nextBadgeTier.goals[activityName]
-      const countSinceLastTier = count - currentGoal
-      const countNeededForNextTier = nextGoal - currentGoal
-      const progress = Math.min(100, Math.max(0, (countSinceLastTier / countNeededForNextTier) * 100))
+      const needed = Math.max(0, nextGoal - count)
 
       return {
         current: currentTier,
         next: nextBadgeTier,
-        progress,
-        progressCount: Math.min(countSinceLastTier, countNeededForNextTier),
-        goalCount: countNeededForNextTier,
+        progress: Math.min(100, Math.max(0, (count / nextGoal) * 100)),
+        currentCount: count,
+        nextGoal: nextGoal,
+        needed: needed,
       }
     }
 
@@ -91,86 +91,101 @@ export default function BadgeWall({ stats = {} }) {
     <div className="w-full space-y-6">
       {/* Section Title */}
       <div className="space-y-2">
-        <h2 className="text-2xl font-bold text-white">Activity Badges</h2>
-        <p className="text-slate-400 text-sm">Badges level up as you progress in each activity</p>
+        <h2 className="text-3xl font-black text-white">Activity Badges</h2>
+        <p className="text-slate-400 text-sm">Level up your badges with every activity</p>
       </div>
 
-      {/* 5 Activity Badges */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6">
+      {/* 5 Activity Badges Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
         {Object.entries(activityBadges).map(([key, activity]) => (
-          <div
-            key={key}
-            className="group relative"
-            title={`${activity.name}: ${activity.count} completed`}
-          >
+          <div key={key} className="group h-full">
             {/* Badge Card */}
             <div
-              className={`
-                relative flex flex-col items-center justify-center p-6
-                rounded-2xl border-2 transition-all duration-300
-                hover:scale-105 hover:shadow-2xl cursor-pointer
-                bg-gradient-to-br
-              `}
+              className="h-full rounded-xl border p-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 flex flex-col overflow-hidden"
               style={{
-                backgroundColor: `${activity.current.color}15`,
-                borderColor: activity.current.color,
-                backgroundImage: `linear-gradient(135deg, ${activity.current.color}15, ${activity.current.color}08)`,
-                boxShadow: `0 0 40px ${activity.current.color}25, inset 0 0 30px ${activity.current.color}08`,
+                backgroundColor: `${activity.current.color}08`,
+                borderColor: activity.current.color + '50',
+                boxShadow: `0 4px 20px ${activity.current.color}10`,
               }}
             >
-              {/* Badge Icon - Large */}
-              <div className="text-6xl mb-3 drop-shadow-lg transform group-hover:scale-110 transition-transform duration-300">
-                {activity.icon}
-              </div>
-
-              {/* Activity Name */}
-              <p className="text-sm font-bold text-white mb-1 text-center">
-                {activity.name}
-              </p>
-
-              {/* Current Tier Badge */}
+              {/* Background Accent */}
               <div
-                className="px-3 py-1.5 rounded-full text-xs font-bold text-white mb-4 shadow-lg"
-                style={{
-                  backgroundColor: activity.current.color,
-                }}
-              >
-                {activity.current.name} • Tier {activity.current.tier}
+                className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-10 blur-3xl pointer-events-none"
+                style={{ backgroundColor: activity.current.color }}
+              />
+
+              {/* Content */}
+              <div className="relative z-10 flex flex-col h-full">
+                {/* Icon & Tier Badge */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="text-5xl drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    {activity.icon}
+                  </div>
+                  <div
+                    className="px-2 py-1 rounded-lg text-xs font-bold text-white whitespace-nowrap"
+                    style={{ backgroundColor: activity.current.color }}
+                  >
+                    {activity.current.name}
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h3 className="text-lg font-bold text-white mb-3">
+                  {activity.name}
+                </h3>
+
+                {/* Big Number */}
+                <div className="mb-auto">
+                  <div className="text-5xl font-black text-white">
+                    {activity.count}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">completed</p>
+                </div>
+
+                {/* Divider */}
+                <div className="h-px bg-slate-700/30 my-4" />
+
+                {/* Progress Section */}
+                {activity.next ? (
+                  <div className="space-y-3">
+                    {/* Current to Next Tier */}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400">{activity.current.name}</span>
+                      <ChevronRight size={14} className="text-slate-600" />
+                      <span className="text-white font-semibold">{activity.next.name}</span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-slate-400">of {activity.nextGoal}</p>
+                        <p className="text-xs font-bold text-white">{Math.round(activity.progress)}%</p>
+                      </div>
+                      <div className="w-full h-2 bg-slate-900/60 rounded-full overflow-hidden border border-slate-700/40">
+                        <div
+                          className="h-full transition-all duration-500 rounded-full"
+                          style={{
+                            width: `${activity.progress}%`,
+                            backgroundColor: activity.current.color,
+                            boxShadow: `inset 0 0 8px ${activity.current.color}40, 0 0 8px ${activity.current.color}60`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Needed Count */}
+                    {activity.needed > 0 && (
+                      <p className="text-xs text-center text-slate-300 bg-slate-800/30 rounded px-2 py-1.5">
+                        <span className="font-bold text-white">{activity.needed}</span> more to <span className="font-semibold" style={{ color: activity.next.color }}>{activity.next.name}</span>
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-2">
+                    <p className="text-xs font-bold text-emerald-400">🏆 Maximum Reached</p>
+                  </div>
+                )}
               </div>
-
-              {/* Activity Count */}
-              <p className="text-2xl font-black text-white mb-4">
-                {activity.count}
-              </p>
-
-              {/* Progress Bar */}
-              {activity.next && (
-                <div className="w-full space-y-2">
-                  <div className="relative h-2 bg-slate-900/50 rounded-full overflow-hidden border border-slate-700/50">
-                    <div
-                      className="h-full rounded-full transition-all duration-500 shadow-lg"
-                      style={{
-                        width: `${activity.progress}%`,
-                        backgroundColor: activity.current.color,
-                        boxShadow: `0 0 15px ${activity.current.color}60`,
-                      }}
-                    />
-                  </div>
-                  
-                  {/* Progress Text */}
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
-                    <span>{activity.progressCount}/{activity.goalCount} to {activity.next.name}</span>
-                    <span className="font-bold">{Math.round(activity.progress)}%</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Max Tier Badge */}
-              {!activity.next && (
-                <div className="text-center">
-                  <p className="text-xs font-bold text-emerald-400">✨ Maximum Tier Unlocked ✨</p>
-                </div>
-              )}
             </div>
           </div>
         ))}
