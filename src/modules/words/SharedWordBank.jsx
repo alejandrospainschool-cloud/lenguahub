@@ -946,6 +946,7 @@ export default function WordBank({
   const [currentFolder, setCurrentFolder] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [activeMenu, setActiveMenu] = useState(null)
+  const [activeFolderMenu, setActiveFolderMenu] = useState(null)
   const [selectedWordId, setSelectedWordId] = useState(null)
   const [modalMode, setModalMode] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
@@ -1092,6 +1093,39 @@ export default function WordBank({
     }
   }
 
+  const handleDeleteFolder = async (folderName, folderId) => {
+    if (!window.confirm(`⚠️ Delete collection "${folderName}"?\n\nAll ${words.filter(w => w.category === folderName).length} words will be moved to "Uncategorized". This cannot be undone.`)) return
+    
+    try {
+      // Move all words in this folder to "Uncategorized"
+      const wordsInFolder = words.filter(w => w.category === folderName)
+      for (const word of wordsInFolder) {
+        await updateDoc(
+          doc(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'wordbank', word.id),
+          { category: 'Uncategorized' }
+        )
+      }
+
+      // Delete the folder document
+      await deleteDoc(doc(db, 'artifacts', 'language-hub-v2', 'users', targetUid, 'folders', folderId))
+
+      // Reset current folder if it was the deleted one
+      if (currentFolder?.name === folderName) {
+        setCurrentFolder(null)
+      }
+
+      setToastMessage(`Collection "${folderName}" deleted`)
+      setToastType('info')
+      setShowToast(true)
+      setActiveFolderMenu(null)
+    } catch (err) {
+      handleError(err, 'Delete Folder')
+      setToastMessage('Failed to delete collection')
+      setToastType('error')
+      setShowToast(true)
+    }
+  }
+
   const openAddWord = () => {
     if (trackUsage) trackUsage('wordsAdded')
     setModalMode('add_word')
@@ -1169,27 +1203,66 @@ export default function WordBank({
       {!currentFolder && !searchTerm && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {folders.map((folder, index) => (
-            <button
+            <div
               key={folder.name}
-              onClick={() => setCurrentFolder(folder)}
-              className="group relative flex flex-col items-start p-5 bg-slate-900/30 border border-white/5 rounded-2xl transition-all duration-200 hover:bg-slate-800/50 hover:border-white/10 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/20 text-left animate-in fade-in slide-in-from-bottom-2"
+              className="group relative"
               style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
             >
-              <div
-                className="mb-3 p-2.5 rounded-xl transition-transform group-hover:scale-110"
-                style={{ backgroundColor: `${folder.color}15`, color: folder.color }}
+              <button
+                onClick={() => setCurrentFolder(folder)}
+                className="w-full flex flex-col items-start p-5 bg-slate-900/30 border border-white/5 rounded-2xl transition-all duration-200 hover:bg-slate-800/50 hover:border-white/10 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/20 text-left animate-in fade-in slide-in-from-bottom-2"
               >
-                <Folder size={24} fill="currentColor" className="opacity-80" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-100 mb-0.5 truncate w-full">{folder.name}</h3>
-              <p className="text-xs text-slate-500">{folder.count} word{folder.count !== 1 ? 's' : ''}</p>
-            </button>
+                <div
+                  className="mb-3 p-2.5 rounded-xl transition-transform group-hover:scale-110"
+                  style={{ backgroundColor: `${folder.color}15`, color: folder.color }}
+                >
+                  <Folder size={24} fill="currentColor" className="opacity-80" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-100 mb-0.5 truncate w-full">{folder.name}</h3>
+                <p className="text-xs text-slate-500">{folder.count} word{folder.count !== 1 ? 's' : ''}</p>
+              </button>
+
+              {/* Folder Actions Menu */}
+              {folder.id && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActiveFolderMenu(activeFolderMenu === folder.name ? null : folder.name)
+                  }}
+                  className="absolute top-3 right-3 p-1.5 text-slate-500 hover:text-white bg-black/30 hover:bg-black/50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                  title="Folder options"
+                >
+                  <MoreHorizontal size={16} />
+                </button>
+              )}
+
+              {/* Folder Actions Dropdown */}
+              {activeFolderMenu === folder.name && folder.id && (
+                <div className="absolute right-0 top-full mt-1 w-40 bg-slate-800 border border-white/10 rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <button
+                    onClick={() => {
+                      setCurrentFolder(folder)
+                      setActiveFolderMenu(null)
+                    }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white text-left transition-colors"
+                  >
+                    <Folder size={14} /> Open
+                  </button>
+                  <button
+                    onClick={() => handleDeleteFolder(folder.name, folder.id)}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 text-left transition-colors"
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
 
           {/* New Collection Card */}
           <button
             onClick={() => setModalMode('create_folder')}
-            className="flex flex-col items-center justify-center p-5 border border-dashed border-white/10 rounded-2xl text-slate-500 hover:text-white hover:border-white/20 hover:bg-white/[.02] transition-all min-h-[130px] group"
+            className="flex flex-col items-center justify-center p-5 border border-dashed border-white/10 rounded-2xl text-slate-500 hover:text-white hover:border-white/20 hover:bg-white/[.02] transition-all min-h-[130px] group animate-in fade-in slide-in-from-bottom-2"
           >
             <div className="w-10 h-10 rounded-xl border-2 border-dashed border-current flex items-center justify-center mb-2 group-hover:bg-white/10 transition-all">
               <FolderPlus size={18} />
@@ -1340,7 +1413,7 @@ export default function WordBank({
       )}
 
       {/* ── Click-away for menus ───────────────────────────────────────── */}
-      {activeMenu && <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />}
+      {(activeMenu || activeFolderMenu) && <div className="fixed inset-0 z-10" onClick={() => { setActiveMenu(null); setActiveFolderMenu(null) }} />}
 
       {/* ── Modals ─────────────────────────────────────────────────────── */}
       {selectedWord && (
