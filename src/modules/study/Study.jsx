@@ -11,7 +11,25 @@ import AnimatedToast from '../../components/animations/AnimatedToast';
 import { getCelebrationMessages } from '../../lib/animationHelpers';
 
 // --- HELPERS ---
-const getWordContent = (word) => word?.translation || word?.definition || 'No Content';
+const getWordContent = (word) => {
+  // Try primaryDefinition first (from word enrichment or custom)
+  if (word?.primaryDefinition && word.primaryDefinition.trim()) return word.primaryDefinition;
+  
+  // Try custom note
+  if (word?.customNote && word.customNote.trim()) return word.customNote;
+  
+  // Try enrichment data
+  if (word?.enrichment?.entries?.[0]?.definitions?.[0]?.text) {
+    return word.enrichment.entries[0].definitions[0].text;
+  }
+  
+  // Legacy fallback
+  if (word?.translation && word.translation.trim()) return word.translation;
+  if (word?.definition && word.definition.trim()) return word.definition;
+  
+  // Show nothing if truly empty
+  return '';
+};
 
 const speak = (text, lang = 'es-ES') => {
   if (!window.speechSynthesis) return;
@@ -832,6 +850,7 @@ function MatchSession({ words, difficulty = 'normal', addXP, onComplete, onExit 
         {cards.map(card => {
           const isSelected = selectedIds.includes(card.id);
           const isMatched = matchedIds.includes(card.id);
+          const isEmpty = !card.content || card.content.trim() === '';
 
           let baseClass = "h-32 rounded-2xl p-4 flex items-center justify-center text-center font-bold text-sm md:text-base transition-all duration-200 cursor-pointer shadow-lg border-2";
           
@@ -849,7 +868,13 @@ function MatchSession({ words, difficulty = 'normal', addXP, onComplete, onExit 
               onClick={() => handleCardClick(card)}
               className={baseClass}
             >
-              {card.content}
+              {isEmpty ? (
+                <span className="text-slate-500 italic text-xs">
+                  {card.type === 'term' ? '?' : 'No definition'}
+                </span>
+              ) : (
+                card.content
+              )}
             </div>
           );
         })}
