@@ -87,189 +87,169 @@ export default function BadgeWall({ stats = {} }) {
   }, [stats.words, stats.quizzes, stats.matches, stats.flashcards, stats.sentences])
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-8">
       {/* Section Title */}
       <div className="space-y-2">
         <h2 className="text-3xl font-black text-white">Activity Badges</h2>
         <p className="text-slate-400 text-sm">Level up your badges with every activity</p>
       </div>
 
-      {/* 5 Activity Badges Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+      {/* 5 Activity Badges - Premium Card Style */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 perspective">
         {Object.entries(activityBadges).map(([key, activity]) => (
-          <div key={key} className="group h-full">
-            {/* Badge Card */}
+          <div key={key} className="group h-full perspective">
+            {/* Card Container with shield shape */}
             <div
-              className="h-full rounded-2xl border-2 p-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex flex-col overflow-hidden relative"
+              className="relative h-full transition-all duration-300 hover:scale-105 hover:-translate-y-3 cursor-pointer"
               style={{
-                borderColor: activity.current.color,
-                boxShadow: `0 4px 20px ${activity.current.color}20, inset 0 0 30px ${activity.current.color}08`,
+                filter: `drop-shadow(0 20px 40px ${activity.current.color}40)`,
               }}
             >
-              {/* Animated background gradient */}
+              {/* Shield/Hexagon Shape Card */}
               <div
-                className="absolute inset-0 opacity-5 pointer-events-none"
+                className="relative w-full h-full rounded-t-3xl rounded-b-lg p-6 flex flex-col items-center overflow-hidden group"
                 style={{
-                  background: `linear-gradient(135deg, ${activity.current.color} 0%, transparent 50%)`,
+                  background: `linear-gradient(135deg, ${activity.current.color}20 0%, ${activity.current.color}05 100%)`,
+                  border: `2px solid ${activity.current.color}`,
+                  boxShadow: `
+                    0 0 20px ${activity.current.color}60,
+                    inset 0 1px 0 ${activity.current.color}80,
+                    inset 0 -2px 10px ${activity.current.color}30
+                  `,
                 }}
-              />
-
-              {/* Decorative corners - top left */}
-              <div
-                className="absolute top-0 left-0 w-8 h-8 opacity-30 pointer-events-none"
-                style={{
-                  background: `linear-gradient(135deg, ${activity.current.color} 0%, transparent 70%)`,
-                  clipPath: 'polygon(0 0, 100% 0, 0 100%)',
-                }}
-              />
-
-              {/* Decorative corners - bottom right */}
-              <div
-                className="absolute bottom-0 right-0 w-8 h-8 opacity-30 pointer-events-none"
-                style={{
-                  background: `linear-gradient(-45deg, ${activity.current.color} 0%, transparent 70%)`,
-                  clipPath: 'polygon(100% 100%, 0 100%, 100% 0)',
-                }}
-              />
-
-              {/* Top accent line */}
-              <div
-                className="absolute top-0 left-0 right-0 h-1 opacity-60"
-                style={{
-                  background: `linear-gradient(90deg, transparent, ${activity.current.color}, transparent)`,
-                }}
-              />
-
-              {/* Floating glow orb */}
-              <div
-                className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-3xl opacity-20 pointer-events-none group-hover:opacity-40 transition-opacity duration-300"
-                style={{ backgroundColor: activity.current.color }}
-              />
-
-              {/* Content */}
-              <div className="relative z-10 flex flex-col h-full">
-                {/* Icon & Tier Badge */}
-                <div className="flex items-start justify-between mb-4">
-                  {/* Icon with special background */}
-                  <div
-                    className="text-5xl drop-shadow-lg group-hover:scale-125 group-hover:rotate-12 transition-all duration-300 p-3 rounded-xl"
-                    style={{
-                      backgroundColor: activity.current.color + '15',
-                      border: `1.5px solid ${activity.current.color}40`,
-                    }}
-                  >
-                    {activity.icon}
-                  </div>
-
-                  {/* Tier Badge with gradient */}
-                  <div
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-white whitespace-nowrap shadow-lg relative overflow-hidden"
-                    style={{
-                      background: `linear-gradient(135deg, ${activity.current.color} 0%, ${activity.current.color}dd 100%)`,
-                      boxShadow: `0 4px 12px ${activity.current.color}50`,
-                    }}
-                  >
-                    {/* Shine effect */}
-                    <div className="absolute inset-0 bg-white opacity-20 blur-sm" style={{ transform: 'skewX(-20deg)' }} />
-                    <span className="relative">{activity.current.name}</span>
-                  </div>
-                </div>
-
-                {/* Title with tier indicator */}
-                <h3 className="text-xl font-black text-white mb-3 flex items-center gap-2">
-                  {activity.name}
-                  <span
-                    className="text-xs font-bold px-2 py-0.5 rounded"
-                    style={{
-                      backgroundColor: activity.current.color + '20',
-                      color: activity.current.color,
-                    }}
-                  >
-                    {activity.current.tier}/8
-                  </span>
-                </h3>
-
-                {/* Big Number with glow */}
-                <div className="mb-auto relative">
-                  <div
-                    className="text-6xl font-black text-transparent bg-clip-text"
-                    style={{
-                      backgroundImage: `linear-gradient(135deg, ${activity.current.color}, ${activity.current.color}99)`,
-                      filter: `drop-shadow(0 2px 8px ${activity.current.color}40)`,
-                    }}
-                  >
-                    {activity.count}
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">completed</p>
-                </div>
-
-                {/* Divider with glow */}
+              >
+                {/* Ornate Top Border Accent */}
                 <div
-                  className="h-px my-4 opacity-40"
+                  className="absolute top-0 left-0 right-0 h-1.5"
                   style={{
-                    background: `linear-gradient(90deg, transparent, ${activity.current.color}, transparent)`,
-                    boxShadow: `0 0 10px ${activity.current.color}40`,
+                    background: `linear-gradient(90deg, transparent, ${activity.current.color}, ${activity.current.color}, transparent)`,
+                    boxShadow: `0 0 15px ${activity.current.color}80, inset 0 1px 3px rgba(255,255,255,0.2)`,
                   }}
                 />
 
-                {/* Progress Section */}
-                {activity.next ? (
-                  <div className="space-y-3">
-                    {/* Current to Next Tier */}
-                    <div className="flex items-center justify-between text-xs px-2.5 py-2 rounded bg-slate-800/40 border border-slate-700/50">
-                      <span className="text-slate-400 font-semibold">{activity.current.name}</span>
-                      <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                      <span className="text-white font-bold">{activity.next.name}</span>
-                    </div>
+                {/* Decorative corner lights */}
+                <div
+                  className="absolute top-1 left-2 w-1.5 h-1.5 rounded-full opacity-60"
+                  style={{ backgroundColor: activity.current.color }}
+                />
+                <div
+                  className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full opacity-60"
+                  style={{ backgroundColor: activity.current.color }}
+                />
 
-                    {/* Progress Bar with glow */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-slate-400">Progress</p>
-                        <p className="text-xs font-bold text-white">{Math.round(activity.progress)}%</p>
-                      </div>
-                      <div className="w-full h-3 bg-slate-900/80 rounded-full overflow-hidden border border-slate-700/60 relative">
-                        <div
-                          className="h-full transition-all duration-500 rounded-full relative"
-                          style={{
-                            width: `${activity.progress}%`,
-                            backgroundColor: activity.current.color,
-                            boxShadow: `inset -2px 0 8px rgba(0,0,0,0.3), 0 0 12px ${activity.current.color}80`,
-                          }}
-                        >
-                          {/* Animated shimmer */}
-                          <div className="absolute inset-0 bg-white opacity-20 blur-sm animate-pulse" />
-                        </div>
-                      </div>
-                    </div>
+                {/* Background glow effect */}
+                <div
+                  className="absolute inset-0 opacity-10 pointer-events-none"
+                  style={{
+                    background: `radial-gradient(circle at center, ${activity.current.color}, transparent)`,
+                  }}
+                />
 
-                    {/* Needed Count */}
-                    {activity.needed > 0 && (
-                      <p className="text-xs text-center font-semibold py-2 px-2.5 rounded relative overflow-hidden" 
+                {/* Content */}
+                <div className="relative z-10 w-full h-full flex flex-col items-center justify-between text-center">
+                  {/* Icon Container - Hexagonal */}
+                  <div className="mb-3">
+                    <div
+                      className="relative w-16 h-16 flex items-center justify-center text-4xl"
+                      style={{
+                        background: `linear-gradient(135deg, ${activity.current.color}30, ${activity.current.color}10)`,
+                        border: `1.5px solid ${activity.current.color}`,
+                        borderRadius: '12px',
+                        boxShadow: `0 0 15px ${activity.current.color}50, inset 0 0 10px ${activity.current.color}20`,
+                      }}
+                    >
+                      {activity.icon}
+                      {/* Icon shine */}
+                      <div className="absolute inset-0 rounded-lg opacity-20 bg-white group-hover:opacity-40 transition-opacity duration-300" />
+                    </div>
+                  </div>
+
+                  {/* Activity Name */}
+                  <h3 className="text-lg font-black text-white mb-1">
+                    {activity.name}
+                  </h3>
+
+                  {/* Tier Info */}
+                  <p
+                    className="text-xs font-bold mb-3"
+                    style={{ color: activity.current.color }}
+                  >
+                    {activity.current.tier} / 8
+                  </p>
+
+                  {/* Big Count */}
+                  <div className="mb-2">
+                    <div
+                      className="text-5xl font-black drop-shadow-lg"
+                      style={{
+                        color: activity.current.color,
+                        textShadow: `0 0 20px ${activity.current.color}80, 0 2px 4px rgba(0,0,0,0.5)`,
+                      }}
+                    >
+                      {activity.count}
+                    </div>
+                  </div>
+
+                  {/* Completed Text */}
+                  <p className="text-xs text-slate-300 mb-3 font-semibold">completed</p>
+
+                  {/* Divider */}
+                  <div
+                    className="w-12 h-px my-2"
+                    style={{
+                      background: activity.current.color,
+                      boxShadow: `0 0 8px ${activity.current.color}80`,
+                    }}
+                  />
+
+                  {/* Progress Info */}
+                  {activity.next ? (
+                    <div className="w-full space-y-2 flex-1 flex flex-col justify-end">
+                      {/* Tier Progression */}
+                      <div className="text-xs space-y-1">
+                        <p className="text-slate-400 font-semibold">
+                          {activity.current.name} → {activity.next.name}
+                        </p>
+                        {activity.needed > 0 && (
+                          <p
+                            className="font-bold"
+                            style={{ color: activity.current.color }}
+                          >
+                            {activity.needed} more
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Current Tier Badge at Bottom */}
+                      <div
+                        className="mt-2 px-3 py-1.5 rounded text-xs font-bold text-white"
                         style={{
-                          backgroundColor: activity.current.color + '15',
-                          border: `1px solid ${activity.current.color}40`,
-                          color: activity.current.color,
-                        }}>
-                        {/* Background shine */}
-                        <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-300" style={{ backgroundColor: activity.current.color }} />
-                        <span className="relative">
-                          <span className="font-black">{activity.needed}</span> more to <span className="font-bold">{activity.next.name}</span>
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-3 px-2 rounded relative overflow-hidden" style={{ backgroundColor: '#10b98120', border: '1px solid #10b98140' }}>
-                    {/* Crown emoji for max tier */}
-                    <p className="text-2xl mb-1">👑</p>
-                    <p className="text-xs font-bold text-emerald-400">MAX TIER REACHED</p>
-                    <p className="text-[10px] text-emerald-400/70">Ultimate Mastery Unlocked!</p>
-                  </div>
-                )}
+                          backgroundColor: activity.current.color,
+                          boxShadow: `0 4px 12px ${activity.current.color}60`,
+                        }}
+                      >
+                        {activity.current.name}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full flex-1 flex flex-col justify-end">
+                      <div
+                        className="px-3 py-2 rounded text-xs font-bold text-center"
+                        style={{
+                          backgroundColor: '#10b98130',
+                          color: '#10b981',
+                          border: `1px solid #10b98160`,
+                        }}
+                      >
+                        👑 MAX TIER
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Bottom decoration points */}
+              <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full" style={{ backgroundColor: activity.current.color }} />
             </div>
           </div>
         ))}
