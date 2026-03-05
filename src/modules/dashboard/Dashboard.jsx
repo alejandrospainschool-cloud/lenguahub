@@ -130,9 +130,19 @@ export default function Dashboard({
       const existing = existingFolders.find((f) => f.name === targetFolder)
       const colorToUse = existing ? existing.color : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)]
 
+      // Always save Spanish as the term, other language as definition
+      let spanishTerm, englishDefinition
+      if (translationDirection === 'en-to-es') {
+        spanishTerm = translatedText // English → Spanish
+        englishDefinition = inputText
+      } else {
+        spanishTerm = inputText // Spanish → English
+        englishDefinition = translatedText
+      }
+
       await addDoc(wordsRef, {
-        term: translatedText,
-        definition: inputText,
+        term: spanishTerm,
+        definition: englishDefinition,
         category: targetFolder,
         folderColor: colorToUse,
         createdAt: serverTimestamp(),
