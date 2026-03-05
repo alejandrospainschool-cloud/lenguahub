@@ -15,36 +15,74 @@ export default function BadgeWall({ stats = {} }) {
 
   // Get badge info for each activity
   const activityBadges = useMemo(() => {
+    const getActivityProgress = (activityName, count) => {
+      const currentTier = getActivityBadgeTier(activityName, count)
+      
+      // Find the next tier after current
+      let nextBadgeTier = null
+      for (const tier of BADGE_TIERS) {
+        if (tier.tier > currentTier.tier) {
+          nextBadgeTier = tier
+          break
+        }
+      }
+
+      if (!nextBadgeTier) {
+        // Already at max tier
+        return {
+          current: currentTier,
+          next: null,
+          progress: 100,
+          progressCount: count,
+          goalCount: count,
+        }
+      }
+
+      const currentGoal = currentTier.goals[activityName]
+      const nextGoal = nextBadgeTier.goals[activityName]
+      const countSinceLastTier = count - currentGoal
+      const countNeededForNextTier = nextGoal - currentGoal
+      const progress = Math.min(100, Math.max(0, (countSinceLastTier / countNeededForNextTier) * 100))
+
+      return {
+        current: currentTier,
+        next: nextBadgeTier,
+        progress,
+        progressCount: Math.min(countSinceLastTier, countNeededForNextTier),
+        goalCount: countNeededForNextTier,
+      }
+    }
+
     return {
       words: {
         name: 'Words',
         icon: '📚',
         count: stats.words || 0,
-        badge: getActivityBadgeTier('words', stats.words || 0),
+        ...getActivityProgress('words', stats.words || 0),
       },
       quizzes: {
         name: 'Quizzes',
         icon: '❓',
         count: stats.quizzes || 0,
-        badge: getActivityBadgeTier('quizzes', stats.quizzes || 0),
+        ...getActivityProgress('quizzes', stats.quizzes || 0),
       },
       matches: {
         name: 'Matches',
         icon: '🧠',
         count: stats.matches || 0,
-        badge: getActivityBadgeTier('matches', stats.matches || 0),
+        ...getActivityProgress('matches', stats.matches || 0),
       },
       flashcards: {
         name: 'Flashcards',
         icon: '🗂️',
         count: stats.flashcards || 0,
-        badge: getActivityBadgeTier('flashcards', stats.flashcards || 0),
+        ...getActivityProgress('flashcards', stats.flashcards || 0),
       },
       sentences: {
         name: 'Sentences',
         icon: '📝',
         count: stats.sentences || 0,
-        badge: getActivityBadgeTier('sentences', stats.sentences || 0),
+        ...getActivityProgress('sentences', stats.sentences || 0),
       },
     }
   }, [stats.words, stats.quizzes, stats.matches, stats.flashcards, stats.sentences])
@@ -58,62 +96,81 @@ export default function BadgeWall({ stats = {} }) {
       </div>
 
       {/* 5 Activity Badges */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6">
         {Object.entries(activityBadges).map(([key, activity]) => (
           <div
             key={key}
-            className="group"
+            className="group relative"
             title={`${activity.name}: ${activity.count} completed`}
           >
-            {/* Badge Container */}
+            {/* Badge Card */}
             <div
               className={`
-                relative flex flex-col items-center justify-center aspect-square
-                rounded-2xl border-2 transition-all duration-300 cursor-pointer
-                hover:scale-105 hover:shadow-lg
+                relative flex flex-col items-center justify-center p-6
+                rounded-2xl border-2 transition-all duration-300
+                hover:scale-105 hover:shadow-2xl cursor-pointer
+                bg-gradient-to-br
               `}
               style={{
-                backgroundColor: `${activity.badge.color}20`,
-                borderColor: activity.badge.color,
-                boxShadow: `0 0 30px ${activity.badge.color}40, inset 0 0 20px ${activity.badge.color}10`,
+                backgroundColor: `${activity.current.color}15`,
+                borderColor: activity.current.color,
+                backgroundImage: `linear-gradient(135deg, ${activity.current.color}15, ${activity.current.color}08)`,
+                boxShadow: `0 0 40px ${activity.current.color}25, inset 0 0 30px ${activity.current.color}08`,
               }}
             >
-              {/* Badge Icon */}
-              <div className="text-5xl mb-2">
+              {/* Badge Icon - Large */}
+              <div className="text-6xl mb-3 drop-shadow-lg transform group-hover:scale-110 transition-transform duration-300">
                 {activity.icon}
               </div>
 
-              {/* Badge Name */}
-              <p className="text-center font-bold text-xs text-white mb-2">
+              {/* Activity Name */}
+              <p className="text-sm font-bold text-white mb-1 text-center">
                 {activity.name}
               </p>
 
-              {/* Tier Badge */}
+              {/* Current Tier Badge */}
               <div
-                className="px-2 py-1 rounded-full text-xs font-bold text-white"
+                className="px-3 py-1.5 rounded-full text-xs font-bold text-white mb-4 shadow-lg"
                 style={{
-                  backgroundColor: activity.badge.color + '40',
+                  backgroundColor: activity.current.color,
                 }}
               >
-                {activity.badge.name}
+                {activity.current.name} • Tier {activity.current.tier}
               </div>
 
-              {/* Count */}
-              <p className="text-[10px] mt-2 text-slate-300 font-semibold">
-                {activity.count} {key}
+              {/* Activity Count */}
+              <p className="text-2xl font-black text-white mb-4">
+                {activity.count}
               </p>
-            </div>
 
-            {/* Hover Tooltip */}
-            <div className={`
-              absolute left-1/2 -translate-x-1/2 bottom-full mb-3 
-              bg-slate-900 border border-slate-700 rounded-lg px-3 py-2
-              text-xs text-slate-200 whitespace-nowrap z-10
-              opacity-0 group-hover:opacity-100 pointer-events-none
-              group-hover:pointer-events-auto transition-opacity duration-200
-              shadow-lg
-            `}>
-              Tier {activity.badge.tier}
+              {/* Progress Bar */}
+              {activity.next && (
+                <div className="w-full space-y-2">
+                  <div className="relative h-2 bg-slate-900/50 rounded-full overflow-hidden border border-slate-700/50">
+                    <div
+                      className="h-full rounded-full transition-all duration-500 shadow-lg"
+                      style={{
+                        width: `${activity.progress}%`,
+                        backgroundColor: activity.current.color,
+                        boxShadow: `0 0 15px ${activity.current.color}60`,
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Progress Text */}
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span>{activity.progressCount}/{activity.goalCount} to {activity.next.name}</span>
+                    <span className="font-bold">{Math.round(activity.progress)}%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Max Tier Badge */}
+              {!activity.next && (
+                <div className="text-center">
+                  <p className="text-xs font-bold text-emerald-400">✨ Maximum Tier Unlocked ✨</p>
+                </div>
+              )}
             </div>
           </div>
         ))}
