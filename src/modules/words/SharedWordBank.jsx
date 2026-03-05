@@ -411,6 +411,8 @@ function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid,
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [newFolderColor, setNewFolderColor] = useState(FOLDER_COLORS[0])
+  const [selectedEntryIndex, setSelectedEntryIndex] = useState(0)
+  const [selectedDefIndex, setSelectedDefIndex] = useState(0)
   const inputRef = useRef(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -419,6 +421,8 @@ function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid,
     const w = term.trim()
     if (!w) return
     setLookup({ loading: true, data: null, error: null })
+    setSelectedEntryIndex(0)
+    setSelectedDefIndex(0)
     try {
       const data = await fetchWordInfo(w)
       setLookup({ loading: false, data, error: null })
@@ -445,8 +449,9 @@ function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid,
     setSaving(true)
     try {
       const enrichment = lookup?.data || null
-      const entry = enrichment?.entries?.[0]
-      const primaryDef = entry?.definitions?.[0]?.text || customNote || ''
+      const entry = enrichment?.entries?.[selectedEntryIndex]
+      const selectedDef = entry?.definitions?.[selectedDefIndex]
+      const primaryDef = selectedDef?.text || customNote || ''
       const folderColor = folders.find(f => f.name === selectedFolder)?.color || newFolderColor.hex
 
       await addDoc(
@@ -462,6 +467,7 @@ function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid,
           createdBy: isTeacherView ? 'tutor' : 'student',
           customNote: customNote || '',
           enrichment,
+          selectedDefinitionIndex: selectedDefIndex,
         }
       )
       if (onWordSaved) onWordSaved(w)
@@ -472,8 +478,6 @@ function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid,
       setSaving(false)
     }
   }
-
-  const entry = lookup?.data?.entries?.[0]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
@@ -527,22 +531,73 @@ function AddWordModal({ folders, currentFolder, onClose, onWordSaved, targetUid,
           )}
 
           {/* Preview */}
-          {entry && !lookup?.loading && (
-            <div className="bg-slate-900/40 rounded-2xl border border-white/5 p-4 space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <PosBadge pos={entry.partOfSpeech} />
-                {entry.gender && <span className="text-[10px] text-slate-500 font-bold uppercase">{entry.article} · {entry.gender}</span>}
-                {entry.isIrregular && <span className="text-[10px] text-orange-400 font-bold uppercase">irregular</span>}
-                {lookup?.data?.success && <span className="text-[10px] text-emerald-500 font-bold ml-auto">✓ Found</span>}
-              </div>
-              {entry.definitions?.[0] && (
-                <p className="text-slate-200 text-sm leading-relaxed">{entry.definitions[0].text}</p>
+          {lookup?.data?.entries && lookup.data.entries.length > 0 && !lookup?.loading && (
+            <div className="space-y-3">
+              {/* Parts of Speech Selector */}
+              {lookup.data.entries.length > 1 && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Select Part of Speech</label>
+                  <div className="flex flex-wrap gap-2">
+                    {lookup.data.entries.map((e, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => { setSelectedEntryIndex(idx); setSelectedDefIndex(0) }}
+                        className={`px-3 py-2 rounded-lg border transition-all text-sm font-medium ${
+                          selectedEntryIndex === idx
+                            ? 'bg-blue-600/20 border-blue-500/50 text-blue-300 ring-1 ring-blue-500/20'
+                            : 'bg-slate-900/60 border-white/5 text-slate-400 hover:border-white/10 hover:text-white'
+                        }`}
+                      >
+                        <PosBadge pos={e.partOfSpeech} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-              {entry.definitions?.length > 1 && (
-                <p className="text-slate-500 text-xs">+ {entry.definitions.length - 1} more definition{entry.definitions.length > 2 ? 's' : ''}</p>
+
+              {/* Selected Entry Details */}
+              {lookup.data.entries[selectedEntryIndex] && (
+                <div className="space-y-3">
+                  {/* Main Info */}
+                  <div className="bg-slate-900/40 rounded-2xl border border-white/5 p-4 space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <PosBadge pos={lookup.data.entries[selectedEntryIndex].partOfSpeech} />
+                      {lookup.data.entries[selectedEntryIndex].gender && <span className="text-[10px] text-slate-500 font-bold uppercase">{lookup.data.entries[selectedEntryIndex].article} · {lookup.data.entries[selectedEntryIndex].gender}</span>}
+                      {lookup.data.entries[selectedEntryIndex].isIrregular && <span className="text-[10px] text-orange-400 font-bold uppercase">irregular</span>}
+                      {lookup?.data?.success && <span className="text-[10px] text-emerald-500 font-bold ml-auto">✓ Found</span>}
+                    </div>
+                    {lookup.data.entries[selectedEntryIndex].conjugations && <p className="text-blue-400 text-xs font-medium">✓ Conjugation data available</p>}
+                    {lookup.data.entries[selectedEntryIndex].tenseExamples?.length > 0 && <p className="text-blue-400 text-xs font-medium">✓ {lookup.data.entries[selectedEntryIndex].tenseExamples.length} tense examples</p>}
+                  </div>
+
+                  {/* Definitions Selector */}
+                  {lookup.data.entries[selectedEntryIndex].definitions && lookup.data.entries[selectedEntryIndex].definitions.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Select Definition</label>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {lookup.data.entries[selectedEntryIndex].definitions.map((def, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setSelectedDefIndex(idx)}
+                            className={`w-full text-left p-3 rounded-xl border transition-all ${
+                              selectedDefIndex === idx
+                                ? 'bg-blue-600/10 border-blue-500/30 ring-1 ring-blue-500/20'
+                                : 'bg-slate-900/60 border-white/5 hover:border-white/10'
+                            }`}
+                          >
+                            <p className="text-slate-200 text-sm leading-relaxed">{def.text}</p>
+                            {def.examples && def.examples.length > 0 && (
+                              <p className="text-slate-500 text-xs mt-1">Example: {def.examples[0].spanish}</p>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
-              {entry.conjugations && <p className="text-blue-400 text-xs font-medium">✓ Conjugation data available</p>}
-              {entry.tenseExamples?.length > 0 && <p className="text-blue-400 text-xs font-medium">✓ {entry.tenseExamples.length} tense examples</p>}
             </div>
           )}
 

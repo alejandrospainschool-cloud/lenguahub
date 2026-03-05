@@ -121,104 +121,100 @@ function parseWiktionaryEntries(esEntries, word) {
   // If no valid groups, return empty
   if (Object.keys(posGroups).length === 0) return [];
 
-  // Pick the primary POS by priority
+  // Sort all POS by priority
   const sortedPosKeys = Object.keys(posGroups).sort((a, b) => {
     const ai = POS_PRIORITY.indexOf(a);
     const bi = POS_PRIORITY.indexOf(b);
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
 
-  const primaryPos = sortedPosKeys[0];
-  const group = posGroups[primaryPos];
+  // Build an entry for each POS to allow users to select between meanings
+  const results = [];
 
-  // Cap total definitions
-  const definitions = group.definitions.slice(0, MAX_DEFINITIONS);
+  for (const pos of sortedPosKeys) {
+    const group = posGroups[pos];
+    const definitions = group.definitions.slice(0, MAX_DEFINITIONS);
 
-  // Also note secondary POS for display
-  const otherPos = sortedPosKeys.slice(1);
-
-  // If there's an "interjection" as secondary and primary is noun/adj, fold a note into definitions
-  // OR if primary is interjection but there's a noun/adj/verb, swap
-  // (already handled by priority sort above)
-
-  // Detect gender for nouns
-  let gender = null;
-  let article = null;
-  if (primaryPos === 'noun') {
-    const rawPos = group.rawPos || '';
-    if (/feminine/i.test(rawPos)) { gender = 'feminine'; article = 'la'; }
-    else if (/masculine/i.test(rawPos)) { gender = 'masculine'; article = 'el'; }
-    else {
-      if (word.endsWith('a') || word.endsWith('ión') || word.endsWith('dad') || word.endsWith('tud')) {
-        gender = 'feminine'; article = 'la';
-      } else if (word.endsWith('o') || word.endsWith('or') || word.endsWith('aje')) {
-        gender = 'masculine'; article = 'el';
+    // Detect gender for nouns
+    let gender = null;
+    let article = null;
+    if (pos === 'noun') {
+      const rawPos = group.rawPos || '';
+      if (/feminine/i.test(rawPos)) { gender = 'feminine'; article = 'la'; }
+      else if (/masculine/i.test(rawPos)) { gender = 'masculine'; article = 'el'; }
+      else {
+        if (word.endsWith('a') || word.endsWith('ión') || word.endsWith('dad') || word.endsWith('tud')) {
+          gender = 'feminine'; article = 'la';
+        } else if (word.endsWith('o') || word.endsWith('or') || word.endsWith('aje')) {
+          gender = 'masculine'; article = 'el';
+        }
       }
     }
-  }
 
-  // Get conjugations for verbs
-  let conjugations = null;
-  let isIrregular = null;
-  if (primaryPos === 'verb') {
-    let infinitive = word;
-    if (word.endsWith('se')) infinitive = word.slice(0, -2);
-    conjugations = conjugateVerb(infinitive);
+    // Get conjugations for verbs
+    let conjugations = null;
+    let isIrregular = null;
+    if (pos === 'verb') {
+      let infinitive = word;
+      if (word.endsWith('se')) infinitive = word.slice(0, -2);
+      conjugations = conjugateVerb(infinitive);
 
-    if (conjugations) {
-      try {
-        const yo = getConjugation(infinitive, 'INDICATIVE_PRESENT', 0);
-        const stem = infinitive.replace(/(ar|er|ir)$/, '');
-        isIrregular = yo !== stem + 'o';
-      } catch { isIrregular = null; }
+      if (conjugations) {
+        try {
+          const yo = getConjugation(infinitive, 'INDICATIVE_PRESENT', 0);
+          const stem = infinitive.replace(/(ar|er|ir)$/, '');
+          isIrregular = yo !== stem + 'o';
+        } catch { isIrregular = null; }
+      }
     }
+
+    // Build tense examples
+    const tenseExamples = [];
+
+    // For verbs, generate tense-specific examples from conjugations
+    if (pos === 'verb' && conjugations) {
+      const inf = word.endsWith('se') ? word.slice(0, -2) : word;
+      try {
+        const pr = getConjugation(inf, 'INDICATIVE_PRESENT', 0);
+        tenseExamples.push({ tense: 'Presente', spanish: `Yo ${pr} todos los días.`, english: '(Present tense)' });
+      } catch { /* skip */ }
+      try {
+        const pt = getConjugation(inf, 'INDICATIVE_PRETERITE', 0);
+        tenseExamples.push({ tense: 'Pretérito', spanish: `Yo ${pt} ayer.`, english: '(Past tense)' });
+      } catch { /* skip */ }
+      try {
+        const ft = getConjugation(inf, 'INDICATIVE_FUTURE', 0);
+        tenseExamples.push({ tense: 'Futuro', spanish: `Yo ${ft} mañana.`, english: '(Future tense)' });
+      } catch { /* skip */ }
+    }
+
+    // Add Wiktionary examples (max 3 total)
+    const allExamples = definitions.flatMap(d => d.examples).filter(e => e.spanish);
+    for (let i = 0; i < Math.min(3, allExamples.length); i++) {
+      tenseExamples.push({
+        tense: `Ejemplo ${i + 1}`,
+        spanish: allExamples[i].spanish,
+        english: allExamples[i].english,
+      });
+    }
+
+    // Build entry for this POS
+    const result = {
+      partOfSpeech: pos,
+      definitions,
+      conjugations,
+      tenseExamples,
+      synonyms: [],
+      antonyms: [],
+      gender,
+      article,
+      isIrregular,
+    };
+
+    results.push(result);
   }
 
-  // Build tense examples
-  const tenseExamples = [];
-
-  // For verbs, generate tense-specific examples from conjugations
-  if (primaryPos === 'verb' && conjugations) {
-    const inf = word.endsWith('se') ? word.slice(0, -2) : word;
-    try {
-      const pr = getConjugation(inf, 'INDICATIVE_PRESENT', 0);
-      tenseExamples.push({ tense: 'Presente', spanish: `Yo ${pr} todos los días.`, english: '(Present tense)' });
-    } catch { /* skip */ }
-    try {
-      const pt = getConjugation(inf, 'INDICATIVE_PRETERITE', 0);
-      tenseExamples.push({ tense: 'Pretérito', spanish: `Yo ${pt} ayer.`, english: '(Past tense)' });
-    } catch { /* skip */ }
-    try {
-      const ft = getConjugation(inf, 'INDICATIVE_FUTURE', 0);
-      tenseExamples.push({ tense: 'Futuro', spanish: `Yo ${ft} mañana.`, english: '(Future tense)' });
-    } catch { /* skip */ }
-  }
-
-  // Add Wiktionary examples (max 3 total)
-  const allExamples = definitions.flatMap(d => d.examples).filter(e => e.spanish);
-  for (let i = 0; i < Math.min(3, allExamples.length); i++) {
-    tenseExamples.push({
-      tense: `Ejemplo ${i + 1}`,
-      spanish: allExamples[i].spanish,
-      english: allExamples[i].english,
-    });
-  }
-
-  // Build the single merged entry
-  const result = {
-    partOfSpeech: primaryPos,
-    alsoUsedAs: otherPos.length > 0 ? otherPos : undefined,
-    definitions,
-    conjugations,
-    tenseExamples,
-    synonyms: [],
-    antonyms: [],
-    gender,
-    article,
-    isIrregular,
-  };
-
-  return [result];
+  return results;
 }
 
 // ─── Handler ───────────────────────────────────────────────────────────
