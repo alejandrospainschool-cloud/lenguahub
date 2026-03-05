@@ -1,156 +1,87 @@
-// src/lib/gamification.js
-
 /**
- * Gamification System - Overhauled
+ * GAMIFICATION SYSTEM - Complete Learning Motivation Engine
  * 
- * XP System:
- * - Base XP for adding words (varied by difficulty)
- * - Bonus XP for streak milestones
- * - Bonus XP for consistent daily learning
- * 
- * Level System:
- * - Exponential scaling: each level requires more XP than the last
- * - Formula: XP needed = 100 * level^1.5
- * - Levels start at 1, increase infinitely
+ * Features:
+ * - Activity-based XP system (words, studying, achievements)
+ * - 50+ level progression with Spanish titles
+ * - Daily streak tracking with bonuses
+ * - 20+ achievements and badges
+ * - Word mastery levels (0-5)
+ * - Daily challenges
+ * - Perfect for Spanish language learning
  */
 
-// Calculate XP for a single word (dynamic based on properties)
-function calculateWordXP(word) {
-  let xp = 20; // Base XP per word
-  
-  // Bonus for word properties
-  if (word.difficulty) {
-    if (word.difficulty === 'hard') xp += 15;
-    if (word.difficulty === 'medium') xp += 8;
-    if (word.difficulty === 'easy') xp += 2;
-  }
-  
-  // Bonus if the word has translations/definitions
-  if (word.translation) xp += 5;
-  if (word.definition) xp += 5;
-  if (word.example) xp += 3;
-  
-  return xp;
-}
+import * as GamificationV2 from './gamification-v2';
 
-// Calculate total XP from all words
-function calculateTotalXP(words = []) {
-  if (!words.length) return 0;
-  
-  let totalXP = 0;
-  
-  words.forEach(word => {
-    totalXP += calculateWordXP(word);
-  });
-  
-  // Streak bonus: 5% bonus per 5-day streak
-  const streak = calculateConsecutiveDays(words);
-  if (streak >= 5) {
-    const streakBonus = Math.floor((streak / 5) * totalXP * 0.05);
-    totalXP += streakBonus;
-  }
-  
-  return totalXP;
-}
+// ============================================================================
+// LEGACY COMPATIBILITY & ENHANCED STATS
+// ============================================================================
 
 // Calculate XP required for a specific level
-function xpRequiredForLevel(level) {
-  // Exponential scaling: each level gets progressively harder
-  // Level 1: 100, Level 2: 189, Level 3: 323, Level 4: 510, Level 5: 750...
-  return Math.ceil(100 * Math.pow(level, 1.5));
-}
+export const xpRequiredForLevel = (level) => {
+  return GamificationV2.xpRequiredForLevel(level);
+};
 
 // Calculate current level and progress from total XP
-function getLevelFromXP(totalXP) {
-  let level = 1;
-  let accumulatedXP = 0;
-  
-  // Find current level
-  while (accumulatedXP + xpRequiredForLevel(level) <= totalXP) {
-    accumulatedXP += xpRequiredForLevel(level);
-    level++;
-  }
-  
-  // Calculate XP in current level and XP needed for next
-  const currentLevelXP = totalXP - accumulatedXP;
-  const xpForNextLevel = xpRequiredForLevel(level);
-  
-  return {
-    level,
-    currentLevelXP,
-    xpForNextLevel,
-    accumulatedXP
-  };
-}
+export const getLevelFromXP = (totalXP) => {
+  return GamificationV2.getLevelFromXP(totalXP);
+};
 
+// Calculate consecutive days
+export const calculateConsecutiveDays = (words = []) => {
+  return GamificationV2.calculateConsecutiveDays(words);
+};
+
+// Main stats calculation (enhanced)
 export const calculateStats = (words = []) => {
-  const totalXP = calculateTotalXP(words);
+  const totalXP = words.reduce((sum, w) => sum + (w.earnedXP || 10), 0);
   const levelInfo = getLevelFromXP(totalXP);
-  
-  // Calculate streak
-  let streak = 0;
-  if (words.length > 0) {
-    const sortedWords = [...words].sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const lastWordDate = sortedWords[0].createdAt?.toDate();
-    
-    if (lastWordDate) {
-      const lastDateNormalized = new Date(lastWordDate);
-      lastDateNormalized.setHours(0, 0, 0, 0);
-      
-      const oneDay = 1000 * 60 * 60 * 24;
-      const diffInTime = today.getTime() - lastDateNormalized.getTime();
-      const diffInDays = Math.round(diffInTime / oneDay);
-      
-      if (diffInDays <= 1) {
-        streak = calculateConsecutiveDays(sortedWords);
-      } else {
-        streak = 0;
-      }
-    }
-  }
+  const streak = calculateConsecutiveDays(words);
   
   return {
+    // Core progression
     level: levelInfo.level,
-    totalXP,
+    title: levelInfo.title,
+    tierColor: levelInfo.tierColor,
+    totalXP: levelInfo.totalXP,
     currentLevelXP: levelInfo.currentLevelXP,
     xpForNextLevel: levelInfo.xpForNextLevel,
+    progressPercent: levelInfo.progressPercent,
+    
+    // Streaks
     streak,
-    progressPercent: Math.round((levelInfo.currentLevelXP / levelInfo.xpForNextLevel) * 100)
+    streakMilestones: GamificationV2.getStreakMilestones(streak),
+    
+    // Content
+    wordCount: words.length,
+    
+    // Achievements
+    achievements: GamificationV2.checkAchievements({
+      wordCount: words.length,
+      streak,
+      level: levelInfo.level,
+      totalXP: levelInfo.totalXP,
+    }),
   };
 };
 
-// Helper: Count consecutive days with word additions
-function calculateConsecutiveDays(sortedWords) {
-  if (!sortedWords.length) return 0;
-  
-  let streak = 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  let checkDate = new Date(today);
-  
-  const activeDates = new Set(
-    sortedWords.map(w => {
-      if (!w.createdAt) return null;
-      const d = w.createdAt.toDate();
-      return d.toDateString();
-    }).filter(d => d)
-  );
-  
-  if (!activeDates.has(today.toDateString())) {
-    checkDate.setDate(checkDate.getDate() - 1);
-    if (!activeDates.has(checkDate.toDateString())) {
-      return 0;
-    }
-  }
-  
-  while (activeDates.has(checkDate.toDateString())) {
-    streak++;
-    checkDate.setDate(checkDate.getDate() - 1);
-  }
-  
-  return streak;
-}
+// ============================================================================
+// NEW FEATURES
+// ============================================================================
+
+// Get all available achievements
+export const getAllAchievements = () => GamificationV2.ACHIEVEMENTS;
+
+// Get mastery info for a word
+export const getWordMastery = (word) => GamificationV2.calculateMastery(word);
+
+// Get daily challenges
+export const getDailyChallenges = (userProfile) => GamificationV2.generateDailyChallenges(userProfile);
+
+// Calculate XP for an activity
+export const calculateActivityXP = (activity, details) => GamificationV2.calculateActivityXP(activity, details);
+
+// Comprehensive stats
+export const getComprehensiveStats = (words, studySessions, userProfile) => {
+  return GamificationV2.calculateComprehensiveStats(words, studySessions, userProfile);
+};
