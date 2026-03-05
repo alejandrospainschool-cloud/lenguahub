@@ -19,8 +19,6 @@ import LessonProgressCard from '../../components/lessons/LessonProgressCard'
 import StreakAnimation from '../../components/animations/StreakAnimation'
 import AnimatedToast from '../../components/animations/AnimatedToast'
 import AnimatedStatCard from '../../components/animations/AnimatedStatCard'
-import GamificationPanel from '../../components/gamification/GamificationPanel'
-import DailyChallengesWidget from '../../components/gamification/DailyChallengesWidget'
 import { 
   isStreakMilestone,
   getCelebrationMessages
@@ -394,16 +392,6 @@ export default function Dashboard({
           onClick={() => navigate('/calendar')}
         />
       </div>
-
-      {/* 3.7. GAMIFICATION PANEL */}
-      <div className="p-6 bg-gradient-to-br from-slate-800/40 to-slate-900/20 border border-slate-700/30 rounded-2xl">
-        <GamificationPanel stats={stats} user={user} />
-      </div>
-
-      {/* 3.8. DAILY CHALLENGES */}
-      {userProfile && (
-        <DailyChallengesWidget userProfile={userProfile} />
-      )}
 
       {/* 4. NAVIGATION GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">

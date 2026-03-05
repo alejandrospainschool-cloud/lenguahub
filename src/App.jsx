@@ -13,6 +13,7 @@ import CalendarView from './modules/calendar/Calendar'
 import Study from './modules/study/Study'
 import Practice from './modules/study/Practice'
 import Tools from './modules/ai/Tools'
+import BadgesTab from './modules/badges/BadgesTab'
 import Login from './modules/auth/Login'
 import ForgotPassword from './modules/auth/ForgotPassword'
 import Onboarding from './modules/auth/Onboarding'
@@ -447,6 +448,15 @@ function StudentLayout({ user, isGuest }) {
                   dailyUsage={dailyUsage}
                   trackUsage={trackUsage}
                   onUpgrade={handleUpgrade}
+                />
+              }
+            />
+            <Route
+              path="/badges"
+              element={
+                <BadgesTab
+                  words={words}
+                  events={events}
                 />
               }
             />

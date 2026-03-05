@@ -7,6 +7,7 @@ import {
   Brain, 
   Sparkles, 
   Zap,
+  Trophy,
   LogOut, 
   X 
 } from 'lucide-react';
@@ -24,6 +25,7 @@ export default function Sidebar({ user, isOpen, onClose }) {
     { label: 'Practice', icon: Zap, path: '/practice' },
     { label: 'Lesson Log', icon: Calendar, path: '/calendar' },
     { label: 'Study Mode', icon: Brain, path: '/study' },
+    { label: 'Badges', icon: Trophy, path: '/badges' },
     { label: 'AI Tools', icon: Sparkles, path: '/tools' },
   ];
 
