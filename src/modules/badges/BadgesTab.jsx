@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { ArrowLeft, Trophy } from 'lucide-react'
 import { calculateCurrentBadge, getNextBadgeProgress, getLevelFromXP, BADGE_TIERS } from '../../lib/gamification-simple'
+import BadgeWall from '../../components/gamification/BadgeWall'
 
 export default function BadgesTab({ words, events, onBack }) {
   const [activityStats, setActivityStats] = useState({
@@ -117,7 +118,7 @@ export default function BadgesTab({ words, events, onBack }) {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 md:px-8 space-y-8 pb-12">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 space-y-8 pb-12">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         {onBack && (
@@ -133,6 +134,9 @@ export default function BadgesTab({ words, events, onBack }) {
           <p className="text-slate-400 text-sm mt-1">Track your learning milestones</p>
         </div>
       </div>
+
+      {/* Badge Wall - Main Visual Section */}
+      <BadgeWall stats={stats} />
 
       {/* Current Badge Display */}
       <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/30 border border-slate-700/30 rounded-2xl p-8">
