@@ -11,24 +11,37 @@ import AnimatedToast from '../../components/animations/AnimatedToast';
 import { getCelebrationMessages } from '../../lib/animationHelpers';
 
 // --- HELPERS ---
+const truncateToWords = (text, wordCount = 2) => {
+  if (!text) return '';
+  const words = text.trim().split(/\s+/);
+  return words.slice(0, wordCount).join(' ');
+};
+
 const getWordContent = (word) => {
+  let content = '';
+  
   // Try primaryDefinition first (from word enrichment or custom)
-  if (word?.primaryDefinition && word.primaryDefinition.trim()) return word.primaryDefinition;
-  
+  if (word?.primaryDefinition && word.primaryDefinition.trim()) {
+    content = word.primaryDefinition;
+  }
   // Try custom note
-  if (word?.customNote && word.customNote.trim()) return word.customNote;
-  
+  else if (word?.customNote && word.customNote.trim()) {
+    content = word.customNote;
+  }
   // Try enrichment data
-  if (word?.enrichment?.entries?.[0]?.definitions?.[0]?.text) {
-    return word.enrichment.entries[0].definitions[0].text;
+  else if (word?.enrichment?.entries?.[0]?.definitions?.[0]?.text) {
+    content = word.enrichment.entries[0].definitions[0].text;
+  }
+  // Legacy fallback
+  else if (word?.translation && word.translation.trim()) {
+    content = word.translation;
+  }
+  else if (word?.definition && word.definition.trim()) {
+    content = word.definition;
   }
   
-  // Legacy fallback
-  if (word?.translation && word.translation.trim()) return word.translation;
-  if (word?.definition && word.definition.trim()) return word.definition;
-  
-  // Show nothing if truly empty
-  return '';
+  // Return first 1-2 words only
+  return truncateToWords(content, 2);
 };
 
 const speak = (text, lang = 'es-ES') => {
