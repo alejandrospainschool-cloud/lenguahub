@@ -1,5 +1,7 @@
 import express from 'express'
 import { generateContent } from '../lib/ai.js'
+import checkoutHandler from '../../api/checkout.js'
+import wordinfoHandler from '../../api/wordinfo.js'
 
 const app = express()
 
@@ -13,6 +15,9 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204)
   next()
 })
+
+app.all('/api/checkout', checkoutHandler)
+app.all('/api/wordinfo', wordinfoHandler)
 
 app.get('/api/health', (req, res) => {
   res.send('OK')
