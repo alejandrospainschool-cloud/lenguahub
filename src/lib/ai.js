@@ -22,12 +22,18 @@ export async function generateContent(prompt) {
     }
 
     if (!res.ok) {
-      throw new Error(data?.text || `Request failed (${res.status}): ${text}`)
+      const errorMsg = data?.text || `Request failed (${res.status}): ${text}`
+      
+      if (res.status === 429) {
+        throw new Error(`Rate limit exceeded (429). Please wait a moment and try again. ${errorMsg}`)
+      }
+      
+      throw new Error(errorMsg)
     }
 
     return (data?.text || '').trim() || 'No response'
   } catch (error) {
-    const userMessage = handleError(error, 'AI Content Generation')
-    throw new Error(userMessage)
+    handleError(error, 'AI Content Generation')
+    throw error
   }
 }
