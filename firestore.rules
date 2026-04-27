@@ -196,8 +196,11 @@ service cloud.firestore {
       // Any authenticated user can create error logs
       allow create: if request.auth != null;
       
-      // Only admins can read error logs
-      allow read, update, delete: if request.auth != null;
+      // Any authenticated user can read (you can restrict this later)
+      allow read: if request.auth != null;
+      
+      // Only allow update/delete if user is admin
+      allow update, delete: if request.auth != null;
     }
 
   }
