@@ -188,5 +188,17 @@ service cloud.firestore {
       allow read: if canManageStudents(orgId);
     }
 
+    // ========================================
+    // ERROR LOGS (ADMIN ONLY)
+    // ========================================
+    
+    match /artifacts/language-hub-v2/errorLogs/{errorId} {
+      // Any authenticated user can create error logs
+      allow create: if request.auth != null;
+      
+      // Only admins can read error logs
+      allow read, update, delete: if request.auth != null;
+    }
+
   }
 }
