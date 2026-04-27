@@ -1,5 +1,5 @@
 // src/lib/errorHandler.js
-// Centralized error handling: logs detailed errors for debugging, shows generic messages to users
+// Centralized error handling: logs errors to admin and shows to user
 
 /**
  * Sends error details to admin account via API
@@ -55,15 +55,11 @@ async function logErrorToAdmin(error, context, additionalData = {}) {
 }
 
 /**
- * Handles errors consistently across the app
- * - Logs full error details to console for debugging
- * - Sends detailed error to admin account
- * - Returns a generic user-friendly message
- * 
+ * Handles errors: logs to console, sends to admin, and throws the error
  * @param {Error|string} error - The error object or message
  * @param {string} context - Context for logging (e.g., 'API Call', 'Firestore', 'Auth')
  * @param {Object} additionalData - Extra data to attach to the error log
- * @returns {string} Generic user-friendly error message
+ * @throws Rethrows the error after logging
  */
 export function handleError(error, context = 'Operation', additionalData = {}) {
   // Log full error details to console for debugging
@@ -76,21 +72,6 @@ export function handleError(error, context = 'Operation', additionalData = {}) {
   // Send error to admin account (non-blocking)
   logErrorToAdmin(error, context, additionalData);
   
-  // Return generic message to user
-  return 'Something went wrong. Please try again.'
-}
-
-/**
- * Wrapper for async API calls with error handling
- * @param {Function} apiCall - Async function that makes the API call
- * @param {string} context - Context for logging
- * @returns {Promise<any>} Result from apiCall or throws with generic message
- */
-export async function withErrorHandler(apiCall, context = 'API Call') {
-  try {
-    return await apiCall()
-  } catch (error) {
-    const userMessage = handleError(error, context)
-    throw new Error(userMessage)
-  }
+  // Rethrow the error so the caller can handle it
+  throw error;
 }
